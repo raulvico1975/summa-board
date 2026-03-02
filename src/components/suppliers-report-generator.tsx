@@ -355,10 +355,16 @@ export function SuppliersReportGenerator() {
     }
 
     // Download directe
-    downloadAEATFile(result.content);
+    downloadAEATFile(result.content, {
+      includedCount: result.includedCount,
+      excludedCount: result.excludedCount,
+    });
   };
 
-  const downloadAEATFile = (content: string) => {
+  const downloadAEATFile = (
+    content: string,
+    summary?: { includedCount: number; excludedCount: number }
+  ) => {
     const encoded = encodeLatin1(content);
     if (encoded.error) {
       toast({ variant: 'destructive', title: t.reports.model347AEATEncodingError, description: encoded.error });
@@ -378,8 +384,8 @@ export function SuppliersReportGenerator() {
     toast({
       title: t.reports.exportComplete,
       description: t.reports.model347AEATExcludedDesc(
-        aeatPendingExport?.includedCount ?? 0,
-        aeatPendingExport?.excludedCount ?? 0
+        summary?.includedCount ?? 0,
+        summary?.excludedCount ?? 0
       ),
     });
 
@@ -389,7 +395,10 @@ export function SuppliersReportGenerator() {
 
   const handleConfirmAEATExport = () => {
     if (!aeatPendingExport) return;
-    downloadAEATFile(aeatPendingExport.content);
+    downloadAEATFile(aeatPendingExport.content, {
+      includedCount: aeatPendingExport.includedCount,
+      excludedCount: aeatPendingExport.excludedCount,
+    });
   };
 
   const handleDownloadExcludedCsv = () => {
@@ -678,7 +687,15 @@ export function SuppliersReportGenerator() {
       {/* ═══════════════════════════════════════════════════════════════════════
           DIALOG EXCLOSOS AEAT
           ═══════════════════════════════════════════════════════════════════════ */}
-      <Dialog open={aeatExcludedDialogOpen} onOpenChange={setAeatExcludedDialogOpen}>
+      <Dialog
+        open={aeatExcludedDialogOpen}
+        onOpenChange={(open) => {
+          setAeatExcludedDialogOpen(open);
+          if (!open) {
+            setAeatPendingExport(null);
+          }
+        }}
+      >
         <DialogContent className="w-[calc(100vw-2rem)] max-w-3xl sm:max-w-3xl max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
