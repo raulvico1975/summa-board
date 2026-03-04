@@ -16,8 +16,6 @@ const WINDOW_PRESETS = [
   { id: "evening", i18nKey: "windowEvening", start: "18:00", end: "21:00" },
 ] as const;
 
-type WindowPresetId = (typeof WINDOW_PRESETS)[number]["id"];
-
 function timeToMinutes(time: string): number {
   const [hourRaw, minuteRaw] = time.split(":");
   const hours = Number.parseInt(hourRaw ?? "0", 10);
@@ -31,6 +29,18 @@ function minutesToTime(minutes: number): string {
     .padStart(2, "0");
   const mins = (minutes % 60).toString().padStart(2, "0");
   return `${hours}:${mins}`;
+}
+
+function buildHalfHourScale(start = "07:00", end = "22:00"): string[] {
+  const startMinutes = timeToMinutes(start);
+  const endMinutes = timeToMinutes(end);
+  const scale: string[] = [];
+
+  for (let current = startMinutes; current <= endMinutes; current += 30) {
+    scale.push(minutesToTime(current));
+  }
+
+  return scale;
 }
 
 function buildTimes(start: string, end: string): string[] {
@@ -94,7 +104,8 @@ export function NewPollForm() {
   const [description, setDescription] = useState("");
   const [timezone, setTimezone] = useState(defaultTimezone);
   const [daysToShow, setDaysToShow] = useState<number>(7);
-  const [windowPreset, setWindowPreset] = useState<WindowPresetId>("workday");
+  const [windowStart, setWindowStart] = useState("09:00");
+  const [windowEnd, setWindowEnd] = useState("19:00");
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,24 +115,27 @@ export function NewPollForm() {
     [daysToShow]
   );
 
-  const currentWindow = useMemo(
-    () => WINDOW_PRESETS.find((preset) => preset.id === windowPreset) ?? WINDOW_PRESETS[0],
-    [windowPreset]
-  );
+  const timeScale = useMemo(() => buildHalfHourScale(), []);
 
-  const visibleTimes = useMemo(
-    () => buildTimes(currentWindow.start, currentWindow.end),
-    [currentWindow]
-  );
+  const visibleTimes = useMemo(() => {
+    if (timeToMinutes(windowEnd) <= timeToMinutes(windowStart)) {
+      return [];
+    }
+
+    return buildTimes(windowStart, windowEnd);
+  }, [windowStart, windowEnd]);
 
   useEffect(() => {
+    const visibleSet = new Set(visibleTimes);
+
     setSelectedSlots((current) =>
       current.filter((slotKey) => {
-        const dayOffset = Number.parseInt(slotKey.split("|")[0] ?? "0", 10);
-        return dayOffset >= 1 && dayOffset <= daysToShow;
+        const [dayOffsetRaw, time] = slotKey.split("|");
+        const dayOffset = Number.parseInt(dayOffsetRaw ?? "0", 10);
+        return dayOffset >= 1 && dayOffset <= daysToShow && visibleSet.has(time ?? "");
       })
     );
-  }, [daysToShow]);
+  }, [daysToShow, visibleTimes]);
 
   const optionsIso = useMemo(
     () => selectedSlots.map(slotKeyToIso).sort((a, b) => a.localeCompare(b)),
@@ -141,6 +155,8 @@ export function NewPollForm() {
   }
 
   function selectAllVisibleSlots() {
+    if (visibleTimes.length === 0) return;
+
     const next = new Set(selectedSlots);
 
     dayOffsets.forEach((dayOffset) => {
@@ -152,10 +168,21 @@ export function NewPollForm() {
     setSelectedSlots(Array.from(next));
   }
 
+  function applyPreset(start: string, end: string) {
+    setWindowStart(start);
+    setWindowEnd(end);
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (visibleTimes.length === 0) {
+      setError(ca.poll.invalidWindow);
+      setLoading(false);
+      return;
+    }
 
     if (optionsIso.length === 0) {
       setError(ca.poll.selectAtLeastOne);
@@ -180,7 +207,7 @@ export function NewPollForm() {
         throw new Error(data.error ?? "No s'ha pogut crear la votació");
       }
 
-      router.push(`/polls/${data.pollId}`);
+      router.push(`/polls/${data.pollId}?created=1`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperat");
@@ -230,17 +257,32 @@ export function NewPollForm() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">{ca.poll.windowLabel}</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-700">{ca.poll.windowStartLabel}</label>
             <select
-              value={windowPreset}
-              onChange={(event) => setWindowPreset(event.target.value as WindowPresetId)}
+              value={windowStart}
+              onChange={(event) => setWindowStart(event.target.value)}
               className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
             >
-              {WINDOW_PRESETS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {ca.poll[preset.i18nKey]}
+              {timeScale.map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-700">{ca.poll.windowEndLabel}</label>
+            <select
+              value={windowEnd}
+              onChange={(event) => setWindowEnd(event.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            >
+              {timeScale.map((time) => (
+                <option key={time} value={time}>
+                  {time}
                 </option>
               ))}
             </select>
@@ -249,7 +291,7 @@ export function NewPollForm() {
           <button
             type="button"
             onClick={selectAllVisibleSlots}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 md:self-end"
           >
             {ca.poll.selectVisible}
           </button>
@@ -257,18 +299,40 @@ export function NewPollForm() {
           <button
             type="button"
             onClick={() => setSelectedSlots([])}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 md:self-end"
           >
             {ca.poll.clearSelection}
           </button>
         </div>
 
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-700">{ca.poll.windowQuickPresets}</p>
+          <div className="flex flex-wrap gap-2">
+            {WINDOW_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyPreset(preset.start, preset.end)}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium ${
+                  windowStart === preset.start && windowEnd === preset.end
+                    ? "border-sky-300 bg-sky-50 text-sky-700"
+                    : "border-slate-300 bg-white text-slate-700"
+                }`}
+              >
+                {ca.poll[preset.i18nKey]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {visibleTimes.length === 0 ? (
+          <p className="text-xs text-red-600">{ca.poll.invalidWindow}</p>
+        ) : null}
+
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {dayOffsets.map((dayOffset) => (
             <div key={dayOffset} className="rounded-md border border-slate-200 bg-white p-3">
-              <p className="mb-2 text-xs font-semibold capitalize text-slate-700">
-                {getDayLabel(dayOffset)}
-              </p>
+              <p className="mb-2 text-xs font-semibold capitalize text-slate-700">{getDayLabel(dayOffset)}</p>
               <div className="grid grid-cols-3 gap-2">
                 {visibleTimes.map((time) => {
                   const slotKey = `${dayOffset}|${time}`;

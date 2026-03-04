@@ -272,6 +272,12 @@ export async function getMeetingById(meetingId: string): Promise<MeetingWithAsse
   };
 }
 
+export async function getMeetingIdByPollId(pollId: string): Promise<string | null> {
+  const snap = await meetingsCol.where("pollId", "==", pollId).limit(1).get();
+  const doc = snap.docs[0];
+  return doc ? doc.id : null;
+}
+
 export async function registerMeetingRecording(input: {
   meetingId: string;
   storagePath: string;
