@@ -1,0 +1,113 @@
+import { notFound } from "next/navigation";
+import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { StatusBadge } from "@/src/components/ui/status-badge";
+import { RecordingUploader } from "@/src/components/meetings/recording-uploader";
+import { MinutesEditor } from "@/src/components/meetings/minutes-editor";
+import { getMeetingById } from "@/src/lib/db/repo";
+import { formatDateTime } from "@/src/lib/dates";
+import { requireOwnerPage } from "@/src/lib/ui/owner-page";
+
+export default async function MeetingPage({ params }: { params: Promise<{ meetingId: string }> }) {
+  const owner = await requireOwnerPage();
+  const { meetingId } = await params;
+
+  const meeting = await getMeetingById(meetingId);
+  if (!meeting || meeting.orgId !== owner.orgId) {
+    notFound();
+  }
+
+  const latestTranscript = meeting.transcripts[0];
+  const latestMinutes = meeting.minutes[0];
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-semibold">Reunió</h1>
+        <p className="text-sm text-slate-600">{meeting.poll.title}</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold">Convocatòria</h2>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p>Data: {formatDateTime(meeting.scheduledAt)}</p>
+          <div className="flex flex-wrap gap-3">
+            <a
+              href={`/api/public/ics?meetingId=${meeting.id}`}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            >
+              Descarregar ICS
+            </a>
+            <a
+              href={`/api/owner/minutes/export?meetingId=${meeting.id}`}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            >
+              Descarregar acta (.md)
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold">Gravacions</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <RecordingUploader meetingId={meeting.id} />
+
+          <div className="space-y-2">
+            {meeting.recordings.length === 0 ? (
+              <p className="text-sm text-slate-500">Encara no hi ha gravacions.</p>
+            ) : (
+              meeting.recordings.map((recording) => (
+                <div
+                  key={recording.id}
+                  className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm"
+                >
+                  <div>
+                    <p>{recording.originalName ?? recording.id}</p>
+                    <p className="text-xs text-slate-500">{formatDateTime(recording.createdAt)}</p>
+                  </div>
+                  <StatusBadge status={recording.status} />
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold">Transcripció</h2>
+        </CardHeader>
+        <CardContent>
+          {latestTranscript?.text ? (
+            <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+              {latestTranscript.text}
+            </pre>
+          ) : (
+            <p className="text-sm text-slate-500">No hi ha transcripció encara.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold">Acta</h2>
+        </CardHeader>
+        <CardContent>
+          {latestMinutes ? (
+            <MinutesEditor
+              meetingId={meeting.id}
+              minutesId={latestMinutes.id}
+              initialMarkdown={latestMinutes.minutesMarkdown}
+            />
+          ) : (
+            <p className="text-sm text-slate-500">No hi ha acta generada encara.</p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
