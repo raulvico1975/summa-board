@@ -12,7 +12,7 @@ type Option = {
 };
 
 export function VoteForm({ slug, options, disabled }: { slug: string; options: Option[]; disabled?: boolean }) {
-  const tokenKey = useMemo(() => `summaboard:voterToken:${slug}`, [slug]);
+  const tokenKey = useMemo(() => `summareu:voterToken:${slug}`, [slug]);
 
   const [voterName, setVoterName] = useState("");
   const [availability, setAvailability] = useState<Record<string, boolean>>(

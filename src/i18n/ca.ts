@@ -1,5 +1,5 @@
 export const ca = {
-  appName: "SummaBoard",
+  appName: "Summa Reu",
   nav: {
     dashboard: "Tauler",
     newPoll: "Nova votació",

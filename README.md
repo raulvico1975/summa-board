@@ -1,4 +1,4 @@
-# SummaBoard
+# Summa Reu
 
 MVP local-first per coordinar votacions tipus Doodle i generar actes de reunió per entitats socials.
 
@@ -22,7 +22,7 @@ Variables importants:
 - `GEMINI_MODEL=` (opcional override)
 - `TELEGRAM_BOT_TOKEN=` (obligatori per alertes)
 - `TELEGRAM_CHAT_ID=68198321`
-- `FORCE_CANONICAL_REDIRECT=false` (posa `true` quan el DNS de `summa-board.app` ja estigui actiu)
+- `FORCE_CANONICAL_REDIRECT=false` (posa `true` quan el DNS de `summareu.app` ja estigui actiu)
 
 ## Execució local
 

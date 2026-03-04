@@ -1,7 +1,7 @@
 import type { I18nCa } from "@/src/i18n/ca";
 
 export const es: I18nCa = {
-  appName: "SummaBoard",
+  appName: "Summa Reu",
   nav: {
     dashboard: "Panel",
     newPoll: "Nueva votación",

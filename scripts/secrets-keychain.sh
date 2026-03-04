@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVICE_PREFIX="summaboard"
+SERVICE_PREFIX="summareu"
 ENV_FILE=".env.local"
 
 usage() {

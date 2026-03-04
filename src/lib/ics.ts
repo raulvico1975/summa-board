@@ -26,7 +26,7 @@ export function buildMeetingIcs(params: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//SummaBoard//CA",
+    "PRODID:-//Summa Reu//CA",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
@@ -35,7 +35,7 @@ export function buildMeetingIcs(params: {
     `DTSTART;TZID=${timezone}:${formatUtc(params.startsAt).replace("Z", "")}`,
     `DTEND;TZID=${timezone}:${formatUtc(endsAt).replace("Z", "")}`,
     `SUMMARY:${escapeIcs(params.title)}`,
-    `DESCRIPTION:${escapeIcs(params.description ?? "Reunió creada des de SummaBoard")}`,
+    `DESCRIPTION:${escapeIcs(params.description ?? "Reunió creada des de Summa Reu")}`,
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");

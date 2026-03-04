@@ -51,7 +51,7 @@ async function seedFirestore() {
   await db.collection("polls").doc(openPollId).set({
     orgId,
     title: "Junta mensual",
-    description: "Votació demo SummaBoard",
+    description: "Votació demo Summa Reu",
     timezone: "Europe/Madrid",
     slug: openPollSlug,
     status: "open",

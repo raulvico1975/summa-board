@@ -6,11 +6,12 @@ import { ca } from "@/src/i18n/ca";
 import { getOwnerFromServerCookies } from "@/src/lib/firebase/auth";
 import { LogoutButton } from "@/src/components/logout-button";
 import { ErrorMonitor } from "@/src/components/error-monitor";
+import { BrandLogo } from "@/src/components/brand-logo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "SummaBoard",
+  title: "Summa Reu",
   description: "Votacions i actes per entitats socials",
 };
 
@@ -26,7 +27,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-3">
             <Link href="/" className="text-lg font-semibold text-sky-600">
-              {ca.appName}
+              <BrandLogo />
             </Link>
 
             <nav className="flex items-center gap-2 text-sm">

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const ics = buildMeetingIcs({
-      uid: `meeting-${meeting.id}@summaboard`,
+      uid: `meeting-${meeting.id}@summareu.app`,
       title: meeting.poll.title,
       description: `Reunió generada des de la votació ${meeting.poll.slug}`,
       startsAt,
