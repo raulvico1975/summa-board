@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root {
+  --background: 0 0% 98%;
+  --foreground: 240 10% 10%;
+  --primary: 199 89% 48%;
+  --primary-soft: 199 89% 96%;
+  --border: 220 13% 91%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  font-family: var(--font-sans), Inter, system-ui, -apple-system, sans-serif;
+}

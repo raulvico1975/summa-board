@@ -1,0 +1,69 @@
+import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
+import { adminAuth, adminDb } from "@/src/lib/firebase/admin";
+
+export const SESSION_COOKIE_NAME = "__session";
+
+export type OwnerContext = {
+  uid: string;
+  orgId: string;
+  orgName: string;
+};
+
+async function resolveOwnerContext(uid: string): Promise<OwnerContext | null> {
+  const snap = await adminDb
+    .collection("orgs")
+    .where("ownerUid", "==", uid)
+    .limit(1)
+    .get();
+
+  const orgDoc = snap.docs[0];
+  if (!orgDoc) {
+    return null;
+  }
+
+  const data = orgDoc.data() as { name?: string };
+  return {
+    uid,
+    orgId: orgDoc.id,
+    orgName: data.name ?? "Organització",
+  };
+}
+
+export async function getSessionUidFromRequest(request: NextRequest): Promise<string | null> {
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!sessionCookie) {
+    return null;
+  }
+
+  try {
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+    return decoded.uid;
+  } catch {
+    return null;
+  }
+}
+
+export async function getOwnerFromRequest(request: NextRequest): Promise<OwnerContext | null> {
+  const uid = await getSessionUidFromRequest(request);
+  if (!uid) {
+    return null;
+  }
+
+  return resolveOwnerContext(uid);
+}
+
+export async function getOwnerFromServerCookies(): Promise<OwnerContext | null> {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  if (!sessionCookie) {
+    return null;
+  }
+
+  try {
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+    return resolveOwnerContext(decoded.uid);
+  } catch {
+    return null;
+  }
+}

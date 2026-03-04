@@ -1,0 +1,34 @@
+{
+  "name": "summa-board",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "emu": "PATH=/opt/homebrew/opt/openjdk/bin:$PATH firebase emulators:exec --project summa-board --only auth,firestore,storage,ui \"NEXT_PUBLIC_USE_EMULATORS=true NEXT_PUBLIC_FIREBASE_PROJECT_ID=summa-board NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=summa-board.appspot.com FIREBASE_PROJECT_ID=summa-board FIREBASE_STORAGE_BUCKET=summa-board.appspot.com next dev --hostname 127.0.0.1 --port 3000\"",
+    "seed": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 FIREBASE_PROJECT_ID=summa-board FIREBASE_STORAGE_BUCKET=summa-board.appspot.com node scripts/seed.mjs",
+    "test:smoke": "node scripts/smoke.mjs",
+    "bootstrap:firebase": "bash scripts/bootstrap-firebase.sh"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "firebase": "^12.10.0",
+    "firebase-admin": "^13.7.0",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

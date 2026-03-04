@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOrgOwner(orgId) {
+      return signedIn() &&
+        get(/databases/$(database)/documents/orgs/$(orgId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isPollOwner(pollId) {
+      return signedIn() &&
+        isOrgOwner(get(/databases/$(database)/documents/polls/$(pollId)).data.orgId);
+    }
+
+    function isMeetingOwner(meetingId) {
+      return signedIn() &&
+        isOrgOwner(get(/databases/$(database)/documents/meetings/$(meetingId)).data.orgId);
+    }
+
+    match /orgs/{orgId} {
+      allow read: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /polls/{pollId} {
+      allow read: if signedIn() && isOrgOwner(resource.data.orgId);
+      allow create: if signedIn() && isOrgOwner(request.resource.data.orgId);
+      allow update, delete: if signedIn() && isOrgOwner(resource.data.orgId);
+
+      match /options/{optionId} {
+        allow read, write: if isPollOwner(pollId);
+      }
+
+      match /voters/{voterId} {
+        allow read, write: if isPollOwner(pollId);
+      }
+
+      match /votes/{voterId} {
+        allow read, write: if isPollOwner(pollId);
+      }
+    }
+
+    match /meetings/{meetingId} {
+      allow read, write: if isMeetingOwner(meetingId);
+
+      match /recordings/{recordingId} {
+        allow read, write: if isMeetingOwner(meetingId);
+      }
+
+      match /transcripts/{transcriptId} {
+        allow read, write: if isMeetingOwner(meetingId);
+      }
+
+      match /minutes/{minutesId} {
+        allow read, write: if isMeetingOwner(meetingId);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

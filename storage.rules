@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isMeetingOwner(meetingId) {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/orgs/$(firestore.get(/databases/(default)/documents/meetings/$(meetingId)).data.orgId)).data.ownerUid == request.auth.uid;
+    }
+
+    match /meetings/{meetingId}/recordings/{allPaths=**} {
+      allow read, write: if isMeetingOwner(meetingId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
