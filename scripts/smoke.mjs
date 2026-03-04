@@ -18,9 +18,14 @@ const seed = await readSeed();
 const pollSlug = seed.poll.slug;
 const optionIds = seed.poll.optionIds;
 const meetingId = seed.meeting.meetingId;
+const ownerEmail = seed.owner?.email;
+const ownerPassword = seed.owner?.password;
 
 const pollRes = await fetch(`${baseUrl}/p/${pollSlug}`);
 assert(pollRes.ok, "La pàgina pública de votació no respon OK");
+
+const loginRes = await fetch(`${baseUrl}/login`);
+assert(loginRes.ok, "La pàgina /login no respon OK");
 
 const availability = Object.fromEntries(optionIds.map((id, index) => [id, index !== 1]));
 
@@ -57,5 +62,39 @@ assert(voteData2.voterId === voteData.voterId, "El re-vot no ha mantingut voterI
 const icsRes = await fetch(`${baseUrl}/api/public/ics?meetingId=${meetingId}`);
 assert(icsRes.ok, "L'endpoint ICS no ha retornat OK");
 assert((icsRes.headers.get("content-type") || "").includes("text/calendar"), "ICS content-type invàlid");
+
+if (ownerEmail && ownerPassword) {
+  const authRes = await fetch(
+    "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: ownerEmail,
+        password: ownerPassword,
+        returnSecureToken: true,
+      }),
+    }
+  );
+
+  assert(authRes.ok, "Sign-in owner a l'emulador ha fallat");
+  const authData = await authRes.json();
+  assert(Boolean(authData.idToken), "Sign-in owner sense idToken");
+
+  const sessionRes = await fetch(`${baseUrl}/api/auth/session-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken: authData.idToken }),
+  });
+
+  assert(sessionRes.ok, "Session login owner ha fallat");
+  const setCookie = sessionRes.headers.get("set-cookie");
+  assert(Boolean(setCookie), "Session login owner sense cookie");
+
+  const dashboardRes = await fetch(`${baseUrl}/dashboard`, {
+    headers: { cookie: setCookie },
+  });
+  assert(dashboardRes.ok, "Dashboard owner no accessible després de login");
+}
 
 console.log("Smoke OK");

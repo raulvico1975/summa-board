@@ -47,10 +47,39 @@ npm run seed
 npm run test:smoke
 ```
 
+5. Monitor de login en bucle (opcional):
+
+```bash
+npm run monitor:login
+```
+
 ## Credencials demo seed
 
 - Email: `owner@summa.local`
 - Password: `123456`
+
+## Secrets en lloc segur (macOS Keychain)
+
+Guarda secrets fora del repo:
+
+```bash
+scripts/secrets-keychain.sh set GEMINI_API_KEY "xxxx"
+scripts/secrets-keychain.sh set FIREBASE_CLIENT_EMAIL "service-account@project.iam.gserviceaccount.com"
+scripts/secrets-keychain.sh set FIREBASE_PRIVATE_KEY "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+scripts/secrets-keychain.sh set FIREBASE_PRIVATE_KEY_ID "xxxx"
+```
+
+Genera `.env.local` des de Keychain:
+
+```bash
+scripts/secrets-keychain.sh write-env
+```
+
+Consultar un secret:
+
+```bash
+scripts/secrets-keychain.sh get GEMINI_API_KEY
+```
 
 ## Rutes
 
