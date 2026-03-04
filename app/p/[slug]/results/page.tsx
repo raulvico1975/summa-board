@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { StatusBadge } from "@/src/components/ui/status-badge";
 import { ResultsTable } from "@/src/components/polls/results-table";
+import { ca } from "@/src/i18n/ca";
 import { getPollBySlug, getPollVoteRows } from "@/src/lib/db/repo";
 import { formatDateTime } from "@/src/lib/dates";
 import { getOwnerFromServerCookies } from "@/src/lib/firebase/auth";
@@ -27,7 +28,11 @@ export default async function PublicPollResultsPage({ params }: { params: Promis
   }));
 
   const ranked = [...totals].sort((a, b) => b.count - a.count);
-  const bestOption = ranked[0];
+  const hasVotes = rows.length > 0;
+  const topCount = ranked[0]?.count ?? 0;
+  const topOptions = ranked.filter((item) => item.count === topCount);
+  const isTie = hasVotes && topOptions.length > 1;
+  const highlightedOptionIds = new Set(hasVotes ? topOptions.map((item) => item.id) : []);
   const isOwner = owner?.orgId === poll.orgId;
 
   return (
@@ -39,23 +44,33 @@ export default async function PublicPollResultsPage({ params }: { params: Promis
 
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">Opcions ordenades</h2>
+          <h2 className="text-base font-semibold">{ca.poll.rankedOptions}</h2>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          {ranked.map((item, index) => (
+          {ranked.map((item) => (
             <div
               key={item.id}
               className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-                index === 0 ? "border-sky-200 bg-sky-50" : "border-slate-200"
+                highlightedOptionIds.has(item.id) ? "border-sky-200 bg-sky-50" : "border-slate-200"
               }`}
             >
               <span>{item.label}</span>
-              <span className="font-medium">{item.count} disponibles</span>
+              <span className="font-medium">
+                {item.count} {ca.poll.availableCountSuffix}
+              </span>
             </div>
           ))}
 
-          {bestOption ? (
-            <p className="pt-2 text-sm text-sky-700">Millor opció: {bestOption.label}</p>
+          {!hasVotes ? <p className="pt-2 text-sm text-slate-600">{ca.poll.noVotesYet}</p> : null}
+          {hasVotes && isTie ? (
+            <p className="pt-2 text-sm text-sky-700">
+              {ca.poll.bestOptionsTie}: {topOptions.map((item) => item.label).join(" · ")}
+            </p>
+          ) : null}
+          {hasVotes && !isTie ? (
+            <p className="pt-2 text-sm text-sky-700">
+              {ca.poll.bestOption}: {topOptions[0].label}
+            </p>
           ) : null}
 
           {isOwner && poll.status === "open" ? (
@@ -68,7 +83,7 @@ export default async function PublicPollResultsPage({ params }: { params: Promis
 
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">Taula de vots</h2>
+          <h2 className="text-base font-semibold">{ca.poll.votesTable}</h2>
         </CardHeader>
         <CardContent>
           <ResultsTable options={options} rows={rows} />
