@@ -39,7 +39,10 @@ cat > firebase.json <<'JSON'
     }
   ],
   "hosting": {
-    "public": "public",
+    "source": ".",
+    "frameworksBackend": {
+      "region": "europe-west1"
+    },
     "ignore": [
       "firebase.json",
       "**/.*",

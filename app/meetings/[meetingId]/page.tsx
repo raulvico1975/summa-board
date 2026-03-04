@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { StatusBadge } from "@/src/components/ui/status-badge";
+import { MeetingLiveRefresh } from "@/src/components/meetings/meeting-live-refresh";
 import { RecordingUploader } from "@/src/components/meetings/recording-uploader";
 import { MinutesEditor } from "@/src/components/meetings/minutes-editor";
 import { getMeetingById } from "@/src/lib/db/repo";
@@ -18,6 +19,9 @@ export default async function MeetingPage({ params }: { params: Promise<{ meetin
 
   const latestTranscript = meeting.transcripts[0];
   const latestMinutes = meeting.minutes[0];
+  const hasActiveProcessing = meeting.recordings.some(
+    (recording) => recording.status === "uploaded" || recording.status === "processing"
+  );
 
   return (
     <div className="space-y-4">
@@ -55,6 +59,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ meetin
         </CardHeader>
         <CardContent className="space-y-4">
           <RecordingUploader meetingId={meeting.id} />
+          <MeetingLiveRefresh enabled={hasActiveProcessing} />
 
           <div className="space-y-2">
             {meeting.recordings.length === 0 ? (

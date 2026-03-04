@@ -8,6 +8,7 @@ import { ca } from "@/src/i18n/ca";
 import { defaultTimezone } from "@/src/lib/firebase/env";
 
 const DAY_OPTIONS = [5, 7, 10] as const;
+const MAX_OPTIONS = 20;
 
 const WINDOW_PRESETS = [
   { id: "workday", i18nKey: "windowWorkday", start: "09:00", end: "19:00" },
@@ -146,26 +147,52 @@ export function NewPollForm() {
     () => optionsIso.map((iso) => formatIsoOption(iso, timezone)),
     [optionsIso, timezone]
   );
+  const maxOptionsMessage = ca.poll.maxOptionsReached.replace("{max}", String(MAX_OPTIONS));
 
   function toggleSlot(dayOffset: number, time: string) {
     const key = `${dayOffset}|${time}`;
-    setSelectedSlots((current) =>
-      current.includes(key) ? current.filter((slot) => slot !== key) : [...current, key]
-    );
+
+    if (selectedSlots.includes(key)) {
+      setSelectedSlots((current) => current.filter((slot) => slot !== key));
+      if (error === maxOptionsMessage) {
+        setError(null);
+      }
+      return;
+    }
+
+    if (selectedSlots.length >= MAX_OPTIONS) {
+      setError(maxOptionsMessage);
+      return;
+    }
+
+    setError(null);
+    setSelectedSlots((current) => [...current, key]);
   }
 
   function selectAllVisibleSlots() {
     if (visibleTimes.length === 0) return;
 
     const next = new Set(selectedSlots);
+    let reachedLimit = false;
 
     dayOffsets.forEach((dayOffset) => {
       visibleTimes.forEach((time) => {
+        if (next.size >= MAX_OPTIONS) {
+          reachedLimit = true;
+          return;
+        }
+
         next.add(`${dayOffset}|${time}`);
       });
     });
 
     setSelectedSlots(Array.from(next));
+    if (reachedLimit) {
+      setError(maxOptionsMessage);
+      return;
+    }
+
+    setError(null);
   }
 
   function applyPreset(start: string, end: string) {
@@ -298,7 +325,10 @@ export function NewPollForm() {
 
           <button
             type="button"
-            onClick={() => setSelectedSlots([])}
+            onClick={() => {
+              setSelectedSlots([]);
+              setError(null);
+            }}
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 md:self-end"
           >
             {ca.poll.clearSelection}
@@ -337,17 +367,19 @@ export function NewPollForm() {
                 {visibleTimes.map((time) => {
                   const slotKey = `${dayOffset}|${time}`;
                   const active = selectedSlots.includes(slotKey);
+                  const disabled = !active && optionsIso.length >= MAX_OPTIONS;
 
                   return (
                     <button
                       key={slotKey}
                       type="button"
+                      disabled={disabled}
                       onClick={() => toggleSlot(dayOffset, time)}
                       className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
                         active
                           ? "border-sky-600 bg-sky-600 text-white shadow-sm"
                           : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
+                      } disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                       {time}
                     </button>
@@ -360,7 +392,7 @@ export function NewPollForm() {
 
         <div className="rounded-md border border-slate-200 bg-white p-3">
           <p className="text-xs font-semibold text-slate-700">
-            {ca.poll.optionsSelected} ({optionsIso.length})
+            {ca.poll.optionsSelected} ({optionsIso.length}/{MAX_OPTIONS})
           </p>
           {optionPreview.length === 0 ? (
             <p className="mt-1 text-xs text-slate-500">{ca.poll.optionsNone}</p>

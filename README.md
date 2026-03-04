@@ -53,6 +53,14 @@ npm run test:smoke
 npm run monitor:login
 ```
 
+## Deploy (SSR a Firebase Hosting)
+
+La configuració usa framework backend per Next.js (regió `europe-west1`).
+
+```bash
+firebase deploy --only hosting
+```
+
 ## Credencials demo seed
 
 - Email: `owner@summa.local`
@@ -100,6 +108,8 @@ Owner:
 
 - Les escriptures públiques de vots entren només via `/api/public/vote`.
 - El token de votant només es guarda raw a `localStorage`; al servidor només hash.
+- Les votacions admeten un màxim de 20 franges.
 - Pipeline premium:
   - Sense `GEMINI_API_KEY`: STUB
   - Amb `GEMINI_API_KEY`: intent REAL (Gemini); fallback STUB si falla.
+  - El processament de gravacions es posa en cua (response `202`) i la pantalla de reunió s'actualitza automàticament.

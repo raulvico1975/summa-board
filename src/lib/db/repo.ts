@@ -331,6 +331,43 @@ export async function getRecording(input: {
   return { id: snap.id, ...(snap.data() as RecordingDoc) };
 }
 
+export async function claimRecordingForProcessing(input: {
+  meetingId: string;
+  recordingId: string;
+}): Promise<"claimed" | "processing" | "done" | "missing"> {
+  const recordingRef = meetingsCol
+    .doc(input.meetingId)
+    .collection("recordings")
+    .doc(input.recordingId) as DocumentReference<RecordingDoc>;
+
+  return adminDb.runTransaction(async (trx) => {
+    const snap = await trx.get(recordingRef);
+    if (!snap.exists) {
+      return "missing";
+    }
+
+    const data = snap.data() as RecordingDoc;
+    if (data.status === "processing") {
+      return "processing";
+    }
+
+    if (data.status === "done") {
+      return "done";
+    }
+
+    trx.set(
+      recordingRef,
+      {
+        status: "processing",
+        error: null,
+      },
+      { merge: true }
+    );
+
+    return "claimed";
+  });
+}
+
 export async function saveTranscript(input: {
   meetingId: string;
   recordingId: string;

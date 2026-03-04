@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ref, uploadBytes } from "firebase/storage";
 import { clientAuth, clientStorage } from "@/src/lib/firebase/client";
 import { Button } from "@/src/components/ui/button";
 import { Textarea } from "@/src/components/ui/field";
+import { ca } from "@/src/i18n/ca";
 
 export function RecordingUploader({ meetingId }: { meetingId: string }) {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [rawText, setRawText] = useState("");
   const [state, setState] = useState<{ loading: boolean; message?: string; error?: string }>({
@@ -63,17 +66,33 @@ export function RecordingUploader({ meetingId }: { meetingId: string }) {
         }),
       });
 
-      const processData = (await processRes.json()) as { error?: string; mode?: string; model?: string };
+      const processData = (await processRes.json()) as {
+        error?: string;
+        mode?: string;
+        model?: string;
+        queued?: boolean;
+        status?: "processing" | "done" | "error";
+      };
       if (!processRes.ok) {
         throw new Error(processData.error ?? "No s'ha pogut processar la gravació.");
       }
 
+      let message: string = ca.meeting.processingQueued;
+      if (processData.queued === false && processData.status === "processing") {
+        message = ca.meeting.processingInProgress;
+      } else if (processData.queued === false && processData.status === "done") {
+        message = ca.meeting.processingAlreadyDone;
+      } else if (processData.model) {
+        message = `${ca.meeting.processingQueued} (${processData.mode ?? "stub"} · ${processData.model})`;
+      }
+
       setState({
         loading: false,
-        message: `Processament complet (${processData.mode ?? "stub"}${processData.model ? ` · ${processData.model}` : ""}).`,
+        message,
       });
       setFile(null);
       setRawText("");
+      router.refresh();
     } catch (error) {
       setState({
         loading: false,

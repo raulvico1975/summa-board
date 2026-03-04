@@ -57,6 +57,7 @@ export const ca = {
     selectVisible: "Seleccionar visibles",
     clearSelection: "Netejar selecció",
     selectAtLeastOne: "Selecciona almenys una franja horària.",
+    maxOptionsReached: "Pots seleccionar com a màxim {max} franges per votació.",
     invalidWindow: "La finestra horària no és vàlida. Revisa hora inici i hora fi.",
     justCreatedTitle: "Votació creada correctament",
     justCreatedHint:
@@ -98,6 +99,11 @@ export const ca = {
     exportMinutesMd: "Descarregar acta (.md)",
     processNow: "Processar",
     saveMinutes: "Guardar canvis de l'acta",
+    processingQueued:
+      "Gravació registrada. El processament està en marxa i aquesta pàgina s'actualitzarà automàticament.",
+    processingInProgress: "Aquesta gravació ja s'està processant.",
+    processingAlreadyDone: "Aquesta gravació ja estava processada.",
+    autoRefreshActive: "Actualització automàtica activa cada 5 segons mentre hi ha processament.",
   },
   errors: {
     unauthorized: "No autoritzat.",
