@@ -1,13 +1,16 @@
 const defaultProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "summa-board";
 
 export const firebasePublicEnv = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "demo-api-key",
+  // Production-safe fallbacks for the default project (public web config, not secret).
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "AIzaSyBcly9Qtk4BrgudbiDAhEhTNCHzNLb6fpM",
   authDomain:
     process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? `${defaultProjectId}.firebaseapp.com`,
   projectId: defaultProjectId,
   storageBucket:
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? `${defaultProjectId}.firebasestorage.app`,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "1:000000000:web:summa-board",
+  appId:
+    process.env.NEXT_PUBLIC_FIREBASE_APP_ID ??
+    "1:311176921285:web:3905c8fcd66d1ac75cf0ac",
 };
 
 export const serverEnv = {
