@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { StatusBadge } from "@/src/components/ui/status-badge";
 import { VoteForm } from "@/src/components/polls/vote-form";
+import { ca } from "@/src/i18n/ca";
 import { getPollBySlug } from "@/src/lib/db/repo";
 import { formatDateTime } from "@/src/lib/dates";
 
@@ -33,7 +34,7 @@ export default async function PublicPollPage({ params }: { params: Promise<{ slu
         <CardContent className="space-y-4">
           <VoteForm slug={slug} options={options} disabled={poll.status !== "open"} />
           <Link href={`/p/${slug}/results`} className="text-sm font-medium text-sky-700 hover:underline">
-            Veure resultats
+            {ca.poll.viewResults}
           </Link>
         </CardContent>
       </Card>

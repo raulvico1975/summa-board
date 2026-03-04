@@ -73,7 +73,9 @@ export const ca = {
     create: "Crear votació",
     voterName: "Nom",
     submitVote: "Guardar disponibilitat",
-    savedVote: "Vot guardat correctament.",
+    savedVote:
+      "Les teves preferències de dia i hora per la reunió s'han guardat correctament. Si vols veure com estan les opcions més coincidents, clica a \"Veure resultats\".",
+    viewResults: "Veure resultats",
     availability: "Disponibilitat",
     results: "Resultats",
     bestOption: "Millor opció",

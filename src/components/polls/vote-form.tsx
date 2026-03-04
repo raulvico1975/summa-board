@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/field";
@@ -93,7 +94,17 @@ export function VoteForm({ slug, options, disabled }: { slug: string; options: O
       </div>
 
       {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
-      {state.message ? <p className="text-sm text-emerald-700">{state.message}</p> : null}
+      {state.message ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <p className="text-sm font-medium leading-relaxed text-emerald-900">{state.message}</p>
+          <Link
+            href={`/p/${slug}/results`}
+            className="mt-2 inline-flex rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
+          >
+            {ca.poll.viewResults}
+          </Link>
+        </div>
+      ) : null}
 
       <Button type="submit" disabled={state.loading || disabled}>
         {state.loading ? "Guardant..." : ca.poll.submitVote}
