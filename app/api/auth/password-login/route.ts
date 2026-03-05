@@ -17,16 +17,22 @@ const bodySchema = z.object({
   password: z.string().min(1).max(120),
 });
 
-function buildLocalizedUrl(request: NextRequest, pathname: string, params?: Record<string, string>): URL {
-  const url = request.nextUrl.clone();
-  url.pathname = pathname;
-  url.search = "";
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
+function buildLocalizedLocation(pathname: string, params?: Record<string, string>): string {
+  if (!params || Object.keys(params).length === 0) {
+    return pathname;
   }
-  return url;
+
+  const search = new URLSearchParams(params).toString();
+  return `${pathname}?${search}`;
+}
+
+function redirect303(location: string): NextResponse {
+  return new NextResponse(null, {
+    status: 303,
+    headers: {
+      Location: location,
+    },
+  });
 }
 
 async function signInWithPassword(email: string, password: string): Promise<string | null> {
@@ -59,10 +65,7 @@ export async function POST(request: NextRequest) {
 
   try {
     if (!isTrustedSameOrigin(request)) {
-      return NextResponse.redirect(
-        buildLocalizedUrl(request, loginPath, { error: "unauthorized" }),
-        303
-      );
+      return redirect303(buildLocalizedLocation(loginPath, { error: "unauthorized" }));
     }
 
     const formData = await request.formData();
@@ -72,34 +75,25 @@ export async function POST(request: NextRequest) {
     });
 
     if (!parsed.success) {
-      return NextResponse.redirect(
-        buildLocalizedUrl(request, loginPath, { error: "unauthorized" }),
-        303
-      );
+      return redirect303(buildLocalizedLocation(loginPath, { error: "unauthorized" }));
     }
 
     const idToken = await signInWithPassword(parsed.data.email, parsed.data.password);
     if (!idToken) {
-      return NextResponse.redirect(
-        buildLocalizedUrl(request, loginPath, { error: "unauthorized" }),
-        303
-      );
+      return redirect303(buildLocalizedLocation(loginPath, { error: "unauthorized" }));
     }
 
     const decoded = await adminAuth.verifyIdToken(idToken);
     const ownerOrg = await getOwnerOrgByUid(decoded.uid);
 
     if (!ownerOrg) {
-      return NextResponse.redirect(
-        buildLocalizedUrl(request, loginPath, { error: "unauthorized" }),
-        303
-      );
+      return redirect303(buildLocalizedLocation(loginPath, { error: "unauthorized" }));
     }
 
     const expiresIn = 5 * 24 * 60 * 60 * 1000;
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
-    const response = NextResponse.redirect(buildLocalizedUrl(request, dashboardPath), 303);
+    const response = redirect303(buildLocalizedLocation(dashboardPath));
     response.headers.set("Cache-Control", "no-store");
     response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, {
       httpOnly: true,
@@ -117,9 +111,6 @@ export async function POST(request: NextRequest) {
       error,
     });
 
-    return NextResponse.redirect(
-      buildLocalizedUrl(request, loginPath, { error: "unauthorized" }),
-      303
-    );
+    return redirect303(buildLocalizedLocation(loginPath, { error: "unauthorized" }));
   }
 }

@@ -22,11 +22,14 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const redirectUrl = request.nextUrl.clone();
-  redirectUrl.pathname = withLocalePath(locale, "/");
-  redirectUrl.search = "";
+  const location = withLocalePath(locale, "/");
 
-  const response = NextResponse.redirect(redirectUrl, 303);
+  const response = new NextResponse(null, {
+    status: 303,
+    headers: {
+      Location: location,
+    },
+  });
   response.headers.set("Cache-Control", "no-store");
   response.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
