@@ -1,0 +1,60 @@
+name: Deploy Manual Emergency
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+      url: https://summa-board--summa-board.europe-west4.hosted.app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Auth with service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_SUMMA_BOARD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SUMMA_BOARD }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_SUMMA_BOARD" ]; then
+            echo "Missing FIREBASE_SERVICE_ACCOUNT_SUMMA_BOARD secret"
+            exit 1
+          fi
+          echo "$FIREBASE_SERVICE_ACCOUNT_SUMMA_BOARD" > "$RUNNER_TEMP/gcp-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/gcp-sa.json" >> "$GITHUB_ENV"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Smoke with emulators
+        run: npm run ci:smoke
+
+      - name: Deploy hosting
+        run: firebase deploy --project summa-board --only hosting --non-interactive

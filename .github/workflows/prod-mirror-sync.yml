@@ -1,0 +1,101 @@
+name: Prod Mirror Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prod-mirror-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout mirror repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate required secrets
+        env:
+          SOURCE_REPO_SSH: ${{ secrets.PROD_SOURCE_REPO_SSH }}
+          SOURCE_SSH_KEY: ${{ secrets.PROD_SOURCE_READONLY_SSH_KEY }}
+        run: |
+          if [ -z "$SOURCE_REPO_SSH" ]; then
+            echo "Missing secret PROD_SOURCE_REPO_SSH"
+            exit 1
+          fi
+          if [ -z "$SOURCE_SSH_KEY" ]; then
+            echo "Missing secret PROD_SOURCE_READONLY_SSH_KEY"
+            exit 1
+          fi
+
+      - name: Sync prod branch into mirror branch
+        env:
+          SOURCE_REPO_SSH: ${{ secrets.PROD_SOURCE_REPO_SSH }}
+          SOURCE_SSH_KEY: ${{ secrets.PROD_SOURCE_READONLY_SSH_KEY }}
+          SOURCE_BRANCH: ${{ vars.PROD_SOURCE_BRANCH }}
+          TARGET_BRANCH: ${{ vars.PROD_MIRROR_TARGET_BRANCH }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/sync-prod-mirror.sh
+
+      - name: Notify Telegram on failure
+        if: ${{ failure() && secrets.MIRROR_TELEGRAM_BOT_TOKEN != '' && secrets.MIRROR_TELEGRAM_CHAT_ID != '' }}
+        env:
+          BOT_TOKEN: ${{ secrets.MIRROR_TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.MIRROR_TELEGRAM_CHAT_ID }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SOURCE_BRANCH: ${{ vars.PROD_SOURCE_BRANCH }}
+          TARGET_BRANCH: ${{ vars.PROD_MIRROR_TARGET_BRANCH }}
+        run: |
+          src_branch="${SOURCE_BRANCH:-main}"
+          tgt_branch="${TARGET_BRANCH:-mirror/prod}"
+          message=$(cat <<EOF
+          Summa-Mirror: ERROR de sincronització.
+          Repo: ${{ github.repository }}
+          Branca origen: ${src_branch}
+          Branca mirror: ${tgt_branch}
+          Execució: ${RUN_URL}
+          EOF
+          )
+
+          curl --fail --silent --show-error \
+            --request POST \
+            "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "text=${message}" \
+            --data "disable_web_page_preview=true"
+
+      - name: Notify Telegram on manual success (optional)
+        if: ${{ success() && github.event_name == 'workflow_dispatch' && vars.MIRROR_NOTIFY_SUCCESS == 'true' && secrets.MIRROR_TELEGRAM_BOT_TOKEN != '' && secrets.MIRROR_TELEGRAM_CHAT_ID != '' }}
+        env:
+          BOT_TOKEN: ${{ secrets.MIRROR_TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.MIRROR_TELEGRAM_CHAT_ID }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SOURCE_BRANCH: ${{ vars.PROD_SOURCE_BRANCH }}
+          TARGET_BRANCH: ${{ vars.PROD_MIRROR_TARGET_BRANCH }}
+        run: |
+          src_branch="${SOURCE_BRANCH:-main}"
+          tgt_branch="${TARGET_BRANCH:-mirror/prod}"
+          message=$(cat <<EOF
+          Summa-Mirror: sincronització OK.
+          Repo: ${{ github.repository }}
+          Branca origen: ${src_branch}
+          Branca mirror: ${tgt_branch}
+          Execució: ${RUN_URL}
+          EOF
+          )
+
+          curl --fail --silent --show-error \
+            --request POST \
+            "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "text=${message}" \
+            --data "disable_web_page_preview=true"
