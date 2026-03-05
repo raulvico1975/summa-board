@@ -386,7 +386,7 @@ export function InviteMemberDialog({ open, onOpenChange, onInviteCreated }: Invi
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t.members.linkExpires} • Clica l'enllaç per seleccionar-lo i copia amb Cmd+C
+                {t.members.linkExpires} • {t.members.selectAndCopyDescription}
               </p>
             </div>
 

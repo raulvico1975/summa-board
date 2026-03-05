@@ -126,6 +126,11 @@ Registre cronologic de desplegaments a produccio.
 | 2026-03-04 10:04 | 8ee0198 | MITJA | Si | 4 | OK |
 | 2026-03-05 10:01 | 8ee53e6 | ALT | Si | 10 | OK_AMB_AVIS |
 | 2026-03-05 12:11 | 601b350 | ALT | Si | 20 | OK_AMB_AVIS |
+| 2026-03-05 12:11 | 6d18ecc | ALT | Si | 20 | OK |
+
+### Nota 2026-03-05 (6d18ecc)
+
+- Fase 1B - mode "Sense acces a projectes" amb guards UI+rutes.
 ## Decisions humanes (negoci)
 
 | Data | SHA | human_question_reason | business_impact | decision_taken |

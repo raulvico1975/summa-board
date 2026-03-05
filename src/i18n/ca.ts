@@ -217,6 +217,9 @@ export const ca = {
   movements: {
     title: "Moviments",
     description: "Importa, revisa i assigna categories, contactes i documents.",
+    accessRestrictedTitle: "Accés restringit",
+    accessRestrictedDescription: "No tens permisos per accedir a Moviments.",
+    accessRequirements: "Aquesta ruta requereix sections.moviments i moviments.read.",
     quickExpenseCta: "+ Despesa ràpida",
     buttons: {
       pendingDocs: "Pendents",
