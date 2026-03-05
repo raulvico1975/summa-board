@@ -217,9 +217,6 @@ export const fr = {
   movements: {
     title: "Mouvements",
     description: "Importez, révisez et attribuez catégories, contacts et documents.",
-    accessRestrictedTitle: "Accès restreint",
-    accessRestrictedDescription: "Vous n'avez pas les permissions pour accéder à Mouvements.",
-    accessRequirements: "Cette route nécessite sections.moviments et moviments.read.",
     quickExpenseCta: "+ Dépense rapide",
     buttons: {
       pendingDocs: "En attente",

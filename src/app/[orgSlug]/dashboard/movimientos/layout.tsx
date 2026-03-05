@@ -4,7 +4,6 @@ import * as React from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { usePermissions } from '@/hooks/use-permissions';
-import { useTranslations } from '@/i18n';
 
 interface MovimientosLayoutProps {
   children: React.ReactNode;
@@ -12,7 +11,6 @@ interface MovimientosLayoutProps {
 
 export default function MovimientosLayout({ children }: MovimientosLayoutProps) {
   const { canAccessMovimentsRoute } = usePermissions();
-  const { t } = useTranslations();
 
   if (!canAccessMovimentsRoute) {
     return (
@@ -21,14 +19,14 @@ export default function MovimientosLayout({ children }: MovimientosLayoutProps) 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              {t.movements.accessRestrictedTitle}
+              Acces restringit
             </CardTitle>
             <CardDescription>
-              {t.movements.accessRestrictedDescription}
+              No tens permisos per accedir a Moviments.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {t.movements.accessRequirements}
+            Aquesta ruta requereix `sections.moviments` i `moviments.read`.
           </CardContent>
         </Card>
       </div>
