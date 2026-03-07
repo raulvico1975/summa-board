@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RelatedLandings } from '@/components/public/RelatedLandings';
 import type { PublicLocale } from '@/lib/public-locale';
 import type { PublicLandingContent } from '@/lib/public-landings';
 
@@ -134,6 +135,10 @@ export function PublicLandingTemplate({ locale, content, labels }: PublicLanding
               ))}
             </div>
           </section>
+
+          {content.relatedLandings && (
+            <RelatedLandings section={content.relatedLandings} />
+          )}
 
           <section className="border-t pt-10">
             <h2 className="text-2xl font-bold mb-3">{content.finalCta.title}</h2>

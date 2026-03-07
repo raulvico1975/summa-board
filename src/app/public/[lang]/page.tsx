@@ -351,6 +351,29 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
+      {locale === 'ca' && (
+        <section className="px-6 py-12">
+          <div className="mx-auto max-w-4xl rounded-2xl border border-border/60 bg-muted/20 p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-primary">Gestió econòmica per a ONG</p>
+                <h2 className="text-2xl font-semibold">Accedeix al hub central del clúster SEO públic</h2>
+                <p className="text-muted-foreground">
+                  Recorregut complet per conciliació bancària, donants, remeses, devolucions i fiscalitat dins de
+                  Summa Social.
+                </p>
+              </div>
+              <Button asChild size="lg">
+                <Link href="/ca/gestio-economica-ong">
+                  Veure el hub
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ═══════════════════════════════════════════════════════════════════════
           E) BLOCS "Per a qui és" — 2 blocs grans
           ═══════════════════════════════════════════════════════════════════════ */}

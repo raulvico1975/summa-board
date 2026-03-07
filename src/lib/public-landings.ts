@@ -10,6 +10,24 @@ interface NumberedBlock {
   body: string;
 }
 
+export interface PublicLandingRelatedLink {
+  slug: string;
+  href: string;
+  title: string;
+  description: string;
+}
+
+export interface PublicLandingRelatedSection {
+  title: string;
+  intro: string;
+  hub: {
+    href: string;
+    label: string;
+    description: string;
+  };
+  items: PublicLandingRelatedLink[];
+}
+
 export interface PublicLandingContent {
   hero: {
     title: string;
@@ -54,6 +72,7 @@ export interface PublicLandingContent {
     linkLabel: string;
     href: string;
   };
+  relatedLandings?: PublicLandingRelatedSection;
 }
 
 interface PublicLandingDefinition {
@@ -61,6 +80,19 @@ interface PublicLandingDefinition {
   metadata: Record<PublicLocale, PublicLandingMetadata>;
   content: Partial<Record<PublicLocale, PublicLandingContent>> & { ca: PublicLandingContent };
 }
+
+type PublicLandingSlug =
+  | 'model-182'
+  | 'certificats-donacio'
+  | 'model-347-ong'
+  | 'remeses-sepa'
+  | 'devolucions-rebuts-socis'
+  | 'conciliacio-bancaria-ong'
+  | 'importar-extracte-bancari'
+  | 'gestio-donants'
+  | 'control-donacions-ong'
+  | 'software-gestion-ong'
+  | 'programa-associacions';
 
 const LANDING_NAMES: Record<string, Record<PublicLocale, string>> = {
   'model-182': {
@@ -75,11 +107,23 @@ const LANDING_NAMES: Record<string, Record<PublicLocale, string>> = {
     fr: 'Certificats de don',
     pt: 'Certificados de doacao',
   },
+  'model-347-ong': {
+    ca: 'Model 347 per a ONG',
+    es: 'Modelo 347 para ONG',
+    fr: 'Modele 347 pour associations',
+    pt: 'Modelo 347 para ONG',
+  },
   'remeses-sepa': {
     ca: 'Remeses SEPA',
     es: 'Remesas SEPA',
     fr: 'Prelevements SEPA',
     pt: 'Remessas SEPA',
+  },
+  'devolucions-rebuts-socis': {
+    ca: 'Devolucions de rebuts de socis',
+    es: 'Devoluciones de recibos de socios',
+    fr: 'Rejets de recus de membres',
+    pt: 'Devolucoes de recibos de socios',
   },
   'importar-extracte-bancari': {
     ca: 'Importar extracte bancari',
@@ -93,6 +137,24 @@ const LANDING_NAMES: Record<string, Record<PublicLocale, string>> = {
     fr: 'Conciliation bancaire pour associations',
     pt: 'Conciliacao bancaria para ONG',
   },
+  'control-donacions-ong': {
+    ca: 'Control de donacions per ONG',
+    es: 'Control de donaciones para ONG',
+    fr: 'Controle des dons pour associations',
+    pt: 'Controle de doacoes para ONG',
+  },
+  'software-gestion-ong': {
+    ca: 'Software de gestió per ONG',
+    es: 'Software de gestion para ONG',
+    fr: 'Logiciel de gestion pour associations',
+    pt: 'Software de gestao para ONG',
+  },
+  'programa-associacions': {
+    ca: 'Programa per associacions i ONG',
+    es: 'Programa para asociaciones y ONG',
+    fr: 'Programme pour associations et ONG',
+    pt: 'Programa para associacoes e ONG',
+  },
   'gestio-donants': {
     ca: 'Gestió de donants',
     es: 'Gestion de donantes',
@@ -103,6 +165,155 @@ const LANDING_NAMES: Record<string, Record<PublicLocale, string>> = {
 
 function contactHref(locale: PublicLocale) {
   return `/${locale}/contact`;
+}
+
+function clusterHubHref(locale: PublicLocale) {
+  return `/${locale}/gestio-economica-ong`;
+}
+
+const RELATED_LANDINGS_BY_SLUG: Record<PublicLandingSlug, PublicLandingSlug[]> = {
+  'model-182': ['certificats-donacio', 'gestio-donants', 'model-347-ong'],
+  'certificats-donacio': ['model-182', 'gestio-donants', 'control-donacions-ong'],
+  'model-347-ong': ['importar-extracte-bancari', 'conciliacio-bancaria-ong', 'software-gestion-ong'],
+  'remeses-sepa': ['devolucions-rebuts-socis', 'gestio-donants', 'control-donacions-ong'],
+  'devolucions-rebuts-socis': ['remeses-sepa', 'gestio-donants', 'model-182'],
+  'conciliacio-bancaria-ong': ['importar-extracte-bancari', 'control-donacions-ong', 'model-347-ong'],
+  'importar-extracte-bancari': ['conciliacio-bancaria-ong', 'model-347-ong', 'control-donacions-ong'],
+  'gestio-donants': ['control-donacions-ong', 'certificats-donacio', 'model-182'],
+  'control-donacions-ong': ['gestio-donants', 'certificats-donacio', 'model-182'],
+  'software-gestion-ong': ['programa-associacions', 'gestio-donants', 'control-donacions-ong'],
+  'programa-associacions': ['software-gestion-ong', 'gestio-donants', 'remeses-sepa'],
+};
+
+const LANDING_TEASERS: Record<PublicLandingSlug, Record<PublicLocale, string>> = {
+  'model-182': {
+    ca: "Prepara el Model 182 a partir de donacions, devolucions i dades fiscals ja ordenades.",
+    es: 'Prepara el Modelo 182 con una base fiscal ya ordenada.',
+    fr: 'Preparez le Modele 182 a partir de donnees deja ordonnees.',
+    pt: 'Prepare o Modelo 182 com base fiscal ja organizada.',
+  },
+  'certificats-donacio': {
+    ca: 'Genera i envia certificats de donació sense plantilles manuals ni revisions disperses.',
+    es: 'Genera certificados de donacion sin plantillas manuales.',
+    fr: 'Generez des certificats de don sans modeles manuels.',
+    pt: 'Gere certificados de doacao sem modelos manuais.',
+  },
+  'model-347-ong': {
+    ca: 'Revisa operacions amb tercers i prepara el Model 347 amb els proveïdors ben identificats.',
+    es: 'Revisa operaciones con terceros y prepara el Modelo 347.',
+    fr: 'Revisez les operations avec des tiers et preparez le Modele 347.',
+    pt: 'Reveja operacoes com terceiros e prepare o Modelo 347.',
+  },
+  'remeses-sepa': {
+    ca: 'Genera remeses SEPA de quotes amb control dels imports, periodicitats i fitxer bancari.',
+    es: 'Genera remesas SEPA de cuotas con control previo.',
+    fr: 'Generez des prelevements SEPA avec controle prealable.',
+    pt: 'Gere remessas SEPA de quotas com controlo previo.',
+  },
+  'devolucions-rebuts-socis': {
+    ca: 'Gestiona rebuts retornats i assigna cada devolució al soci correcte abans del tancament fiscal.',
+    es: 'Gestiona recibos devueltos y asigna cada devolucion correctamente.',
+    fr: 'Gerez les rejets et attribuez chaque retour au bon membre.',
+    pt: 'Gira recibos devolvidos e atribua cada devolucao corretamente.',
+  },
+  'conciliacio-bancaria-ong': {
+    ca: 'Centralitza moviments bancaris i treballa la conciliació amb criteri i traçabilitat.',
+    es: 'Centraliza movimientos bancarios y conciliacion.',
+    fr: 'Centralisez les mouvements bancaires et le rapprochement.',
+    pt: 'Centralize movimentos bancarios e reconciliacao.',
+  },
+  'importar-extracte-bancari': {
+    ca: "Importa l'extracte bancari i converteix-lo en base de treball per a la gestió econòmica.",
+    es: 'Importa el extracto bancario y trabaja sobre movimientos reales.',
+    fr: 'Importez le releve bancaire et travaillez sur les mouvements reels.',
+    pt: 'Importe o extrato bancario e trabalhe sobre movimentos reais.',
+  },
+  'gestio-donants': {
+    ca: "Mantén una base clara de socis i donants vinculada a l'historial d'aportacions i devolucions.",
+    es: 'Mantiene una base clara de socios y donantes.',
+    fr: 'Maintenez une base claire de membres et donateurs.',
+    pt: 'Mantenha uma base clara de socios e doadores.',
+  },
+  'control-donacions-ong': {
+    ca: 'Segueix les aportacions de cada donant i entén millor la base econòmica de l’entitat.',
+    es: 'Sigue las aportaciones de cada donante.',
+    fr: 'Suivez les contributions de chaque donateur.',
+    pt: 'Acompanhe as contribuicoes de cada doador.',
+  },
+  'software-gestion-ong': {
+    ca: 'Visió general del software per centralitzar moviments, donants, quotes i fiscalitat.',
+    es: 'Vision general del software de gestion para ONG.',
+    fr: 'Vue d ensemble du logiciel de gestion pour associations.',
+    pt: 'Visao geral do software de gestao para ONG.',
+  },
+  'programa-associacions': {
+    ca: 'Alternativa clara a Excel per ordenar la gestió econòmica d’associacions i ONG.',
+    es: 'Alternativa clara a Excel para asociaciones y ONG.',
+    fr: 'Alternative claire a Excel pour associations et ONG.',
+    pt: 'Alternativa clara ao Excel para associacoes e ONG.',
+  },
+};
+
+function buildRelatedLandingsSection(
+  locale: PublicLocale,
+  slug: PublicLandingSlug
+): PublicLandingRelatedSection {
+  const relatedSlugs = RELATED_LANDINGS_BY_SLUG[slug];
+
+  return {
+    title:
+      locale === 'ca'
+        ? 'També et pot interessar'
+        : locale === 'es'
+          ? 'Tambien te puede interesar'
+          : locale === 'fr'
+            ? 'Cela peut aussi vous interesser'
+            : 'Tambem te pode interessar',
+    intro:
+      locale === 'ca'
+        ? 'Si estàs treballant aquesta part de la gestió econòmica, aquestes pàgines et donaran context complementari dins del mateix clúster.'
+        : locale === 'es'
+          ? 'Si estas trabajando esta parte de la gestion economica, estas paginas te dan contexto complementario dentro del mismo cluster.'
+          : locale === 'fr'
+            ? 'Si vous travaillez cette partie de la gestion economique, ces pages apportent un contexte complementaire.'
+            : 'Se estas a trabalhar esta area da gestao economica, estas paginas dao contexto complementar.',
+    hub: {
+      href: clusterHubHref(locale),
+      label:
+        locale === 'ca'
+          ? "Hub de gestió econòmica per a ONG"
+          : locale === 'es'
+            ? 'Hub de gestion economica para ONG'
+            : locale === 'fr'
+              ? 'Hub de gestion economique pour associations'
+              : 'Hub de gestao economica para ONG',
+      description:
+        locale === 'ca'
+          ? 'Pàgina mare del clúster amb tots els enllaços interns de gestió econòmica, remeses, donants i fiscalitat.'
+          : locale === 'es'
+            ? 'Pagina principal del cluster con todos los enlaces internos.'
+            : locale === 'fr'
+              ? 'Page mere du cluster avec tous les liens internes.'
+              : 'Pagina principal do cluster com todas as ligacoes internas.',
+    },
+    items: relatedSlugs.map((relatedSlug) => ({
+      slug: relatedSlug,
+      href: `/${locale}/${relatedSlug}`,
+      title: LANDING_NAMES[relatedSlug][locale],
+      description: LANDING_TEASERS[relatedSlug][locale],
+    })),
+  };
+}
+
+function withRelatedLandings(
+  content: PublicLandingContent,
+  locale: PublicLocale,
+  slug: PublicLandingSlug
+): PublicLandingContent {
+  return {
+    ...content,
+    relatedLandings: buildRelatedLandingsSection(locale, slug),
+  };
 }
 
 function buildPendingContent(locale: PublicLocale, landingName: string): PublicLandingContent {
@@ -837,6 +1048,311 @@ const BANK_RECONCILIATION_ONG_CONTENT_CA: PublicLandingContent = {
   },
 };
 
+const DONATIONS_CONTROL_ONG_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
+  ca: {
+    title: 'Control de donacions per ONG | Summa Social',
+    description: "Com controlar les donacions d'una ONG i tenir una base clara de donants i aportacions.",
+  },
+  es: {
+    title: 'Control de donaciones para ONG | Summa Social',
+    description: 'Landing en preparacion para control y seguimiento de donaciones de entidades sin animo de lucro.',
+  },
+  fr: {
+    title: 'Controle des dons pour associations | Summa Social',
+    description: 'Landing en preparation pour le controle des dons des associations.',
+  },
+  pt: {
+    title: 'Controle de doacoes para ONG | Summa Social',
+    description: 'Landing em preparacao para controle de doacoes de entidades sem fins lucrativos.',
+  },
+};
+
+const DONATIONS_CONTROL_ONG_CONTENT_CA: PublicLandingContent = {
+  hero: {
+    title: "Controlar les donacions d'una ONG sense fulls de càlcul",
+    subtitle: 'Tenir clar qui dona, quant dona i quan dona.',
+    introParagraphs: [
+      'Per a moltes entitats, les donacions arriben per diferents canals: transferències, quotes de socis, aportacions puntuals o plataformes online.',
+      'Amb el temps, aquesta informació acaba repartida entre extractes bancaris, fulls de càlcul i llistes de donants.',
+      "Summa Social permet tenir una visió clara de totes les donacions de l'entitat.",
+      "L'aplicació centralitza la informació dels donants i les seves aportacions perquè l'equip de l'entitat pugui entendre millor d'on provenen els ingressos.",
+    ],
+  },
+  problem: {
+    title: 'El problema habitual amb el seguiment de donacions',
+    intro: 'Quan les donacions es gestionen manualment, apareixen situacions com:',
+    points: [
+      "dificultat per saber quant ha donat cada persona durant l'any",
+      'informació dispersa entre extractes i llistes de donants',
+      'errors en preparar certificats de donació',
+      'manca de visió sobre els donants recurrents',
+    ],
+    outroParagraphs: ['Amb el temps, això fa difícil tenir una base clara de suport de l’entitat.'],
+  },
+  solution: {
+    title: 'Com ho resol Summa Social',
+    intro: 'Summa Social permet vincular les donacions amb els donants de manera directa. El procés és simple:',
+    steps: [
+      {
+        title: 'Les donacions es registren als moviments',
+        body: "Els ingressos de l'entitat queden registrats a partir dels moviments del banc.",
+      },
+      {
+        title: 'Les aportacions es vinculen amb els donants',
+        body: "Cada donació queda associada a la persona o empresa que l'ha fet.",
+      },
+      {
+        title: "El sistema calcula l'historial de cada donant",
+        body: 'La fitxa del donant mostra totes les aportacions i devolucions.',
+      },
+      {
+        title: 'La informació serveix per als informes fiscals',
+        body: 'Les dades es poden utilitzar per generar certificats o preparar el Model 182.',
+      },
+      {
+        title: 'Tot queda connectat en un únic flux',
+        body: "Això evita repetir la revisió en Excel i manté la base de donants lligada als moviments reals.",
+      },
+    ],
+  },
+  includes: {
+    title: 'Què permet gestionar Summa Social',
+    intro: "Amb Summa Social l'entitat pot:",
+    items: [
+      "veure l'historial de donacions de cada persona",
+      'identificar donants recurrents',
+      "controlar l'evolució de les aportacions",
+      'tenir una base de donants vinculada a la realitat econòmica',
+    ],
+    outroParagraphs: ["Tot això ajuda a entendre millor com es financia l'activitat de l'entitat."],
+  },
+  operationalBenefits: {
+    title: 'Beneficis operatius',
+    items: [
+      'Visió clara de les donacions: és fàcil saber qui ha aportat i quant.',
+      'Menys errors administratius: la informació dels donants està vinculada als moviments reals.',
+      'Base sòlida per a informes fiscals: els certificats i informes utilitzen la mateixa informació.',
+    ],
+  },
+  forSmallAndMidEntities: {
+    title: 'Pensat per a entitats socials',
+    paragraphs: [
+      'Summa Social està pensat per a organitzacions que reben donacions o quotes de socis, volen entendre millor la seva base de suport i necessiten preparar informes fiscals.',
+      'No és una eina de màrqueting complexa. És una eina per tenir una base clara de donants i aportacions.',
+    ],
+  },
+  finalCta: {
+    title: 'Vols veure com funciona?',
+    text: "Si la informació sobre donacions de la teva entitat està repartida entre diversos documents o fulls de càlcul, potser val la pena veure com funciona Summa Social. El control de donacions pot passar de ser una revisió manual a ser simplement una part natural de la gestió de l'entitat.",
+    linkLabel: 'Demana una demostració per a la teva entitat.',
+    href: '/ca/contact',
+  },
+};
+
+const SOFTWARE_MANAGEMENT_ONG_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
+  ca: {
+    title: 'Software de gestió per ONG | Summa Social',
+    description: "Software per gestionar moviments, donants i informes fiscals d'una ONG.",
+  },
+  es: {
+    title: 'Software de gestion para ONG | Summa Social',
+    description: 'Landing en preparacion para software de gestion de entidades sin animo de lucro.',
+  },
+  fr: {
+    title: 'Logiciel de gestion pour associations | Summa Social',
+    description: 'Landing en preparation pour logiciel de gestion des associations.',
+  },
+  pt: {
+    title: 'Software de gestao para ONG | Summa Social',
+    description: 'Landing em preparacao para software de gestao de entidades sem fins lucrativos.',
+  },
+};
+
+const SOFTWARE_MANAGEMENT_ONG_CONTENT_CA: PublicLandingContent = {
+  hero: {
+    title: 'Software de gestió per a ONG i associacions',
+    subtitle: 'Controlar moviments, donants i obligacions fiscals en un únic sistema.',
+    introParagraphs: [
+      'Moltes entitats gestionen la seva activitat econòmica amb una combinació de fulls de càlcul, extractes bancaris i documents dispersos.',
+      "Amb el temps, això fa difícil entendre què està passant realment amb les finances de l'organització.",
+      'Summa Social és un software de gestió econòmica pensat específicament per a entitats socials.',
+      'Permet centralitzar la informació econòmica, els donants i les obligacions fiscals en un únic sistema.',
+    ],
+  },
+  problem: {
+    title: 'El problema habitual amb la gestió econòmica de les ONG',
+    intro: 'Quan la gestió es fa amb eines disperses, és habitual trobar:',
+    points: [
+      'informació econòmica repartida entre diversos documents',
+      'dificultat per quadrar ingressos i despeses',
+      'errors en preparar informes fiscals',
+      'moltes hores dedicades a tasques administratives',
+    ],
+    outroParagraphs: [
+      'Això no només consumeix temps, sinó que també pot generar incertesa sobre la situació econòmica real.',
+    ],
+  },
+  solution: {
+    title: 'Com ho resol Summa Social',
+    intro: "Summa Social organitza la informació econòmica de l'entitat al voltant dels moviments del banc. A partir d'aquí es poden gestionar:",
+    steps: [
+      {
+        title: 'Moviments econòmics',
+        body: 'Els ingressos i despeses es poden importar i classificar.',
+      },
+      {
+        title: 'Donants i socis',
+        body: 'Cada aportació queda vinculada al donant corresponent.',
+      },
+      {
+        title: 'Quotes i remeses',
+        body: 'Les quotes de socis es poden gestionar de manera ordenada.',
+      },
+      {
+        title: 'Informes fiscals',
+        body: 'La informació econòmica es pot utilitzar per generar informes i certificats.',
+      },
+      {
+        title: 'Visió econòmica integrada',
+        body: "Tots els blocs comparteixen la mateixa base de dades perquè l'equip treballi amb un sol sistema coherent.",
+      },
+    ],
+  },
+  includes: {
+    title: 'Què permet gestionar Summa Social',
+    intro: 'Amb Summa Social és més fàcil:',
+    items: [
+      'controlar ingressos i despeses',
+      'gestionar la base de donants',
+      'preparar informes fiscals',
+      "entendre la situació econòmica de l'entitat",
+    ],
+    outroParagraphs: ['Tot això dins d’un sistema pensat per a entitats socials.'],
+  },
+  operationalBenefits: {
+    title: 'Beneficis operatius',
+    items: [
+      'Informació econòmica centralitzada: la informació ja no està repartida entre diversos documents.',
+      'Menys feina administrativa: moltes tasques repetitives es simplifiquen.',
+      "Més claredat en la gestió: l'equip pot entendre millor la situació econòmica.",
+    ],
+  },
+  forSmallAndMidEntities: {
+    title: 'Pensat per a entitats petites i mitjanes',
+    paragraphs: [
+      "Summa Social està pensat per a organitzacions que tenen equips petits d'administració, gestionen donacions i quotes de socis i necessiten preparar informes fiscals.",
+      "No és un ERP complex. És una eina per ordenar la gestió econòmica de l'entitat.",
+    ],
+  },
+  finalCta: {
+    title: 'Vols veure com funciona?',
+    text: "Si la gestió econòmica de la teva entitat depèn de diversos fulls de càlcul i revisions manuals, potser val la pena veure com funciona Summa Social. La gestió econòmica pot passar de ser un conjunt d'eines disperses a ser un sistema clar i coherent.",
+    linkLabel: 'Demana una demostració per a la teva entitat.',
+    href: '/ca/contact',
+  },
+};
+
+const ASSOCIATIONS_PROGRAM_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
+  ca: {
+    title: 'Programa per associacions i ONG | Summa Social',
+    description: 'Programa de gestió per associacions que permet controlar moviments, donants i informes fiscals.',
+  },
+  es: {
+    title: 'Programa para asociaciones y ONG | Summa Social',
+    description: 'Landing en preparacion para programa de gestion de asociaciones y ONG.',
+  },
+  fr: {
+    title: 'Programme pour associations et ONG | Summa Social',
+    description: 'Landing en preparation pour programme de gestion des associations et ONG.',
+  },
+  pt: {
+    title: 'Programa para associacoes e ONG | Summa Social',
+    description: 'Landing em preparacao para programa de gestao de associacoes e ONG.',
+  },
+};
+
+const ASSOCIATIONS_PROGRAM_CONTENT_CA: PublicLandingContent = {
+  hero: {
+    title: 'Programa de gestió per a associacions i ONG',
+    subtitle: 'Controlar moviments, donants i informes fiscals sense fulls de càlcul.',
+    introParagraphs: [
+      'Moltes associacions gestionen la seva informació econòmica amb una combinació de fulls de càlcul, extractes bancaris i documents dispersos.',
+      "Al principi pot funcionar, però amb el temps es fa difícil entendre què està passant realment amb els ingressos, les despeses o les donacions.",
+      'Summa Social és un programa de gestió pensat específicament per a associacions i entitats socials.',
+      'Permet centralitzar la informació econòmica, els donants i les obligacions fiscals en un únic sistema.',
+    ],
+  },
+  problem: {
+    title: "El problema habitual de la gestió d'una associació",
+    intro: 'Quan la gestió econòmica es fa amb eines disperses, és habitual trobar situacions com:',
+    points: [
+      'informació econòmica repartida entre diversos documents',
+      "dificultat per saber què ha passat durant l'any",
+      'errors en preparar informes fiscals',
+      'moltes hores dedicades a tasques administratives',
+    ],
+    outroParagraphs: ["A mesura que l'entitat creix, aquesta situació es fa cada vegada més difícil de mantenir."],
+  },
+  solution: {
+    title: 'Com ho resol Summa Social',
+    intro: "Summa Social organitza la gestió econòmica de l'entitat a partir dels moviments reals del banc. A partir d'aquí és possible gestionar tota la informació necessària.",
+    steps: [
+      {
+        title: 'Moviments econòmics',
+        body: "Els ingressos i despeses de l'entitat es poden importar i classificar.",
+      },
+      {
+        title: 'Donants i socis',
+        body: 'Les aportacions queden vinculades a la persona o empresa corresponent.',
+      },
+      {
+        title: 'Quotes de socis',
+        body: 'Les quotes es poden gestionar i relacionar amb les remeses bancàries.',
+      },
+      {
+        title: 'Informes fiscals',
+        body: 'La informació econòmica serveix per generar certificats de donació i preparar informes fiscals.',
+      },
+      {
+        title: 'Treball en un únic sistema',
+        body: 'La gestió deixa de dependre de documents dispersos i queda centralitzada dins de la mateixa aplicació.',
+      },
+    ],
+  },
+  includes: {
+    title: 'Què permet gestionar Summa Social',
+    intro: 'Amb Summa Social és més fàcil:',
+    items: [
+      'controlar ingressos i despeses',
+      'gestionar la base de donants',
+      'revisar moviments bancaris',
+      "preparar informes fiscals de l'entitat",
+    ],
+    outroParagraphs: ["Tot això dins d'un sistema pensat per a organitzacions sense ànim de lucre."],
+  },
+  operationalBenefits: {
+    title: 'Beneficis operatius',
+    items: [
+      'Informació econòmica centralitzada: la informació ja no està repartida entre diversos documents.',
+      'Menys feina administrativa: moltes tasques repetitives es simplifiquen.',
+      "Més claredat en la gestió: l'equip pot entendre millor la situació econòmica de l'entitat.",
+    ],
+  },
+  forSmallAndMidEntities: {
+    title: 'Pensat per a entitats petites i mitjanes',
+    paragraphs: [
+      "Summa Social està pensat per a associacions que gestionen donacions o quotes de socis, tenen equips petits d'administració i necessiten preparar informes fiscals.",
+      "No és un ERP complex. És una eina per ordenar la gestió econòmica de l'entitat.",
+    ],
+  },
+  finalCta: {
+    title: 'Vols veure com funciona?',
+    text: "Si la gestió econòmica de la teva associació depèn de diversos fulls de càlcul i revisions manuals, potser val la pena veure com funciona Summa Social. La gestió econòmica pot passar de ser un conjunt d'eines disperses a ser un sistema clar i coherent.",
+    linkLabel: 'Demana una demostració per a la teva entitat.',
+    href: '/ca/contact',
+  },
+};
+
 const DONOR_MANAGEMENT_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
   ca: {
     title: 'Gestió de donants per a entitats socials | Software de gestió | Summa Social',
@@ -945,6 +1461,216 @@ const DONOR_MANAGEMENT_CONTENT_CA: PublicLandingContent = {
   },
 };
 
+const MODEL_347_ONG_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
+  ca: {
+    title: 'Model 347 per a ONG | Software de gestió per a entitats | Summa Social',
+    description:
+      'Prepara el Model 347 amb els proveïdors ben identificats i les operacions amb tercers ordenades dins de Summa Social.',
+  },
+  es: {
+    title: 'Modelo 347 para ONG | Summa Social',
+    description: 'Landing en preparacion para el Modelo 347 de entidades sin animo de lucro.',
+  },
+  fr: {
+    title: 'Modele 347 pour associations | Summa Social',
+    description: 'Landing en preparation pour le Modele 347 des associations.',
+  },
+  pt: {
+    title: 'Modelo 347 para ONG | Summa Social',
+    description: 'Landing em preparacao para o Modelo 347 de entidades sem fins lucrativos.',
+  },
+};
+
+const MODEL_347_ONG_CONTENT_CA: PublicLandingContent = {
+  hero: {
+    title: 'Model 347 per a ONG i associacions',
+    subtitle: "Prepara l'informe d'operacions amb tercers sense reconstruir dades a última hora.",
+    introParagraphs: [
+      "El Model 347 obliga a revisar les operacions amb tercers que superen el llindar anual i a verificar que les dades dels proveïdors siguin correctes abans d'exportar.",
+      "Quan aquesta feina es fa amb extractes, Excels i comprovacions manuals, és habitual arribar al tancament amb CIFs incomplets, imports dubtosos o operacions que encara s'han de revisar.",
+      "Summa Social ajuda a preparar aquesta part de la fiscalitat a partir dels moviments i dels proveïdors que l'entitat ja treballa durant l'any.",
+    ],
+  },
+  problem: {
+    title: 'El problema habitual del Model 347',
+    intro: 'Quan les operacions amb tercers no estan ordenades, acostumen a aparèixer aquests bloquejos:',
+    points: [
+      'proveïdors sense CIF o amb dades incompletes',
+      'pagaments repartits entre extractes i fulls de càlcul',
+      'dubtes sobre quines operacions entren realment al 347',
+      "revisió d'última hora abans d'enviar l'export a la gestoria",
+    ],
+    outroParagraphs: [
+      'El resultat és un procés fiscal lent i poc fiable just en el moment en què menys marge hi ha per corregir dades.',
+    ],
+  },
+  solution: {
+    title: 'Com ho resol Summa Social',
+    intro: "Summa Social prepara el Model 347 a partir de la informació econòmica i dels tercers que l'entitat ja té registrats.",
+    steps: [
+      {
+        title: 'Tens els proveïdors identificats',
+        body: 'Cada tercer es treballa des de la seva fitxa, amb el nom i el CIF com a dada crítica.',
+      },
+      {
+        title: 'Els pagaments queden vinculats als moviments reals',
+        body: "La base del 347 surt dels moviments econòmics que ja s'han revisat dins del sistema.",
+      },
+      {
+        title: 'Revises qui supera el llindar anual',
+        body: "El sistema ajuda a focalitzar la revisió en els proveïdors que poden entrar a l'informe.",
+      },
+      {
+        title: 'Verifiques el detall abans d’exportar',
+        body: "L'equip pot revisar les operacions mostrades i deixar net el conjunt abans de generar el fitxer.",
+      },
+      {
+        title: 'Generes la sortida per a la gestoria o l’AEAT',
+        body: "Quan les dades són correctes, l'export surt a partir del mateix sistema.",
+      },
+    ],
+  },
+  includes: {
+    title: 'Què permet gestionar Summa Social',
+    intro: "Amb Summa Social, l'entitat pot:",
+    items: [
+      'mantenir els proveïdors ben identificats durant l’any',
+      'centralitzar els pagaments que després alimenten el Model 347',
+      'revisar els tercers que superen el llindar anual de 3.005,06 €',
+      'preparar l’export amb una base molt més neta per a la gestoria',
+    ],
+    outroParagraphs: [
+      "Això evita haver de reconstruir l'informe quan el termini fiscal ja és a sobre.",
+    ],
+  },
+  operationalBenefits: {
+    title: 'Beneficis operatius',
+    items: [
+      "Menys neteja d'última hora: la informació dels proveïdors ja es treballa durant l'any.",
+      'Més coherència fiscal: el 347 surt de moviments i tercers que comparteixen la mateixa base.',
+      'Més control sobre els pagaments rellevants per al tancament anual.',
+    ],
+  },
+  forSmallAndMidEntities: {
+    title: 'Pensat per a entitats petites i mitjanes',
+    paragraphs: [
+      'Summa Social està pensat per a organitzacions que necessiten entregar el Model 347 a la gestoria sense dedicar dies sencers a revisar tercers i pagaments.',
+      "No és un sistema fiscal genèric. És una eina per tenir ordenada la informació econòmica que després s'ha de declarar.",
+    ],
+  },
+  finalCta: {
+    title: 'Vols veure com funciona?',
+    text: 'Si el Model 347 t’obliga a revisar proveïdors i pagaments des de zero cada any, potser val la pena veure com es prepara dins de Summa Social.',
+    linkLabel: 'Demana una demostració per a la teva entitat.',
+    href: '/ca/contact',
+  },
+};
+
+const RETURNED_RECEIPTS_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
+  ca: {
+    title: 'Devolucions de rebuts de socis | Software de gestió per a entitats | Summa Social',
+    description:
+      'Gestiona rebuts retornats i devolucions bancàries sense perdre el fil fiscal. Assigna cada devolució al soci correcte dins de Summa Social.',
+  },
+  es: {
+    title: 'Devoluciones de recibos de socios | Summa Social',
+    description: 'Landing en preparacion para devoluciones bancarias y recibos devueltos.',
+  },
+  fr: {
+    title: 'Rejets de recus de membres | Summa Social',
+    description: 'Landing en preparation pour les rejets et retours bancaires.',
+  },
+  pt: {
+    title: 'Devolucoes de recibos de socios | Summa Social',
+    description: 'Landing em preparacao para devolucoes bancarias e recibos devolvidos.',
+  },
+};
+
+const RETURNED_RECEIPTS_CONTENT_CA: PublicLandingContent = {
+  hero: {
+    title: 'Gestionar devolucions de rebuts de socis sense perdre el control fiscal',
+    subtitle: 'Assigna cada rebut retornat al soci correcte i evita totals inflats en certificats i Model 182.',
+    introParagraphs: [
+      "Quan el banc retorna rebuts de quotes o donacions recurrents, la feina no s'acaba en veure l'import negatiu a l'extracte.",
+      "Cal saber de quin soci o donant és cada devolució, revisar si forma part d'una remesa i assegurar que el total net quedi ben calculat.",
+      "Summa Social ajuda a gestionar aquest procés dins del mateix flux econòmic de l'entitat, sense haver de portar un control separat amb Excel.",
+    ],
+  },
+  problem: {
+    title: 'El problema habitual amb els rebuts retornats',
+    intro: 'Quan les devolucions es deixen fora del sistema, passen coses com aquestes:',
+    points: [
+      'imports negatius sense soci assignat',
+      'remeses de devolucions revisades només pel moviment pare',
+      'certificats o Model 182 amb totals inflats',
+      'manca de seguiment sobre quins socis acumulen rebuts retornats',
+    ],
+    outroParagraphs: [
+      'Aquesta és una d’aquelles tasques petites que, si es deixa pendent, acaba afectant directament el tancament fiscal.',
+    ],
+  },
+  solution: {
+    title: 'Com ho resol Summa Social',
+    intro: 'Summa Social permet treballar les devolucions dins del mateix circuit de moviments i donants.',
+    steps: [
+      {
+        title: 'Detectes les devolucions pendents',
+        body: 'Els moviments retornats es poden revisar des del mateix entorn de treball econòmic.',
+      },
+      {
+        title: 'Importes el detall del banc quan el tens',
+        body: "Si el banc facilita el fitxer de devolucions, el sistema l'aprofita per avançar la identificació.",
+      },
+      {
+        title: 'Assignes cada devolució al soci correcte',
+        body: 'La devolució ha de quedar vinculada al donant o soci que realment correspon.',
+      },
+      {
+        title: 'Mantenir pendents conscients quan falta informació',
+        body: 'Si alguna devolució no es pot resoldre al moment, es pot deixar localitzada per revisar-la després.',
+      },
+      {
+        title: 'El total net queda ben reflectit',
+        body: 'Quan la devolució està ben assignada, el sistema la té en compte allà on toca.',
+      },
+    ],
+  },
+  includes: {
+    title: 'Què permet gestionar Summa Social',
+    intro: "Amb Summa Social, l'entitat pot:",
+    items: [
+      'revisar devolucions bancàries des del mateix espai de moviments',
+      'importar el detall de devolucions facilitat pel banc',
+      'mantenir traçabilitat de les devolucions dins de la fitxa del donant',
+      'arribar al tancament anual amb menys risc de totals fiscals incorrectes',
+    ],
+    outroParagraphs: [
+      'La clau és simple: una devolució només resta on toca si està ben assignada.',
+    ],
+  },
+  operationalBenefits: {
+    title: 'Beneficis operatius',
+    items: [
+      'Menys errors fiscals: els totals nets de cada donant es poden revisar amb base real.',
+      'Més ordre mensual: les devolucions deixen de ser una carpeta pendent fora del sistema.',
+      'Més visibilitat sobre socis amb rebuts retornats o incidències recurrents.',
+    ],
+  },
+  forSmallAndMidEntities: {
+    title: 'Pensat per a entitats petites i mitjanes',
+    paragraphs: [
+      'Summa Social és útil per a entitats que cobren quotes o donacions recurrents i necessiten controlar les devolucions sense perdre temps en seguiments manuals.',
+      "És una eina pensada per resoldre la part operativa i fiscal del dia a dia, no per afegir més burocràcia.",
+    ],
+  },
+  finalCta: {
+    title: 'Vols veure com funciona?',
+    text: 'Si les devolucions bancàries et fan perdre temps i et generen dubtes abans del tancament anual, potser val la pena veure com es gestionen dins de Summa Social.',
+    linkLabel: 'Demana una demostració per a la teva entitat.',
+    href: '/ca/contact',
+  },
+};
+
 const MODEL_182_CONTENT_CA: PublicLandingContent = {
   hero: {
     title: 'Model 182 per a ONG i associacions',
@@ -1047,7 +1773,7 @@ const PUBLIC_LANDINGS: PublicLandingDefinition[] = [
     slug: 'model-182',
     metadata: MODEL_182_METADATA,
     content: {
-      ca: MODEL_182_CONTENT_CA,
+      ca: withRelatedLandings(MODEL_182_CONTENT_CA, 'ca', 'model-182'),
       es: buildPendingContent('es', LANDING_NAMES['model-182'].es),
       fr: buildPendingContent('fr', LANDING_NAMES['model-182'].fr),
       pt: buildPendingContent('pt', LANDING_NAMES['model-182'].pt),
@@ -1057,27 +1783,47 @@ const PUBLIC_LANDINGS: PublicLandingDefinition[] = [
     slug: 'certificats-donacio',
     metadata: DONATION_CERTIFICATES_METADATA,
     content: {
-      ca: DONATION_CERTIFICATES_CONTENT_CA,
+      ca: withRelatedLandings(DONATION_CERTIFICATES_CONTENT_CA, 'ca', 'certificats-donacio'),
       es: buildPendingContent('es', LANDING_NAMES['certificats-donacio'].es),
       fr: buildPendingContent('fr', LANDING_NAMES['certificats-donacio'].fr),
       pt: buildPendingContent('pt', LANDING_NAMES['certificats-donacio'].pt),
     },
   },
   {
+    slug: 'model-347-ong',
+    metadata: MODEL_347_ONG_METADATA,
+    content: {
+      ca: withRelatedLandings(MODEL_347_ONG_CONTENT_CA, 'ca', 'model-347-ong'),
+      es: buildPendingContent('es', LANDING_NAMES['model-347-ong'].es),
+      fr: buildPendingContent('fr', LANDING_NAMES['model-347-ong'].fr),
+      pt: buildPendingContent('pt', LANDING_NAMES['model-347-ong'].pt),
+    },
+  },
+  {
     slug: 'remeses-sepa',
     metadata: SEPA_REMITTANCES_METADATA,
     content: {
-      ca: SEPA_REMITTANCES_CONTENT_CA,
+      ca: withRelatedLandings(SEPA_REMITTANCES_CONTENT_CA, 'ca', 'remeses-sepa'),
       es: buildPendingContent('es', LANDING_NAMES['remeses-sepa'].es),
       fr: buildPendingContent('fr', LANDING_NAMES['remeses-sepa'].fr),
       pt: buildPendingContent('pt', LANDING_NAMES['remeses-sepa'].pt),
     },
   },
   {
+    slug: 'devolucions-rebuts-socis',
+    metadata: RETURNED_RECEIPTS_METADATA,
+    content: {
+      ca: withRelatedLandings(RETURNED_RECEIPTS_CONTENT_CA, 'ca', 'devolucions-rebuts-socis'),
+      es: buildPendingContent('es', LANDING_NAMES['devolucions-rebuts-socis'].es),
+      fr: buildPendingContent('fr', LANDING_NAMES['devolucions-rebuts-socis'].fr),
+      pt: buildPendingContent('pt', LANDING_NAMES['devolucions-rebuts-socis'].pt),
+    },
+  },
+  {
     slug: 'importar-extracte-bancari',
     metadata: BANK_STATEMENT_IMPORT_METADATA,
     content: {
-      ca: BANK_STATEMENT_IMPORT_CONTENT_CA,
+      ca: withRelatedLandings(BANK_STATEMENT_IMPORT_CONTENT_CA, 'ca', 'importar-extracte-bancari'),
       es: buildPendingContent('es', LANDING_NAMES['importar-extracte-bancari'].es),
       fr: buildPendingContent('fr', LANDING_NAMES['importar-extracte-bancari'].fr),
       pt: buildPendingContent('pt', LANDING_NAMES['importar-extracte-bancari'].pt),
@@ -1087,17 +1833,47 @@ const PUBLIC_LANDINGS: PublicLandingDefinition[] = [
     slug: 'conciliacio-bancaria-ong',
     metadata: BANK_RECONCILIATION_ONG_METADATA,
     content: {
-      ca: BANK_RECONCILIATION_ONG_CONTENT_CA,
+      ca: withRelatedLandings(BANK_RECONCILIATION_ONG_CONTENT_CA, 'ca', 'conciliacio-bancaria-ong'),
       es: buildPendingContent('es', LANDING_NAMES['conciliacio-bancaria-ong'].es),
       fr: buildPendingContent('fr', LANDING_NAMES['conciliacio-bancaria-ong'].fr),
       pt: buildPendingContent('pt', LANDING_NAMES['conciliacio-bancaria-ong'].pt),
     },
   },
   {
+    slug: 'control-donacions-ong',
+    metadata: DONATIONS_CONTROL_ONG_METADATA,
+    content: {
+      ca: withRelatedLandings(DONATIONS_CONTROL_ONG_CONTENT_CA, 'ca', 'control-donacions-ong'),
+      es: buildPendingContent('es', LANDING_NAMES['control-donacions-ong'].es),
+      fr: buildPendingContent('fr', LANDING_NAMES['control-donacions-ong'].fr),
+      pt: buildPendingContent('pt', LANDING_NAMES['control-donacions-ong'].pt),
+    },
+  },
+  {
+    slug: 'software-gestion-ong',
+    metadata: SOFTWARE_MANAGEMENT_ONG_METADATA,
+    content: {
+      ca: withRelatedLandings(SOFTWARE_MANAGEMENT_ONG_CONTENT_CA, 'ca', 'software-gestion-ong'),
+      es: buildPendingContent('es', LANDING_NAMES['software-gestion-ong'].es),
+      fr: buildPendingContent('fr', LANDING_NAMES['software-gestion-ong'].fr),
+      pt: buildPendingContent('pt', LANDING_NAMES['software-gestion-ong'].pt),
+    },
+  },
+  {
+    slug: 'programa-associacions',
+    metadata: ASSOCIATIONS_PROGRAM_METADATA,
+    content: {
+      ca: withRelatedLandings(ASSOCIATIONS_PROGRAM_CONTENT_CA, 'ca', 'programa-associacions'),
+      es: buildPendingContent('es', LANDING_NAMES['programa-associacions'].es),
+      fr: buildPendingContent('fr', LANDING_NAMES['programa-associacions'].fr),
+      pt: buildPendingContent('pt', LANDING_NAMES['programa-associacions'].pt),
+    },
+  },
+  {
     slug: 'gestio-donants',
     metadata: DONOR_MANAGEMENT_METADATA,
     content: {
-      ca: DONOR_MANAGEMENT_CONTENT_CA,
+      ca: withRelatedLandings(DONOR_MANAGEMENT_CONTENT_CA, 'ca', 'gestio-donants'),
       es: buildPendingContent('es', LANDING_NAMES['gestio-donants'].es),
       fr: buildPendingContent('fr', LANDING_NAMES['gestio-donants'].fr),
       pt: buildPendingContent('pt', LANDING_NAMES['gestio-donants'].pt),
