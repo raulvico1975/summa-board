@@ -87,6 +87,12 @@ const LANDING_NAMES: Record<string, Record<PublicLocale, string>> = {
     fr: 'Importer un extrait bancaire',
     pt: 'Importar extrato bancario',
   },
+  'conciliacio-bancaria-ong': {
+    ca: 'Conciliació bancària per ONG',
+    es: 'Conciliacion bancaria para ONG',
+    fr: 'Conciliation bancaire pour associations',
+    pt: 'Conciliacao bancaria para ONG',
+  },
   'gestio-donants': {
     ca: 'Gestió de donants',
     es: 'Gestion de donantes',
@@ -728,6 +734,109 @@ const BANK_STATEMENT_IMPORT_CONTENT_CA: PublicLandingContent = {
   },
 };
 
+const BANK_RECONCILIATION_ONG_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
+  ca: {
+    title: 'Conciliació bancària per ONG | Summa Social',
+    description: "Com controlar els moviments bancaris d'una ONG i classificar ingressos i despeses sense Excel.",
+  },
+  es: {
+    title: 'Conciliacion bancaria para ONG | Summa Social',
+    description: 'Landing en preparacion para conciliacion bancaria de entidades sin animo de lucro.',
+  },
+  fr: {
+    title: 'Conciliation bancaire pour associations | Summa Social',
+    description: 'Landing en preparation pour la conciliation bancaire des associations.',
+  },
+  pt: {
+    title: 'Conciliacao bancaria para ONG | Summa Social',
+    description: 'Landing em preparacao para conciliacao bancaria de entidades sem fins lucrativos.',
+  },
+};
+
+const BANK_RECONCILIATION_ONG_CONTENT_CA: PublicLandingContent = {
+  hero: {
+    title: 'Conciliació bancària per a ONG i associacions',
+    subtitle: 'Tenir els moviments del banc clars, classificats i sota control.',
+    introParagraphs: [
+      'Moltes entitats gestionen els seus comptes a partir dels extractes bancaris i fulls de càlcul. Amb el temps, això fa difícil entendre realment què ha passat durant el mes.',
+      'Ingressos, despeses, quotes de socis, donacions, devolucions... tota aquesta informació acaba dispersa entre documents i revisions manuals.',
+      "Summa Social permet fer la conciliació bancària d'una manera clara i ordenada.",
+      'Els moviments del banc es poden importar al sistema i treballar directament sobre ells per entendre què correspon a cada ingrés o despesa.',
+    ],
+  },
+  problem: {
+    title: 'El problema habitual amb els moviments del banc',
+    intro: 'Quan la conciliació bancària es fa manualment, apareixen situacions com aquestes:',
+    points: [
+      'moviments sense identificar',
+      "despeses que no saps a què corresponen",
+      "ingressos sense saber de quin donant provenen",
+      'dificultat per quadrar els números amb el banc',
+    ],
+    outroParagraphs: [
+      'A mesura que passen els mesos, aquesta informació es torna cada vegada més difícil de revisar.',
+    ],
+  },
+  solution: {
+    title: 'Com ho resol Summa Social',
+    intro: "Summa Social permet treballar amb els moviments bancaris com la base de la gestió econòmica de l'entitat. El procés és senzill:",
+    steps: [
+      {
+        title: "Importes l'extracte bancari",
+        body: 'Els moviments del banc es poden pujar en formats habituals com Excel o CSV.',
+      },
+      {
+        title: 'El sistema registra tots els moviments',
+        body: 'Cada transacció queda registrada amb la seva data, descripció i import.',
+      },
+      {
+        title: 'Assignació de contactes i categories',
+        body: 'Els ingressos i despeses es poden vincular amb donants, proveïdors o categories.',
+      },
+      {
+        title: 'Revisió i classificació',
+        body: "L'equip de l'entitat pot revisar els moviments i completar la informació que falta.",
+      },
+      {
+        title: 'Tens una base econòmica fiable',
+        body: 'Amb els moviments classificats, la conciliació deixa de dependre de revisions manuals disperses.',
+      },
+    ],
+  },
+  includes: {
+    title: 'Què permet gestionar Summa Social',
+    intro: 'Treballar amb la conciliació bancària dins de Summa Social permet:',
+    items: [
+      'tenir tots els moviments econòmics en un únic lloc',
+      'identificar ingressos de donants o quotes de socis',
+      'classificar despeses per categoria',
+      'adjuntar factures o documents relacionats',
+    ],
+    outroParagraphs: ["Això crea una base clara per a la gestió econòmica de l'entitat."],
+  },
+  operationalBenefits: {
+    title: 'Beneficis operatius',
+    items: [
+      'Més claredat en els moviments del banc: és fàcil veure què correspon a cada ingrés o despesa.',
+      'Menys feina manual: no cal copiar informació entre extractes i Excel.',
+      'Base fiable per a informes fiscals: els moviments ja estan preparats per generar certificats o informes.',
+    ],
+  },
+  forSmallAndMidEntities: {
+    title: 'Pensat per a entitats petites i mitjanes',
+    paragraphs: [
+      "Summa Social està pensat per a organitzacions que gestionen els comptes amb extractes bancaris, necessiten entendre millor els ingressos i despeses i volen tenir la informació econòmica ordenada.",
+      "No és un sistema comptable complex. És una eina per tenir control real dels moviments econòmics de l'entitat.",
+    ],
+  },
+  finalCta: {
+    title: 'Vols veure com funciona?',
+    text: "Si cada mes l'equip ha de revisar extractes bancaris i fulls de càlcul per entendre què ha passat, potser val la pena veure com funciona la conciliació bancària dins de Summa Social. La revisió dels moviments pot passar de ser una tasca confusa a ser simplement una part natural de la gestió econòmica.",
+    linkLabel: 'Demana una demostració per a la teva entitat.',
+    href: '/ca/contact',
+  },
+};
+
 const DONOR_MANAGEMENT_METADATA: Record<PublicLocale, PublicLandingMetadata> = {
   ca: {
     title: 'Gestió de donants per a entitats socials | Software de gestió | Summa Social',
@@ -972,6 +1081,16 @@ const PUBLIC_LANDINGS: PublicLandingDefinition[] = [
       es: buildPendingContent('es', LANDING_NAMES['importar-extracte-bancari'].es),
       fr: buildPendingContent('fr', LANDING_NAMES['importar-extracte-bancari'].fr),
       pt: buildPendingContent('pt', LANDING_NAMES['importar-extracte-bancari'].pt),
+    },
+  },
+  {
+    slug: 'conciliacio-bancaria-ong',
+    metadata: BANK_RECONCILIATION_ONG_METADATA,
+    content: {
+      ca: BANK_RECONCILIATION_ONG_CONTENT_CA,
+      es: buildPendingContent('es', LANDING_NAMES['conciliacio-bancaria-ong'].es),
+      fr: buildPendingContent('fr', LANDING_NAMES['conciliacio-bancaria-ong'].fr),
+      pt: buildPendingContent('pt', LANDING_NAMES['conciliacio-bancaria-ong'].pt),
     },
   },
   {
