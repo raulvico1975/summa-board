@@ -83,6 +83,25 @@ const FEATURES_PATH: Record<PublicLocale, string> = {
   pt: 'funcionalidades',
 };
 
+const HOME_VISUALS = {
+  default: {
+    conciliation: '/visuals/web/web_concilia_bancaria.webp',
+    remittances: '/visuals/web/web_divide_remeses.webp',
+    donations: '/visuals/web/web_divide_stripe.webp',
+    fiscal: '/visuals/web/web_certificats_182.webp',
+    admin: '/visuals/web/web_gestio_docs.webp',
+    projects: '/visuals/web/web_seguiment_projectes.webp',
+  },
+  ca: {
+    conciliation: '/visuals/web/web_concilia_bancaria_ca.webp',
+    remittances: '/visuals/web/web_divideix_remeses_ca.webp',
+    donations: '/visuals/web/web_divideix_stripe_ca.webp',
+    fiscal: '/visuals/web/web_certificats_182_ca.webp',
+    admin: '/visuals/web/web_gestio_docs_ca.webp',
+    projects: '/visuals/web/web_seguiment_projectes_ca.webp',
+  },
+} as const;
+
 export default async function HomePage({ params }: PageProps) {
   const { lang } = await params;
 
@@ -94,6 +113,7 @@ export default async function HomePage({ params }: PageProps) {
   const t = getPublicTranslations(locale);
   const anchors = SECTION_ANCHORS[locale];
   const featuresPath = FEATURES_PATH[locale];
+  const visuals = locale === 'ca' ? HOME_VISUALS.ca : HOME_VISUALS.default;
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -284,7 +304,7 @@ export default async function HomePage({ params }: PageProps) {
             <div className={frameClass}>
               <div className="aspect-video overflow-hidden bg-muted/20">
                 <Image
-                  src="/visuals/web/web_concilia_bancaria.webp"
+                  src={visuals.conciliation}
                   alt={t.home.capabilities.conciliation.title}
                   width={600}
                   height={340}
@@ -308,7 +328,7 @@ export default async function HomePage({ params }: PageProps) {
             <div className={frameClass}>
               <div className="aspect-video overflow-hidden bg-muted/20">
                 <Image
-                  src="/visuals/web/web_divide_remeses.webp"
+                  src={visuals.remittances}
                   alt={t.home.capabilities.remittances.title}
                   width={600}
                   height={340}
@@ -332,7 +352,7 @@ export default async function HomePage({ params }: PageProps) {
             <div className={frameClass}>
               <div className="aspect-video overflow-hidden bg-muted/20">
                 <Image
-                  src="/visuals/web/web_divide_stripe.webp"
+                  src={visuals.donations}
                   alt={t.home.capabilities.donations.title}
                   width={600}
                   height={340}
@@ -356,7 +376,7 @@ export default async function HomePage({ params }: PageProps) {
             <div className={frameClass}>
               <div className="aspect-video overflow-hidden bg-muted/20">
                 <Image
-                  src="/visuals/web/web_certificats_182.webp"
+                  src={visuals.fiscal}
                   alt={t.home.capabilities.fiscal.title}
                   width={600}
                   height={340}
@@ -419,7 +439,7 @@ export default async function HomePage({ params }: PageProps) {
             </div>
             <div className={frameClass}>
               <Image
-                src="/visuals/web/web_gestio_docs.webp"
+                src={visuals.admin}
                 alt={t.home.profiles.admin.title}
                 width={600}
                 height={400}
@@ -438,7 +458,7 @@ export default async function HomePage({ params }: PageProps) {
             <div className="order-2 lg:order-1">
               <div className={frameClass}>
                 <Image
-                  src="/visuals/web/web_seguiment_projectes.webp"
+                  src={visuals.projects}
                   alt={t.home.profiles.projects.title}
                   width={600}
                   height={400}
