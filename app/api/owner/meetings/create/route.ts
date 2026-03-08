@@ -19,7 +19,7 @@ const bodySchema = z.object({
   description: z.string().max(5000).optional(),
 });
 
-export const createMeetingRouteDeps = {
+const createMeetingRouteDeps = {
   createMeetingForOrg,
   createMeetingWithDaily,
   requireActiveSubscription,
