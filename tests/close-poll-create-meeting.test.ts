@@ -9,7 +9,12 @@ process.env.DAILY_API_KEY ||= "test-daily-key";
 process.env.DAILY_DOMAIN ||= "summareu";
 
 const { adminDb } = await import("../src/lib/firebase/admin.ts");
-const { closePollCreateMeeting, getMeetingById, getMeetingByMeetingUrl } = await import("../src/lib/db/repo.ts");
+const {
+  closePollCreateMeeting,
+  deleteMeetingById,
+  getMeetingById,
+  getMeetingByMeetingUrl,
+} = await import("../src/lib/db/repo.ts");
 
 function buildId(prefix: string) {
   return `${prefix}-${crypto.randomBytes(6).toString("hex")}`;
@@ -214,6 +219,97 @@ test("getMeetingById returns the latest ingest job without requiring ordered Fir
 
     assert.equal(meeting?.latestIngestJob?.status, "processing");
     assert.equal(meeting?.latestIngestJob?.recordingUrl, "https://example.com/new.mp4");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("deleteMeetingById removes the meeting with its nested assets and ingest jobs", async () => {
+  const { pollId, optionId } = await seedOpenPoll();
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (_input, init) => {
+    const payload = JSON.parse(String(init?.body ?? "{}"));
+
+    return new Response(
+      JSON.stringify({
+        name: payload.name,
+        url: `https://summareu.daily.co/${payload.name}`,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  };
+
+  try {
+    const created = await closePollCreateMeeting({
+      pollId,
+      winningOptionId: optionId,
+      createdBy: "owner-delete",
+    });
+
+    await adminDb.collection("meetings").doc(created.meetingId).collection("recordings").doc("rec-1").set({
+      storagePath: `meetings/${created.meetingId}/recordings/test.mp4`,
+      rawText: null,
+      mimeType: "video/mp4",
+      originalName: "test.mp4",
+      status: "done",
+      createdAt: Timestamp.now(),
+      error: null,
+    });
+    await adminDb.collection("meetings").doc(created.meetingId).collection("transcripts").doc("rec-1").set({
+      recordingId: "rec-1",
+      status: "done",
+      text: "Transcript",
+      storagePathTxt: null,
+      createdAt: Timestamp.now(),
+    });
+    await adminDb.collection("meetings").doc(created.meetingId).collection("minutes").doc("rec-1").set({
+      recordingId: "rec-1",
+      status: "done",
+      minutesMarkdown: "# Acta",
+      minutesJson: {
+        language: "ca",
+        summary: "Resum",
+        attendees: [],
+        agenda: [],
+        decisions: [],
+        tasks: [],
+      },
+      createdAt: Timestamp.now(),
+    });
+    await adminDb.collection("meeting_ingest_jobs").doc(buildId("job")).set({
+      meetingId: created.meetingId,
+      orgId: "org-test",
+      recordingId: "rec-1",
+      source: "daily",
+      status: "completed",
+      recordingUrl: "https://example.com/final.mp4",
+      error: null,
+      createdAt: 300,
+      updatedAt: 300,
+    });
+
+    const deleted = await deleteMeetingById(created.meetingId);
+    const [meetingSnap, recordingsSnap, transcriptsSnap, minutesSnap, jobsSnap, meetingLookup] =
+      await Promise.all([
+        adminDb.collection("meetings").doc(created.meetingId).get(),
+        adminDb.collection("meetings").doc(created.meetingId).collection("recordings").get(),
+        adminDb.collection("meetings").doc(created.meetingId).collection("transcripts").get(),
+        adminDb.collection("meetings").doc(created.meetingId).collection("minutes").get(),
+        adminDb.collection("meeting_ingest_jobs").where("meetingId", "==", created.meetingId).get(),
+        getMeetingById(created.meetingId),
+      ]);
+
+    assert.equal(deleted, true);
+    assert.equal(meetingSnap.exists, false);
+    assert.equal(recordingsSnap.empty, true);
+    assert.equal(transcriptsSnap.empty, true);
+    assert.equal(minutesSnap.empty, true);
+    assert.equal(jobsSnap.empty, true);
+    assert.equal(meetingLookup, null);
   } finally {
     globalThis.fetch = originalFetch;
   }

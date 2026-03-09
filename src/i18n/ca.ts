@@ -198,6 +198,13 @@ export const ca = {
     emptyRecordings: "Encara no hi ha gravacions.",
     emptyTranscript: "No hi ha transcripció encara.",
     emptyMinutes: "No hi ha acta generada encara.",
+    deleteTitle: "Eliminar reunió",
+    deleteDescription:
+      "S'esborraran la reunió, les gravacions, la transcripció, l'acta i els fitxers associats. Aquesta acció no es pot desfer.",
+    delete: "Eliminar reunió",
+    deleting: "Eliminant...",
+    deleteConfirm: "Vols eliminar aquesta reunió? Aquesta acció no es pot desfer.",
+    deleteError: "No s'ha pogut eliminar la reunió.",
   },
   errors: {
     unauthorized: "No autoritzat.",

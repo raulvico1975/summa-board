@@ -132,5 +132,12 @@ export const esExtra: DeepPartial<I18nCa> = {
     emptyRecordings: "Todavía no hay grabaciones.",
     emptyTranscript: "Todavía no hay transcripción.",
     emptyMinutes: "Todavía no hay acta generada.",
+    deleteTitle: "Eliminar reunión",
+    deleteDescription:
+      "Se borrarán la reunión, las grabaciones, la transcripción, el acta y los archivos asociados. Esta acción no se puede deshacer.",
+    delete: "Eliminar reunión",
+    deleting: "Eliminando...",
+    deleteConfirm: "¿Quieres eliminar esta reunión? Esta acción no se puede deshacer.",
+    deleteError: "No se ha podido eliminar la reunión.",
   },
 };

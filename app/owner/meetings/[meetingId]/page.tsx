@@ -4,10 +4,12 @@ import { StatusBadge } from "@/src/components/ui/status-badge";
 import { MeetingLiveRefresh } from "@/src/components/meetings/meeting-live-refresh";
 import { MeetingRecordingControls } from "@/src/components/meetings/meeting-recording-controls";
 import { MinutesEditor } from "@/src/components/meetings/minutes-editor";
+import { DeleteMeetingButton } from "@/src/components/meetings/delete-meeting-button";
 import { getMeetingById } from "@/src/lib/db/repo";
 import { formatDateTime } from "@/src/lib/dates";
 import { requireOwnerPage } from "@/src/lib/ui/owner-page";
 import { getRequestI18n } from "@/src/i18n/server";
+import { withLocalePath } from "@/src/i18n/routing";
 
 export default async function OwnerMeetingPage({
   params,
@@ -31,6 +33,9 @@ export default async function OwnerMeetingPage({
   const latestIngestJob = meeting.latestIngestJob;
   const showProcessingError = recordingStatus === "error" || latestIngestJob?.status === "error";
   const dailyRoomUrl = meeting.dailyRoomUrl ?? meeting.meetingUrl ?? null;
+  const deleteRedirectHref = meeting.poll
+    ? withLocalePath(locale, `/polls/${meeting.poll.id}`)
+    : withLocalePath(locale, "/dashboard");
 
   return (
     <div className="space-y-4">
@@ -182,6 +187,16 @@ export default async function OwnerMeetingPage({
           ) : (
             <p className="text-sm text-slate-500">{i18n.meeting.emptyMinutes}</p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-red-200">
+        <CardHeader>
+          <h2 className="text-base font-semibold text-red-700">{i18n.meeting.deleteTitle}</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-slate-600">{i18n.meeting.deleteDescription}</p>
+          <DeleteMeetingButton meetingId={meeting.id} redirectHref={deleteRedirectHref} />
         </CardContent>
       </Card>
     </div>

@@ -4,8 +4,9 @@ import {
   Timestamp,
   type CollectionReference,
   type DocumentReference,
+  type QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
-import { adminDb } from "@/src/lib/firebase/admin";
+import { adminDb, adminStorage } from "@/src/lib/firebase/admin";
 import type {
   MeetingDoc,
   MeetingIngestJobDoc,
@@ -56,6 +57,7 @@ const meetingsCol = adminDb.collection("meetings") as CollectionReference<Meetin
 const meetingIngestJobsCol = adminDb.collection(
   "meeting_ingest_jobs"
 ) as CollectionReference<MeetingIngestJobDoc>;
+const MAX_BATCH_OPERATIONS = 50;
 
 function buildMeetingDoc(input: {
   orgId: string;
@@ -110,6 +112,27 @@ async function ensureUniqueSlug(baseTitle: string): Promise<string> {
   }
 
   return `${base}-${Date.now().toString(36)}`;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+async function deleteMeetingIngestJobs(meetingId: string): Promise<void> {
+  const jobsSnap = await meetingIngestJobsCol.where("meetingId", "==", meetingId).get();
+  const docs = jobsSnap.docs as QueryDocumentSnapshot<MeetingIngestJobDoc>[];
+
+  for (const chunk of chunkArray(docs, MAX_BATCH_OPERATIONS)) {
+    const batch = adminDb.batch();
+    chunk.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  }
 }
 
 export async function getOwnerOrgByUid(uid: string): Promise<(OrgDoc & { id: string }) | null> {
@@ -406,6 +429,28 @@ export async function getMeetingByMeetingUrl(meetingUrl: string): Promise<Meetin
   const snap = await meetingsCol.where("meetingUrl", "==", meetingUrl).limit(1).get();
   const doc = snap.docs[0];
   return doc ? getMeetingById(doc.id) : null;
+}
+
+export async function deleteMeetingById(meetingId: string): Promise<boolean> {
+  const meetingRef = meetingsCol.doc(meetingId);
+  const meetingSnap = await meetingRef.get();
+
+  if (!meetingSnap.exists) {
+    return false;
+  }
+
+  await Promise.all([
+    adminStorage
+      .bucket()
+      .deleteFiles({ prefix: `meetings/${meetingId}/` })
+      .catch((error) => {
+        console.warn("meeting_storage_delete_failed", { meetingId, error });
+      }),
+    deleteMeetingIngestJobs(meetingId),
+  ]);
+
+  await adminDb.recursiveDelete(meetingRef);
+  return true;
 }
 
 export async function registerMeetingRecording(input: {
