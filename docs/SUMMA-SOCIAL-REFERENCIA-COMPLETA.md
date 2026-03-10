@@ -659,10 +659,9 @@ El SuperAdmin **no és un rol d'organització**. Es gestiona globalment:
 
 ### Persistència de sessió
 
-- **Tipus**: `browserSessionPersistence`
-- La sessió caduca automàticament en tancar el navegador
+- **Tipus**: `browserLocalPersistence`
+- La sessió es manté entre pestanyes i finestres del mateix navegador fins a logout o expiració de credencials
 - **Sessió màxima**: 12 hores contínues (`auth_time`), després força re-login (`reason=max_session`)
-- **Limitació acceptada (fase actual)**: sense `BroadcastChannel`, el logout pot no propagar-se de forma instantània entre pestanyes
 - Implementat per seguretat
 
 ### Logout per inactivitat
@@ -4658,38 +4657,116 @@ Helper centralitzat que valida accés operatiu (admin + user) amb bypass per sup
 - `POST /api/contacts/archive`
 - `POST /api/contacts/import`
 
-### 3.13.5i Registre i Invitacions via Admin API
+### 3.13.5i Flux d'invitacions d'usuaris
 
-El flux de registre d'usuaris convidats ha estat migrat a Admin SDK per resoldre problemes amb les Firestore Rules que bloquejaven l'escriptura client.
+Summa Social utilitza un sistema d'invitacions per controlar l'accés d'usuaris a una organització.
 
-**Problema:** Les Firestore Rules impedien que un usuari acabat de crear (sense document `members/{uid}` encara) pogués escriure el seu propi document de membre.
+Un usuari només pot accedir a una organització si existeix un registre a:
 
-**Solució:** Dues noves rutes API que operen amb Admin SDK:
+`organizations/{orgId}/members/{uid}`
 
-| Ruta | Funció |
+L'autenticació amb Firebase no dona accés per si sola.
+
+#### 1. Creació d'invitació
+
+Les invitacions es creen des del panell de configuració de l'organització.
+
+**Procés:**
+1. L'admin introdueix l'email del nou usuari.
+2. El backend comprova:
+   - si l'email ja és membre
+   - si ja existeix una invitació pendent per aquest email
+
+**Comportament:**
+
+| Situació | Resultat |
 |------|--------|
-| `POST /api/invitations/resolve` | Llegeix la invitació per codi (Admin SDK, bypassa rules de lectura) |
-| `POST /api/invitations/accept` | Crea el document `members/{uid}` i consumeix la invitació només si l'acceptació és vàlida |
-| `POST /api/invitations/create` | Crea una invitació manual o reutilitza una pendent de la mateixa org/email |
+| email ja membre | es bloqueja la invitació |
+| invitació pendent existent | es reutilitza el token |
+| email nou | es crea invitació nova |
 
-**Flux complet:**
-1. Usuari obre link d'invitació → pàgina `/registre?token=XXX`
-2. UI crida `/api/invitations/resolve` amb el token → retorna dades de la invitació (orgId, email, role)
-3. UI crea compte Firebase Auth
-4. UI crida `/api/invitations/accept`
-5. Si l'acceptació és correcta: Admin SDK crea `members/{uid}`, crea `users/{uid}` si no existeix i marca la invitació com usada
-6. Si l'acceptació falla: el registre fa rollback del compte recent creat i no deixa artefactes parcials
+La invitació genera un token únic.
 
-**Guardrails del flux:**
-- `already_member` retorna `409` i no consumeix la invitació
-- El login amb `inviteToken` no entra al dashboard si `accept` falla i tanca la sessió
-- La creació manual d'invitacions no genera un segon token actiu per la mateixa org/email
+**Exemple d'enllaç:**
 
-**Fitxers:**
-- `src/app/api/invitations/resolve/route.ts` — Resolve invitació
-- `src/app/api/invitations/accept/route.ts` — Acceptar invitació
-- `src/app/api/invitations/create/route.ts` — Crear/reutilitzar invitació manual
-- `src/app/registre/page.tsx` — Pàgina de registre
+`/registre?token=INVITE_TOKEN`
+
+#### 2. Registre amb invitació
+
+Quan l'usuari accedeix amb el token:
+1. Es mostra el formulari de registre.
+2. L'usuari crea el compte Firebase.
+3. El sistema crida:
+
+`POST /api/invitations/accept`
+
+Si l'acceptació és correcta:
+- es crea el document de membre
+- es registra l'usuari a `users/{uid}`
+- la invitació es marca com utilitzada
+- l'usuari entra al dashboard de l'organització
+
+#### 3. Acceptació d'invitació
+
+**Endpoint:**
+
+`POST /api/invitations/accept`
+
+**Resultats possibles:**
+
+| resultat | significat |
+|------|--------|
+| `success` | invitació acceptada |
+| `invalid_token` | token inexistent o no resoluble dins del flux |
+| `already_used` | invitació ja utilitzada |
+| `already_member` | l'usuari ja és membre |
+
+Nota: el token invàlid normalment es detecta primer a `POST /api/invitations/resolve`, abans de cridar `accept`.
+
+#### 4. Cas `already_member`
+
+Si l'usuari ja és membre de l'organització:
+
+`HTTP 409`
+
+`error: already_member`
+
+**Comportament del sistema:**
+- la invitació NO es consumeix
+- l'usuari no entra al dashboard
+- el sistema mostra un missatge indicant que ha d'entrar amb login normal
+
+#### 5. Login amb `inviteToken`
+
+Si un usuari autenticat obre un enllaç d'invitació:
+- el sistema intenta acceptar la invitació
+- si falla, es mostra error i es força `signOut`
+- mai es permet entrada sense membership
+
+#### 6. Invariants del sistema
+
+Aquestes regles són obligatòries:
+1. No existeixen comptes parcials
+   - si `accept` falla, el registre es fa rollback
+2. Firebase Auth no dona accés per si sola
+   - l'accés depèn de `organizations/{orgId}/members/{uid}`
+3. Les invitacions no poden duplicar-se per email
+4. `already_member` no consumeix invitació
+5. El dashboard només és accessible amb membership vàlid
+
+#### 7. Validació de producció
+
+Després de qualsevol canvi en aquest flux s'han de validar:
+- registre amb invitació nova
+- token invàlid
+- token ja usat
+- usuari ja membre amb `inviteToken`
+- login normal sense invitació
+
+**Rutes del flux:**
+- `POST /api/invitations/resolve`
+- `POST /api/invitations/accept`
+- `POST /api/invitations/create`
 
 ### 3.13.6 Fitxers principals
 
