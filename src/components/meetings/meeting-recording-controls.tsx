@@ -40,10 +40,12 @@ export function MeetingRecordingControls({
         details?: string;
       };
       if (!res.ok || !data.ok) {
+        if (url === "/api/owner/meetings/start-recording" && res.status === 400) {
+          throw new Error(i18n.meeting.recordingStartRequiresParticipant);
+        }
+
         if (data.error === "daily_stop_failed") {
-          throw new Error(
-            "No s'ha pogut aturar la gravació. Si la reunió encara està oberta a Daily, torna-ho a provar. Si ja has sortit de la reunió, Daily pot haver tancat la gravació automàticament."
-          );
+          throw new Error(i18n.meeting.recordingStopActionError);
         }
 
         throw new Error(data.error ?? data.message ?? i18n.poll.unexpectedError);
@@ -59,16 +61,16 @@ export function MeetingRecordingControls({
     }
   }
 
-  const isRecording = recordingStatus === "recording";
-  const isProcessing = recordingStatus === "processing";
+  const canStartRecording = recordingStatus === "none";
+  const canStopRecording = recordingStatus === "recording";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button
           type="button"
           onClick={() => post("/api/owner/meetings/start-recording")}
-          disabled={state.loading || !meetingUrl || isRecording || isProcessing}
+          disabled={state.loading || !meetingUrl || !canStartRecording}
           className="w-full sm:w-auto"
         >
           {i18n.meeting.startRecording}
@@ -77,12 +79,15 @@ export function MeetingRecordingControls({
           type="button"
           variant="secondary"
           onClick={() => post("/api/owner/meetings/stop-recording")}
-          disabled={state.loading || !meetingUrl || !isRecording}
+          disabled={state.loading || !meetingUrl || !canStopRecording}
           className="w-full sm:w-auto"
         >
           {i18n.meeting.stopRecording}
         </Button>
       </div>
+      {recordingStatus === "none" ? (
+        <p className="text-sm text-slate-600">{i18n.meeting.recordingStartHint}</p>
+      ) : null}
       {state.error ? <p className="break-words text-sm text-red-600">{state.error}</p> : null}
     </div>
   );
