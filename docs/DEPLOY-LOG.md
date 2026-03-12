@@ -13,6 +13,14 @@ Registre cronologic de desplegaments a produccio.
 - Script puntual Baruma en `dry-run`: `no-op`
 - Sense reparacio real de dades executada en aquesta integracio
 
+### 2026-03-12 — Canonical active child detection
+
+- Fals positiu de consistència detectat a UI: el fallback per `remittanceId` incloïa el pare i inflava recompte i suma de filles.
+- Invariant fixat: `parentTransactionId` és la relació canònica pare-filla; `remittanceId` queda només com a metadada de vincle amb el document de remesa.
+- Guardrails explícits: el pare s'exclou sempre, `archivedAt` exclou filles inactives i `isRemittanceItem === true` només actua com a fallback legacy.
+- Segon punt crític corregit a `src/lib/fiscal/undoProcessing.ts` perquè el fallback legacy d'undo no decideixi filles només per `remittanceId`.
+- Sense canvis de dades, sense migracions i sense canvi de UX en aquesta integració.
+
 | Data | SHA | Risc | Fiscal | Fitxers | Resultat |
 |------|-----|------|--------|---------|----------|
 | 2026-02-11 19:07 | 771fa85 | ALT | Si | 31 | OK |
@@ -164,6 +172,7 @@ Registre cronologic de desplegaments a produccio.
 | 2026-03-12 13:14 | 3c805b8 | MITJA | No | 6 | OK |
 | 2026-03-12 13:21 | 3827be1 | ALT | Si | 6 | OK_AMB_AVIS |
 | 2026-03-12 14:05 | 1d61ca6 | ALT | Si | 11 | OK_AMB_AVIS |
+| 2026-03-12 14:39 | 193dfe9 | ALT | No | 5 | OK |
 ## Decisions humanes (negoci)
 
 | Data | SHA | human_question_reason | business_impact | decision_taken |
