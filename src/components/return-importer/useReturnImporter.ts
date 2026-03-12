@@ -10,6 +10,11 @@ import { normalizeIBAN, normalizeTaxId as normalizeLibTaxId } from '@/lib/normal
 import { assertFiscalTxCanBeSaved } from '@/lib/fiscal/assertFiscalInvariant';
 import { acquireProcessLock, releaseProcessLock, getLockFailureMessage } from '@/lib/fiscal/processLocks';
 import { isActiveRemittanceChild } from '@/lib/remittances/is-active-child';
+import {
+  buildExistingReturnRemittanceState,
+  deriveReturnRemittanceStatus,
+  determineReturnRemittanceReprocessMode,
+} from '@/lib/remittances/returns-remittance-state';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TIPUS
@@ -1216,7 +1221,12 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
         // MODE FORCE RECREATE: Eliminar TOTS els fills i crear des de zero
         // Aquest és el mode determinista per migracions - garanteix consistència
         // ═══════════════════════════════════════════════════════════════════
-        if (forceRecreateChildren) {
+        const reprocessMode = determineReturnRemittanceReprocessMode(
+          existingChildrenSnap.docs.map((childDoc) => childDoc.data()),
+          forceRecreateChildren
+        );
+
+        if (reprocessMode === 'recreate_active_children') {
           // 1. ELIMINAR tots els fills existents (devolucions)
           let deletedChildrenCount = 0;
           if (existingChildrenCount > 0) {
@@ -1309,14 +1319,11 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
           const pendingCount = pendents.length;
           const pendingTotalAmount = pendents.reduce((sum, r) => sum + r.amount, 0);
 
-          let remittanceStatus: 'complete' | 'partial' | 'pending';
-          if (pendingCount === 0) {
-            remittanceStatus = 'complete';
-          } else if (resolvedCount === 0) {
-            remittanceStatus = 'pending';
-          } else {
-            remittanceStatus = 'partial';
-          }
+          const remittanceStatus = deriveReturnRemittanceStatus({
+            hasActiveChildren: itemCount > 0,
+            resolvedCount,
+            pendingCount,
+          });
 
           const pendingReturnsData = pendingCount > 0 ? pendents.map(r => {
             const item: {
@@ -1357,7 +1364,7 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
         // ═══════════════════════════════════════════════════════════════════
 
         // Si ja hi ha fills, només actualitzem el pare (no creem més fills)
-        const skipChildCreation = existingChildrenCount > 0;
+        const skipChildCreation = reprocessMode === 'reuse_active_children';
 
         // SEPARAR: resolubles (amb donant) vs pendents (sense donant) - P0: usar resolvedDonorId
         const resolubles = group.returns.filter(r => r.resolvedDonorId);
@@ -1379,29 +1386,18 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
 
         if (skipChildCreation) {
           // Ja hi ha fills - recalcular estat des de Firestore
-          const existingChildren = existingActiveChildrenDocs.map(d => d.data());
-          resolvedCount = existingChildren.filter(c => c.contactId).length;
-          itemCount = group.originalTransaction.remittanceItemCount ?? existingChildrenCount;
-          pendingCount = Math.max(0, itemCount - resolvedCount);
+          const existingState = buildExistingReturnRemittanceState({
+            children: existingChildrenSnap.docs.map((doc) => doc.data()),
+            fallbackItemCount: group.originalTransaction.remittanceItemCount,
+            fallbackPendingReturns: group.originalTransaction.pendingReturns ?? null,
+          });
 
-          if (pendingCount === 0 && itemCount > 0) {
-            remittanceStatus = 'complete';
-            pendingReturnsData = null;
-            pendingTotalAmount = 0;
-          } else if (resolvedCount === 0) {
-            remittanceStatus = 'pending';
-            pendingReturnsData = group.originalTransaction.pendingReturns ?? null;
-            pendingTotalAmount = pendingReturnsData?.reduce((sum, r) => sum + r.amount, 0) ?? 0;
-          } else {
-            remittanceStatus = 'partial';
-            const stillPending = existingChildren.filter(c => !c.contactId);
-            pendingReturnsData = stillPending.length > 0 ? stillPending.map(c => ({
-              iban: '',
-              amount: Math.abs(c.amount || 0),
-              date: c.date || '',
-            })) : null;
-            pendingTotalAmount = stillPending.reduce((sum, c) => sum + Math.abs(c.amount || 0), 0);
-          }
+          remittanceStatus = existingState.remittanceStatus;
+          itemCount = existingState.itemCount;
+          resolvedCount = existingState.resolvedCount;
+          pendingCount = existingState.pendingCount;
+          pendingTotalAmount = existingState.pendingTotalAmount;
+          pendingReturnsData = existingState.pendingReturnsData;
         } else {
           // ═══════════════════════════════════════════════════════════════════
           // CALCULAR ESTAT DES DE DADES PARSEJADES (primer processament)
@@ -1413,13 +1409,11 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
           pendingTotalAmount = pendents.reduce((sum, r) => sum + r.amount, 0);
 
           // Calcular remittanceStatus
-          if (pendingCount === 0) {
-            remittanceStatus = 'complete';
-          } else if (resolvedCount === 0) {
-            remittanceStatus = 'pending';
-          } else {
-            remittanceStatus = 'partial';
-          }
+          remittanceStatus = deriveReturnRemittanceStatus({
+            hasActiveChildren: itemCount > 0,
+            resolvedCount,
+            pendingCount,
+          });
 
           // Preparar pendingReturns (dades per assistència posterior)
           pendingReturnsData = pendingCount > 0 ? pendents.map(r => {
