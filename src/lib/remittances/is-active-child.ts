@@ -13,3 +13,9 @@ export function filterActiveRemittanceChildren<T extends RemittanceChildLike>(
 ): T[] {
   return children.filter(isActiveRemittanceChild);
 }
+
+export function countActiveRemittanceChildren<T extends RemittanceChildLike>(
+  children: T[]
+): number {
+  return filterActiveRemittanceChildren(children).length;
+}
