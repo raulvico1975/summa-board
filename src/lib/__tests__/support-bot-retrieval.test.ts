@@ -139,6 +139,16 @@ test('retrieveCard resolves donor edit variants without clarify', () => {
   }
 })
 
+test('retrieveCard keeps IBAN update routed to the dedicated card', () => {
+  const ca = retrieveCard("com modifico l'IBAN d'un soci", 'ca', cards)
+  assert.equal(ca.card.id, 'howto-donor-update-iban')
+  assert.equal(ca.mode, 'card')
+
+  const es = retrieveCard('como actualizo los datos de un socio', 'es', cards)
+  assert.equal(es.card.id, 'howto-donor-update-details')
+  assert.equal(es.mode, 'card')
+})
+
 test('retrieveCard resolves creating a SEPA collection remittance', () => {
   const result = retrieveCard('com generar una remesa sepa', 'ca', cards)
   assert.equal(result.card.id, 'howto-remittance-create-sepa')
