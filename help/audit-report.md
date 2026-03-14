@@ -1,6 +1,6 @@
 # Audit capa Help
 
-- Data: 2026-03-14T07:13:51.032Z
+- Data: 2026-03-14T07:16:41.301Z
 - Anchors auditats (rutes): 14
 - Anchors auditats (hints bot/manual): 14
 - Cards amb referències legacy a guides/hub: 0

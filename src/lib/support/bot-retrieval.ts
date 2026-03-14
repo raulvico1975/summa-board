@@ -530,11 +530,20 @@ function hasToken(tokens: Set<string>, ...candidates: string[]): boolean {
 function detectDirectIntentMatch(tokens: string[]): DirectIntentMatch | null {
   const set = new Set(tokens)
 
+  // "Com modifico l'IBAN d'un soci?"
+  if (
+    hasToken(set, 'soci', 'donant', 'socio', 'donante') &&
+    hasToken(set, 'iban', 'banc', 'banco', 'compte', 'cuenta') &&
+    hasToken(set, 'actualitzar', 'actualitzo', 'actualizar', 'actualizo', 'editar', 'edito', 'edit', 'update', 'canviar', 'cambiar', 'cambio', 'modificar', 'modifico')
+  ) {
+    return { cardId: 'howto-donor-update-iban', minScore: 680 }
+  }
+
   // "Com actualitzo les dades d'un donant?" / "Editar fitxa donant"
   if (
     hasToken(set, 'soci', 'donant', 'socio', 'donante') &&
-    hasToken(set, 'actualitzar', 'actualitzo', 'actualizar', 'editar', 'edito', 'edit', 'update', 'canviar', 'cambiar', 'modificar', 'modifico') &&
-    !hasToken(set, 'quota', 'cuota', 'periodicitat', 'periodicidad', 'iban', 'historial', 'pagat', 'pagar', 'alta', 'baja', 'baixa', 'inactiu', 'inactivo')
+    hasToken(set, 'actualitzar', 'actualitzo', 'actualizar', 'actualizo', 'editar', 'edito', 'edit', 'update', 'canviar', 'cambiar', 'cambio', 'modificar', 'modifico') &&
+    !hasToken(set, 'quota', 'cuota', 'periodicitat', 'periodicidad', 'iban', 'banc', 'banco', 'compte', 'cuenta', 'historial', 'pagat', 'pagar', 'alta', 'baja', 'baixa', 'inactiu', 'inactivo')
   ) {
     return { cardId: 'howto-donor-update-details', minScore: 680 }
   }
