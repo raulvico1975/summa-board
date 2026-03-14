@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ensure firebase webframeworks experiment enabled (CI runners are clean)
+npx firebase-tools experiments:enable webframeworks >/dev/null 2>&1 || true
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
