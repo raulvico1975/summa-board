@@ -152,6 +152,12 @@ La configuració usa framework backend per Next.js (regió `europe-west1`).
 firebase deploy --only hosting --project summa-board
 ```
 
+## Deploy
+
+Flux complet documentat a:
+
+docs/DEPLOY-RUNBOOK.md
+
 ## Credencials demo seed
 
 - Email: `owner@summa.local`
