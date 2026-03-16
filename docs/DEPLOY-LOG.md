@@ -4,6 +4,12 @@ Registre cronologic de desplegaments a produccio.
 
 ## Notes operatives sense deploy
 
+### 2026-03-16 — Stripe importer contract alignment
+
+- Stripe importer validat amb `typecheck`, `npm test` i prova manual dels 4 casos clau.
+- Contracte mestre alineat amb el codi: el CSV pot contenir files sense `Transfer`; s'ignoren fins que formin part d'un payout real.
+- Sense deploy en aquest tancament; canvi deixat preparat directament sobre `main`.
+
 ### 2026-03-13 — Admin health clarity
 
 - Branca preparada per merge complet: `codex/admin-health-clarity-20260313`
@@ -192,6 +198,7 @@ Registre cronologic de desplegaments a produccio.
 | 2026-03-14 10:01 | 85d0be0 | ALT | No | 3 | OK |
 | 2026-03-14 10:03 | b876a75 | ALT | No | 3 | OK |
 | 2026-03-14 10:36 | baa84a6 | ALT | No | 3 | OK |
+| 2026-03-16 09:09 | 77f4257 | MITJA | No | 25 | OK |
 ## Decisions humanes (negoci)
 
 | Data | SHA | human_question_reason | business_impact | decision_taken |
