@@ -58,6 +58,7 @@ interface TransactionRowMobileProps {
   onSplitAmount?: (tx: Transaction) => void;
   onSplitStripeRemittance?: (tx: Transaction) => void;
   hasStripeImputation?: boolean;
+  stripeImputationSummary?: { donationCount: number; adjustmentCount: number } | null;
   onUndoStripeImputation?: (tx: Transaction) => void;
   onOpenSplitDetail?: (txId: string) => void;
   onUndoSplit?: (txId: string) => void;
@@ -110,6 +111,7 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
   onSplitAmount,
   onSplitStripeRemittance,
   hasStripeImputation,
+  stripeImputationSummary,
   onUndoStripeImputation,
   onOpenSplitDetail,
   onUndoSplit,
@@ -360,7 +362,7 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
       </div>
 
       {/* Middle: Badges (type + remittance) */}
-      {(isReturn || isReturnFee || isReturnedDonation || tx.isRemittance || canShowUndoSplitAction(tx)) && (
+      {(isReturn || isReturnFee || isReturnedDonation || tx.isRemittance || hasStripeImputation || canShowUndoSplitAction(tx)) && (
         <div className="mt-2 flex flex-wrap gap-1">
           {isReturn && (
             <Badge variant="destructive" className="gap-0.5 text-xs py-0 px-1.5">
@@ -387,6 +389,12 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
             >
               <Eye className="h-3 w-3" />
               {tx.remittanceResolvedCount ?? tx.remittanceItemCount}/{tx.remittanceItemCount} {t.remittanceQuotes}
+            </Badge>
+          )}
+          {hasStripeImputation && (
+            <Badge variant="outline" className="gap-0.5 text-xs py-0 px-1.5 border-sky-300 text-sky-700 bg-sky-50">
+              <Eye className="h-3 w-3" />
+              Stripe {stripeImputationSummary?.donationCount ?? 0}
             </Badge>
           )}
           {canShowUndoSplitAction(tx) && onOpenSplitDetail && (
@@ -454,7 +462,7 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            {canSplitStripeRemittance && onSplitStripeRemittance && (
+            {((canSplitStripeRemittance && onSplitStripeRemittance) || (hasStripeImputation && onUndoStripeImputation)) && (
               hasStripeImputation && onUndoStripeImputation ? (
                 <DropdownMenuItem onClick={() => onUndoStripeImputation(tx)}>
                   <Undo2 className="h-4 w-4 mr-2 text-orange-600" />
@@ -491,7 +499,7 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
                 {t.undoSplit || 'Desfer desglossament'}
               </DropdownMenuItem>
             )}
-            {(tx.isRemittance || hasStripeChildren) && onUndoRemittance && (
+            {(tx.isRemittance || (hasStripeChildren && !hasStripeImputation)) && onUndoRemittance && (
               <DropdownMenuItem onClick={handleUndoRemittance} className="text-orange-600">
                 <Undo2 className="h-4 w-4 mr-2" />
                 {t.undoRemittance || 'Desfer remesa'}

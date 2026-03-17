@@ -147,6 +147,11 @@ const ReturnImporter = dynamic(
   { ssr: false },
 );
 
+type StripeImputationSummary = {
+  donationCount: number;
+  adjustmentCount: number;
+};
+
 export function TransactionsTable({
   initialDateFilter = null,
   initialFiscalFilter = null,
@@ -660,6 +665,28 @@ export function TransactionsTable({
         .filter((donation) => !donation.archivedAt)
         .map((donation) => donation.parentTransactionId)
     );
+  }, [stripeDonations]);
+  const stripeImputationSummaryByParentId = React.useMemo(() => {
+    const summary = new Map<string, StripeImputationSummary>();
+
+    for (const donation of stripeDonations ?? []) {
+      if (donation.archivedAt) continue;
+
+      const current = summary.get(donation.parentTransactionId) ?? {
+        donationCount: 0,
+        adjustmentCount: 0,
+      };
+
+      if (donation.type === 'stripe_adjustment') {
+        current.adjustmentCount += 1;
+      } else {
+        current.donationCount += 1;
+      }
+
+      summary.set(donation.parentTransactionId, current);
+    }
+
+    return summary;
   }, [stripeDonations]);
 
   // Mapa de comptes bancaris per ID (per export)
@@ -2545,6 +2572,7 @@ export function TransactionsTable({
               onSplitAmount={handleSplitAmount}
               onSplitStripeRemittance={handleSplitStripeRemittance}
               hasStripeImputation={stripeImputationParentIds.has(tx.id)}
+              stripeImputationSummary={stripeImputationSummaryByParentId.get(tx.id) ?? null}
               onUndoStripeImputation={handleUndoStripeImputation}
               onOpenSplitDetail={handleOpenSplitDetail}
               onUndoSplit={handleUndoSplit}
@@ -2671,6 +2699,7 @@ export function TransactionsTable({
                   onSplitRemittance={handleSplitRemittance}
                   onSplitStripeRemittance={handleSplitStripeRemittance}
                   hasStripeImputation={stripeImputationParentIds.has(tx.id)}
+                  stripeImputationSummary={stripeImputationSummaryByParentId.get(tx.id) ?? null}
                   onUndoStripeImputation={handleUndoStripeImputation}
                   onOpenSplitDetail={handleOpenSplitDetail}
                   onUndoSplit={handleUndoSplit}

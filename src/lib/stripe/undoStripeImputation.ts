@@ -1,4 +1,14 @@
-import { collection, getDocs, query, where, writeBatch, type Firestore } from 'firebase/firestore';
+import {
+  collection,
+  deleteField,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+  writeBatch,
+  type Firestore,
+} from 'firebase/firestore';
 
 type UndoStripeImputationDeps = {
   loadStripeDonationsByParentTransactionId: (args: {
@@ -7,6 +17,11 @@ type UndoStripeImputationDeps = {
     parentTransactionId: string;
   }) => Promise<Array<{ ref: unknown }>>;
   deleteDonationRefs: (args: { firestore: Firestore; refs: Array<{ ref: unknown }> }) => Promise<void>;
+  clearParentStripeMarker: (args: {
+    firestore: Firestore;
+    organizationId: string;
+    parentTransactionId: string;
+  }) => Promise<void>;
 };
 
 async function loadStripeDonationsByParentTransactionId({
@@ -44,6 +59,21 @@ async function deleteDonationRefs({
   await batch.commit();
 }
 
+async function clearParentStripeMarker({
+  firestore,
+  organizationId,
+  parentTransactionId,
+}: {
+  firestore: Firestore;
+  organizationId: string;
+  parentTransactionId: string;
+}): Promise<void> {
+  const parentRef = doc(firestore, 'organizations', organizationId, 'transactions', parentTransactionId);
+  await updateDoc(parentRef, {
+    stripeTransferId: deleteField(),
+  });
+}
+
 export async function undoStripeImputation({
   firestore,
   organizationId,
@@ -57,6 +87,7 @@ export async function undoStripeImputation({
 }): Promise<{ deletedCount: number }> {
   const loadDocs = deps?.loadStripeDonationsByParentTransactionId ?? loadStripeDonationsByParentTransactionId;
   const deleteDocs = deps?.deleteDonationRefs ?? deleteDonationRefs;
+  const clearParentMarker = deps?.clearParentStripeMarker ?? clearParentStripeMarker;
   const docs = await loadDocs({
     firestore,
     organizationId,
@@ -65,6 +96,11 @@ export async function undoStripeImputation({
   await deleteDocs({
     firestore,
     refs: docs,
+  });
+  await clearParentMarker({
+    firestore,
+    organizationId,
+    parentTransactionId,
   });
 
   return { deletedCount: docs.length };

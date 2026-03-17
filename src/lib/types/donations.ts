@@ -7,9 +7,9 @@ export interface Donation {
   source?: 'stripe';
   stripePaymentId?: string;
   parentTransactionId: string;
+  imputationOrigin?: 'csv' | 'manual';
   type?: 'donation' | 'stripe_adjustment';
   description?: string | null;
   customerEmail?: string | null;
   archivedAt?: string | null;
 }
-
