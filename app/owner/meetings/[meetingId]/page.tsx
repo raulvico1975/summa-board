@@ -4,7 +4,7 @@ import { MeetingLiveRefresh } from "@/src/components/meetings/meeting-live-refre
 import { MeetingControlPanel } from "@/src/components/meetings/meeting-control-panel";
 import { MinutesEditor } from "@/src/components/meetings/minutes-editor";
 import { DeleteMeetingButton } from "@/src/components/meetings/delete-meeting-button";
-import { getMeetingById } from "@/src/lib/db/repo";
+import { getMeetingById, isMeetingUsable } from "@/src/lib/db/repo";
 import { formatDateTime } from "@/src/lib/dates";
 import { requireOwnerPage } from "@/src/lib/ui/owner-page";
 import { getRequestI18n } from "@/src/i18n/server";
@@ -20,7 +20,7 @@ export default async function OwnerMeetingPage({
   const { meetingId } = await params;
 
   const meeting = await getMeetingById(meetingId);
-  if (!meeting || meeting.orgId !== owner.orgId) {
+  if (!meeting || meeting.orgId !== owner.orgId || !isMeetingUsable(meeting)) {
     notFound();
   }
 

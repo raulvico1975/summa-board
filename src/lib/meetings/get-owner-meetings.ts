@@ -1,4 +1,5 @@
 import type { MeetingDoc, MeetingRecordingStatus } from "@/src/lib/db/types";
+import { normalizeMeetingDoc, isMeetingUsable } from "@/src/lib/db/repo";
 import { timestampToDate } from "@/src/lib/dates";
 import { adminDb } from "@/src/lib/firebase/admin";
 
@@ -22,10 +23,11 @@ export async function getOwnerMeetings(orgId: string): Promise<DashboardMeeting[
 
   const meetings = snap.docs.map((doc) => ({
     id: doc.id,
-    ...(doc.data() as MeetingDoc),
+    ...normalizeMeetingDoc(doc.data() as MeetingDoc),
   }));
 
   return meetings
+    .filter(isMeetingUsable)
     .filter(canDeletePastMeeting)
     .sort((left, right) => {
       const leftTime = timestampToDate(left.scheduledAt)?.getTime() ?? 0;

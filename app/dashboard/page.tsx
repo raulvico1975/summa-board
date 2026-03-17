@@ -9,6 +9,18 @@ import { requireOwnerPage } from "@/src/lib/ui/owner-page";
 import { getRequestI18n } from "@/src/i18n/server";
 import { withLocalePath } from "@/src/i18n/routing";
 
+function getPollDisplayStatus(status: "open" | "closing" | "closed" | "close_failed") {
+  if (status === "closing") {
+    return "processing";
+  }
+
+  if (status === "close_failed") {
+    return "error";
+  }
+
+  return status;
+}
+
 export default async function DashboardPage() {
   const { locale, i18n } = await getRequestI18n();
   const owner = await requireOwnerPage();
@@ -39,7 +51,7 @@ export default async function DashboardPage() {
                 <h2 className="break-words text-base font-semibold leading-tight text-slate-900">{poll.title}</h2>
                 <p className="mt-1 break-all text-xs text-slate-500">/{poll.slug}</p>
               </div>
-              <StatusBadge status={poll.status} labels={i18n.status} />
+              <StatusBadge status={getPollDisplayStatus(poll.status)} labels={i18n.status} />
             </CardHeader>
             <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-slate-500">

@@ -10,6 +10,18 @@ import { getRequestI18n } from "@/src/i18n/server";
 import { withLocalePath } from "@/src/i18n/routing";
 import { localizedPublicMetadata } from "@/src/lib/seo";
 
+function getPollDisplayStatus(status: "open" | "closing" | "closed" | "close_failed") {
+  if (status === "closing") {
+    return "processing";
+  }
+
+  if (status === "close_failed") {
+    return "error";
+  }
+
+  return status;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -50,7 +62,7 @@ export default async function PublicPollPage({ params }: { params: Promise<{ slu
           </h1>
           <p className="mt-1 break-words text-sm text-slate-600">{poll.description}</p>
         </div>
-        <StatusBadge status={poll.status} labels={i18n.status} />
+        <StatusBadge status={getPollDisplayStatus(poll.status)} labels={i18n.status} />
       </div>
 
       <Card>

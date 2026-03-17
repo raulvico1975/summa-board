@@ -10,6 +10,18 @@ import { getRequestI18n } from "@/src/i18n/server";
 import { withLocalePath } from "@/src/i18n/routing";
 import { localizedPublicMetadata } from "@/src/lib/seo";
 
+function getPollDisplayStatus(status: "open" | "closing" | "closed" | "close_failed") {
+  if (status === "closing") {
+    return "processing";
+  }
+
+  if (status === "close_failed") {
+    return "error";
+  }
+
+  return status;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -64,7 +76,7 @@ export default async function PublicPollResultsPage({ params }: { params: Promis
         <h1 className="break-words text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
           {i18n.poll.resultsTitlePrefix}: {poll.title}
         </h1>
-        <StatusBadge status={poll.status} labels={i18n.status} />
+        <StatusBadge status={getPollDisplayStatus(poll.status)} labels={i18n.status} />
       </div>
 
       <Card>
