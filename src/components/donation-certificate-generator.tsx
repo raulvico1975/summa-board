@@ -5,8 +5,6 @@ import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { useCurrentOrganization } from '@/hooks/organization-provider';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import type { Transaction, Donor, Organization } from '@/lib/data';
-import type { Donation } from '@/lib/types/donations';
-import { donationToTransactionLike } from '@/lib/types/donations';
 import { formatCurrencyEU } from '@/lib/normalize';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,6 +80,8 @@ import {
 import { cn } from '@/lib/utils';
 import { MOBILE_ACTIONS_BAR, MOBILE_CTA_PRIMARY, MOBILE_CTA_TRUNCATE } from '@/lib/ui/mobile-actions';
 import { isFiscalDonationCandidate } from '@/lib/fiscal/is-fiscal-donation-candidate';
+import type { Donation } from '@/lib/types/donations';
+import { mergeTransactionsWithStripeDonations } from '@/lib/fiscal/stripe-donations-fiscal-source';
 
 let jsPdfModulePromise: Promise<typeof import('jspdf')> | null = null;
 
@@ -333,26 +333,26 @@ export function DonationCertificateGenerator() {
       const donors: Donor[] = donorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Donor));
 
       const transactionsRef = collection(firestore, 'organizations', organizationId, 'transactions');
-      const donationsRef = collection(firestore, 'organizations', organizationId, 'donations');
       const transactionsQuery = query(
         transactionsRef,
         where('date', '>=', yearStart),
         where('date', '<=', yearEnd)
       );
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const allTransactions: Transaction[] = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+
+      const donationsRef = collection(firestore, 'organizations', organizationId, 'donations');
       const donationsQuery = query(
         donationsRef,
         where('date', '>=', yearStart),
         where('date', '<=', yearEnd)
       );
-      const transactionsSnapshot = await getDocs(transactionsQuery);
       const donationsSnapshot = await getDocs(donationsQuery);
-      const allTransactions: Transaction[] = [
-        ...transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)),
-        ...donationsSnapshot.docs.map(doc => donationToTransactionLike({ id: doc.id, ...(doc.data() as Donation) })),
-      ];
+      const stripeDonations: Donation[] = donationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Donation));
+      const fiscalTransactions = mergeTransactionsWithStripeDonations(allTransactions, stripeDonations);
       
       // Criteri fiscal únic: només transactionType='donation' (helper unificat)
-      const yearDonations = allTransactions.filter(tx => {
+      const yearDonations = fiscalTransactions.filter(tx => {
         const txDate = tx.date.substring(0, 10);
         return tx.amount > 0 &&
                isFiscalDonationCandidate(tx) &&

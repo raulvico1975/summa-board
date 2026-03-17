@@ -1,8 +1,8 @@
 import type { Donation } from '@/lib/types/donations';
 
-export const STRIPE_DUPLICATE_PAYMENT_ERROR = 'ERR_STRIPE_DUPLICATE_PAYMENT';
+export const ERR_STRIPE_DUPLICATE_PAYMENT = 'ERR_STRIPE_DUPLICATE_PAYMENT';
 
-export interface StripeDonationPaymentInput {
+export interface StripePaymentInput {
   stripePaymentId: string;
   amount: number;
   fee: number;
@@ -12,15 +12,15 @@ export interface StripeDonationPaymentInput {
   description?: string | null;
 }
 
-interface CreateStripeDonationsInput {
+export interface CreateStripeDonationsInput {
   parentTransactionId: string;
-  payments: StripeDonationPaymentInput[];
+  payments: StripePaymentInput[];
   bankAmount?: number | null;
   adjustmentDate?: string;
   findDonationByStripePaymentId: (stripePaymentId: string) => Promise<Donation | null>;
 }
 
-interface CreateStripeDonationsResult {
+export interface CreateStripeDonationsResult {
   donations: Donation[];
   adjustment: Donation | null;
 }
@@ -44,15 +44,15 @@ export async function createStripeDonations({
       throw new Error('ERR_STRIPE_CONTACT_REQUIRED');
     }
     if (seenStripePaymentIds.has(stripePaymentId)) {
-      throw new Error(STRIPE_DUPLICATE_PAYMENT_ERROR);
+      throw new Error(ERR_STRIPE_DUPLICATE_PAYMENT);
     }
-    seenStripePaymentIds.add(stripePaymentId);
 
     const exists = await findDonationByStripePaymentId(stripePaymentId);
     if (exists) {
-      throw new Error(STRIPE_DUPLICATE_PAYMENT_ERROR);
+      throw new Error(ERR_STRIPE_DUPLICATE_PAYMENT);
     }
 
+    seenStripePaymentIds.add(stripePaymentId);
     donations.push({
       date: payment.date,
       contactId: payment.contactId,
@@ -63,6 +63,7 @@ export async function createStripeDonations({
       type: 'donation',
       description: payment.description ?? `Donacio Stripe - ${payment.customerEmail ?? stripePaymentId}`,
       customerEmail: payment.customerEmail ?? null,
+      archivedAt: null,
     });
   }
 
@@ -72,11 +73,13 @@ export async function createStripeDonations({
     bankAmount != null && Math.abs(diff) > 0
       ? {
           date: adjustmentDate ?? donations[0]?.date ?? new Date().toISOString().slice(0, 10),
+          contactId: null,
           amount: diff,
           source: 'stripe' as const,
           parentTransactionId,
           type: 'stripe_adjustment' as const,
           description: 'Ajust Stripe',
+          archivedAt: null,
         }
       : null;
 

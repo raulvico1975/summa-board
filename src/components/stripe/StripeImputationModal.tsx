@@ -36,7 +36,11 @@ import { useCurrentOrganization } from '@/hooks/organization-provider';
 import { useToast } from '@/hooks/use-toast';
 import type { Donor } from '@/lib/data';
 import type { Donation } from '@/lib/types/donations';
-import { createStripeDonations, STRIPE_DUPLICATE_PAYMENT_ERROR, type StripeDonationPaymentInput } from '@/lib/stripe/createStripeDonations';
+import {
+  createStripeDonations,
+  ERR_STRIPE_DUPLICATE_PAYMENT,
+  type StripePaymentInput,
+} from '@/lib/stripe/createStripeDonations';
 import {
   findAllMatchingPayoutGroups,
   groupStripeRowsByTransfer,
@@ -119,6 +123,18 @@ export function StripeImputationModal({
     [parsedPayments]
   );
 
+  const buildPaymentsFromGroup = React.useCallback((group: StripePayoutGroup) => {
+    return group.rows.map((row) => ({
+      stripePaymentId: row.id,
+      amount: row.amount,
+      fee: row.fee,
+      date: row.createdDate,
+      customerEmail: row.customerEmail,
+      description: row.description,
+      contactId: donorByEmail.get(row.customerEmail.toLowerCase().trim()) ?? null,
+    }));
+  }, [donorByEmail]);
+
   const handleFile = React.useCallback(async (file: File) => {
     setIsParsing(true);
     setWarning(null);
@@ -131,11 +147,12 @@ export function StripeImputationModal({
       const group = allMatches[0] ?? null;
 
       if (!group) {
-        throw new Error('ERR_NO_PAYOUT_MATCH');
+        throw new Error('No s\'ha trobat cap payout Stripe que quadri amb aquest abonament.');
       }
 
-      setMatchingGroups(allMatches.length > 0 ? allMatches : [group]);
+      setMatchingGroups(allMatches);
       setSelectedTransferId(group.transferId);
+      setParsedPayments(buildPaymentsFromGroup(group));
       setWarning(
         parsed.warnings.length > 0
           ? "S'han exclòs pagaments reemborsats del CSV."
@@ -143,18 +160,6 @@ export function StripeImputationModal({
             ? 'Hi ha diversos payouts que quadren amb aquest abonament. Selecciona el correcte.'
             : null
       );
-
-      const nextPayments = group.rows.map((row) => ({
-        stripePaymentId: row.id,
-        amount: row.amount,
-        fee: row.fee,
-        date: row.createdDate,
-        customerEmail: row.customerEmail,
-        description: row.description,
-        contactId: donorByEmail.get(row.customerEmail.toLowerCase().trim()) ?? null,
-      }));
-
-      setParsedPayments(nextPayments);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error processant el CSV';
       toast({
@@ -168,7 +173,7 @@ export function StripeImputationModal({
     } finally {
       setIsParsing(false);
     }
-  }, [bankTransaction.amount, donorByEmail, toast]);
+  }, [bankTransaction.amount, buildPaymentsFromGroup, toast]);
 
   const handleUploadChange = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -180,20 +185,9 @@ export function StripeImputationModal({
   const handleSelectGroup = React.useCallback((transferId: string) => {
     const group = matchingGroups.find((item) => item.transferId === transferId);
     if (!group) return;
-
     setSelectedTransferId(transferId);
-    setParsedPayments(
-      group.rows.map((row) => ({
-        stripePaymentId: row.id,
-        amount: row.amount,
-        fee: row.fee,
-        date: row.createdDate,
-        customerEmail: row.customerEmail,
-        description: row.description,
-        contactId: donorByEmail.get(row.customerEmail.toLowerCase().trim()) ?? null,
-      }))
-    );
-  }, [donorByEmail, matchingGroups]);
+    setParsedPayments(buildPaymentsFromGroup(group));
+  }, [buildPaymentsFromGroup, matchingGroups]);
 
   const setPaymentContact = React.useCallback((stripePaymentId: string, contactId: string | null) => {
     setParsedPayments((current) =>
@@ -225,7 +219,7 @@ export function StripeImputationModal({
 
     setIsSaving(true);
     try {
-      const payments: StripeDonationPaymentInput[] = parsedPayments.map((payment) => ({
+      const payments: StripePaymentInput[] = parsedPayments.map((payment) => ({
         stripePaymentId: payment.stripePaymentId,
         amount: payment.amount,
         fee: payment.fee,
@@ -259,7 +253,7 @@ export function StripeImputationModal({
       await batch.commit();
 
       toast({
-        title: 'Imputacio Stripe completada',
+        title: 'Imputació Stripe completada',
         description: `S'han creat ${donations.length} donacions Stripe${adjustment ? ' i 1 ajust' : ''}.`,
       });
 
@@ -269,8 +263,8 @@ export function StripeImputationModal({
       const message = error instanceof Error ? error.message : 'Error desconegut';
       toast({
         variant: 'destructive',
-        title: 'Error a la imputacio Stripe',
-        description: message === STRIPE_DUPLICATE_PAYMENT_ERROR
+        title: 'Error a la imputació Stripe',
+        description: message === ERR_STRIPE_DUPLICATE_PAYMENT
           ? 'Aquest pagament Stripe ja ha estat imputat.'
           : message,
       });
@@ -306,7 +300,7 @@ export function StripeImputationModal({
           </div>
 
           {warning && (
-            <Alert variant="default">
+            <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Revisa aquest punt</AlertTitle>
               <AlertDescription>{warning}</AlertDescription>
@@ -392,3 +386,4 @@ export function StripeImputationModal({
     </Dialog>
   );
 }
+

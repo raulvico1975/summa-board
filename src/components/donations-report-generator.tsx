@@ -42,8 +42,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { Donor, Transaction, AnyContact } from '@/lib/data';
-import type { Donation } from '@/lib/types/donations';
-import { donationToTransactionLike } from '@/lib/types/donations';
 import { formatCurrencyEU, normalizeTaxId, removeAccents } from '@/lib/normalize';
 import { useToast } from '@/hooks/use-toast';
 import { encodeLatin1, type AEATExcludedDonor, type AEATExportResult } from '@/lib/model182-aeat';
@@ -58,6 +56,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { MOBILE_ACTIONS_BAR, MOBILE_CTA_PRIMARY } from '@/lib/ui/mobile-actions';
 import { calculateTransactionNetAmount, isReturnTransaction } from '@/lib/model182';
+import type { Donation } from '@/lib/types/donations';
+import { mergeTransactionsWithStripeDonations } from '@/lib/fiscal/stripe-donations-fiscal-source';
 
 let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null;
 
@@ -192,19 +192,17 @@ export function DonationsReportGenerator() {
       : null,
     [firestore, organizationId]
   );
-  const donationsQuery = useMemoFirebase(
-    () => organizationId
-      ? collection(firestore, 'organizations', organizationId, 'donations')
-      : null,
-    [firestore, organizationId]
-  );
   const contactsQuery = useMemoFirebase(
     () => organizationId ? collection(firestore, 'organizations', organizationId, 'contacts') : null,
     [firestore, organizationId]
   );
+  const donationsQuery = useMemoFirebase(
+    () => organizationId ? collection(firestore, 'organizations', organizationId, 'donations') : null,
+    [firestore, organizationId]
+  );
   const { data: transactions } = useCollection<Transaction>(transactionsQuery);
-  const { data: donations } = useCollection<Donation>(donationsQuery);
   const { data: contacts } = useCollection<AnyContact>(contactsQuery);
+  const { data: donations } = useCollection<Donation>(donationsQuery);
 
   // Filtrar només els donants
   const donors = React.useMemo(() => 
@@ -230,18 +228,19 @@ export function DonationsReportGenerator() {
 
   // HOTFIX: Filtre client-side tolerant (inclou null, undefined, "")
   const activeTxs = React.useMemo(() => {
-    const activeTransactions = (transactions ?? []).filter(tx => !tx.archivedAt);
-    const activeDonations = (donations ?? [])
-      .map(donationToTransactionLike)
-      .filter(tx => !tx.archivedAt);
-    return [...activeTransactions, ...activeDonations];
-  }, [donations, transactions]);
+    if (!transactions) return [];
+    return transactions.filter(tx => !tx.archivedAt);
+  }, [transactions]);
+
+  const fiscalTxs = React.useMemo(() => {
+    return mergeTransactionsWithStripeDonations(activeTxs, donations ?? []);
+  }, [activeTxs, donations]);
 
   const availableYears = React.useMemo(() => {
-    if (!activeTxs.length) return [];
-    const years = new Set(activeTxs.map(tx => new Date(tx.date).getFullYear()));
+    if (!fiscalTxs.length) return [];
+    const years = new Set(fiscalTxs.map(tx => new Date(tx.date).getFullYear()));
     return Array.from(years).sort((a, b) => b - a);
-  }, [activeTxs]);
+  }, [fiscalTxs]);
   
   const handleGenerateReport = () => {
     if (!canGenerateModel182) {
@@ -251,7 +250,7 @@ export function DonationsReportGenerator() {
     setIsLoading(true);
 
     // HOTFIX: Usar activeTxs (filtrat client-side) en lloc de transactions raw
-    if (!activeTxs.length || !contacts) {
+    if (!fiscalTxs.length || !contacts) {
       toast({ variant: 'destructive', title: t.reports.dataNotAvailable, description: t.reports.dataNotAvailableDescription });
       setIsLoading(false);
       return;
@@ -280,7 +279,7 @@ export function DonationsReportGenerator() {
     // PROCESSAR TOTES LES TRANSACCIONS ACTIVES (any actual + històric)
     // HOTFIX: Usar activeTxs (filtrat client-side amb tolerància !tx.archivedAt)
     // ═══════════════════════════════════════════════════════════════════════════
-    activeTxs.forEach(tx => {
+    fiscalTxs.forEach(tx => {
       const txYear = new Date(tx.date).getFullYear();
 
       // Només processar transaccions amb donant assignat

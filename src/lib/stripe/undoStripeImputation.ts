@@ -1,31 +1,15 @@
 import { collection, getDocs, query, where, writeBatch, type Firestore } from 'firebase/firestore';
-import type { Donation } from '@/lib/types/donations';
 
-interface UndoStripeImputationStore {
-  listByParentTransactionId: (parentTransactionId: string) => Promise<Donation[]>;
-  deleteById: (id: string) => Promise<void>;
-}
+type UndoStripeImputationDeps = {
+  loadStripeDonationsByParentTransactionId: (args: {
+    firestore: Firestore;
+    organizationId: string;
+    parentTransactionId: string;
+  }) => Promise<Array<{ ref: unknown }>>;
+  deleteDonationRefs: (args: { firestore: Firestore; refs: Array<{ ref: unknown }> }) => Promise<void>;
+};
 
-interface UndoStripeImputationInput {
-  parentTransactionId: string;
-  store: UndoStripeImputationStore;
-}
-
-export async function undoStripeImputation({
-  parentTransactionId,
-  store,
-}: UndoStripeImputationInput): Promise<{ deletedCount: number }> {
-  const donations = await store.listByParentTransactionId(parentTransactionId);
-  const stripeDonations = donations.filter((donation) => donation.source === 'stripe' && donation.id);
-
-  for (const donation of stripeDonations) {
-    await store.deleteById(donation.id!);
-  }
-
-  return { deletedCount: stripeDonations.length };
-}
-
-export async function undoStripeImputationInFirestore({
+async function loadStripeDonationsByParentTransactionId({
   firestore,
   organizationId,
   parentTransactionId,
@@ -33,7 +17,7 @@ export async function undoStripeImputationInFirestore({
   firestore: Firestore;
   organizationId: string;
   parentTransactionId: string;
-}): Promise<{ deletedCount: number }> {
+}): Promise<Array<{ ref: unknown }>> {
   const donationsRef = collection(firestore, 'organizations', organizationId, 'donations');
   const snapshot = await getDocs(
     query(
@@ -43,11 +27,45 @@ export async function undoStripeImputationInFirestore({
     )
   );
 
+  return snapshot.docs;
+}
+
+async function deleteDonationRefs({
+  firestore,
+  refs,
+}: {
+  firestore: Firestore;
+  refs: Array<{ ref: unknown }>;
+}): Promise<void> {
   const batch = writeBatch(firestore);
-  snapshot.docs.forEach((docSnap) => {
-    batch.delete(docSnap.ref);
+  refs.forEach((docSnap) => {
+    batch.delete(docSnap.ref as never);
   });
   await batch.commit();
+}
 
-  return { deletedCount: snapshot.size };
+export async function undoStripeImputation({
+  firestore,
+  organizationId,
+  parentTransactionId,
+  deps,
+}: {
+  firestore: Firestore;
+  organizationId: string;
+  parentTransactionId: string;
+  deps?: Partial<UndoStripeImputationDeps>;
+}): Promise<{ deletedCount: number }> {
+  const loadDocs = deps?.loadStripeDonationsByParentTransactionId ?? loadStripeDonationsByParentTransactionId;
+  const deleteDocs = deps?.deleteDonationRefs ?? deleteDonationRefs;
+  const docs = await loadDocs({
+    firestore,
+    organizationId,
+    parentTransactionId,
+  });
+  await deleteDocs({
+    firestore,
+    refs: docs,
+  });
+
+  return { deletedCount: docs.length };
 }
