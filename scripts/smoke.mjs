@@ -216,8 +216,8 @@ if (ownerEmail && ownerPassword) {
 
   await waitFor(async () => {
     const snap = await db.collection("meetings").doc(integratedMeetingId).get();
-    return snap.data()?.recordingStatus === "processing";
-  }, "La reunió no ha passat a estat processing després d'aturar la gravació");
+    return snap.data()?.recordingStatus === "stopping";
+  }, "La reunió no ha passat a estat stopping després d'aturar la gravació");
 
   const webhookPayload = {
     event: "recording.ready-to-download",
@@ -237,6 +237,11 @@ if (ownerEmail && ownerPassword) {
   assert(webhookRes.ok, `Webhook Daily ha fallat (${webhookRes.status})`);
   const webhookData = await webhookRes.json();
   assert(webhookData.ok === true, "Webhook Daily no ha retornat ok=true");
+
+  await waitFor(async () => {
+    const snap = await db.collection("meetings").doc(integratedMeetingId).get();
+    return snap.data()?.recordingStatus === "processing";
+  }, "La reunió no ha passat a estat processing després del webhook");
 
   const ingestJob = await waitFor(async () => {
     const snap = await db
