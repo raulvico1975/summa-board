@@ -44,6 +44,15 @@ export async function POST(request: NextRequest) {
       createdBy: owner.uid,
     });
 
+    if (meeting.provisioningStatus !== "usable" || !meeting.meetingId) {
+      const message =
+        meeting.provisioningError?.code === "DAILY_NOT_CONFIGURED"
+          ? i18n.errors.dailyNotConfigured
+          : i18n.poll.closePollError;
+
+      return NextResponse.json({ error: message, retryable: true }, { status: 400 });
+    }
+
     return NextResponse.json(meeting);
   } catch (error) {
     if (isSubscriptionRequiredError(error)) {

@@ -52,9 +52,14 @@ test("createMeetingWithDaily stores Daily fields when room creation succeeds", a
     assert.equal(created.dailyRoomName, `meeting-${created.meetingId}`);
     assert.equal(created.dailyRoomUrl, `https://summareu.daily.co/meeting-${created.meetingId}`);
     assert.equal(created.meetingUrl, created.dailyRoomUrl);
+    assert.equal(created.provisioningStatus, "usable");
+    assert.equal(created.provisioningError, null);
     assert.equal(meeting?.dailyRoomName, created.dailyRoomName);
     assert.equal(meeting?.dailyRoomUrl, created.dailyRoomUrl);
     assert.equal(meeting?.meetingUrl, created.meetingUrl);
+    assert.equal(meeting?.provisioningStatus, "usable");
+    assert.equal(meeting?.provisioningError, null);
+    assert.equal(typeof meeting?.provisioningReadyAt, "number");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -83,9 +88,13 @@ test("createMeetingWithDaily keeps the meeting when Daily room creation fails", 
     assert.equal(created.dailyRoomName, null);
     assert.equal(created.dailyRoomUrl, null);
     assert.equal(created.meetingUrl, null);
+    assert.equal(created.provisioningStatus, "provisioning_failed");
+    assert.equal(created.provisioningError?.code, "Daily create room failed");
     assert.equal(meeting?.dailyRoomName, null);
     assert.equal(meeting?.dailyRoomUrl, null);
     assert.equal(meeting?.meetingUrl, null);
+    assert.equal(meeting?.provisioningStatus, "provisioning_failed");
+    assert.equal(meeting?.provisioningError?.code, "Daily create room failed");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -112,6 +121,7 @@ test("createMeetingWithDaily always creates the meeting document first", async (
 
     assert.equal(meetingSnap.exists, true);
     assert.equal(meeting?.title, title);
+    assert.equal(meeting?.provisioningStatus, "provisioning_failed");
     assert.equal(meeting?.recordingStatus, "none");
   } finally {
     globalThis.fetch = originalFetch;
@@ -127,4 +137,17 @@ test("owner meetings create route propagates the exact shape returned by the com
   );
   assert.equal(source.includes("return NextResponse.json(meeting);"), true);
   assert.equal(source.includes("return NextResponse.json({ meetingId: meeting.meetingId });"), false);
+});
+
+test("poll page links meetings only when a usable meeting exists", async () => {
+  const source = await fs.readFile("app/polls/[pollId]/page.tsx", "utf8");
+
+  assert.equal(source.includes("getUsableMeetingIdByPollId"), true);
+  assert.equal(source.includes("const canClosePoll = effectivePollStatus === \"open\" || effectivePollStatus === \"close_failed\";"), true);
+});
+
+test("owner meeting page rejects meetings that are not usable", async () => {
+  const source = await fs.readFile("app/owner/meetings/[meetingId]/page.tsx", "utf8");
+
+  assert.equal(source.includes("!meeting || meeting.orgId !== owner.orgId || !isMeetingUsable(meeting)"), true);
 });

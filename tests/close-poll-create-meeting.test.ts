@@ -11,14 +11,12 @@ process.env.DAILY_DOMAIN ||= "summareu";
 const { adminDb } = await import("../src/lib/firebase/admin.ts");
 const {
   closePollCreateMeeting,
+  deleteMeetingCascade,
   deleteMeetingById,
   getMeetingById,
   getMeetingByMeetingUrl,
+  getUsableMeetingIdByPollId,
 } = await import("../src/lib/db/repo.ts");
-const {
-  canDeletePastMeeting,
-  getOwnerMeetings,
-} = await import("../src/lib/meetings/get-owner-meetings.ts");
 
 function buildId(prefix: string) {
   return `${prefix}-${crypto.randomBytes(6).toString("hex")}`;
@@ -43,6 +41,21 @@ async function seedOpenPoll() {
   await adminDb.collection("polls").doc(pollId).collection("options").doc(optionId).set({
     startsAt: Timestamp.now(),
   });
+
+  return { pollId, optionId };
+}
+
+async function seedClosedPollWithoutMeeting() {
+  const { pollId, optionId } = await seedOpenPoll();
+
+  await adminDb.collection("polls").doc(pollId).set(
+    {
+      status: "closed",
+      winningOptionId: optionId,
+      closedAt: Timestamp.now(),
+    },
+    { merge: true }
+  );
 
   return { pollId, optionId };
 }
@@ -83,11 +96,14 @@ test("closePollCreateMeeting stores Daily room data and mirrors meetingUrl on su
     assert.equal(created.dailyRoomName, requestedRoomName);
     assert.equal(created.dailyRoomUrl, `https://summareu.daily.co/${requestedRoomName}`);
     assert.equal(created.meetingUrl, created.dailyRoomUrl);
+    assert.equal(created.provisioningStatus, "usable");
     assert.equal(meeting?.dailyRoomName, requestedRoomName);
     assert.equal(meeting?.dailyRoomUrl, `https://summareu.daily.co/${requestedRoomName}`);
     assert.equal(meeting?.meetingUrl, meeting?.dailyRoomUrl);
+    assert.equal(meeting?.provisioningStatus, "usable");
     assert.equal(meeting?.recordingStatus, "none");
     assert.equal(meeting?.pollId, pollId);
+    assert.equal(typeof meeting?.provisioningReadyAt, "number");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -118,10 +134,14 @@ test("closePollCreateMeeting keeps the meeting when Daily room creation fails", 
     assert.equal(created.meetingUrl, null);
     assert.equal(created.dailyRoomUrl, null);
     assert.equal(created.dailyRoomName, null);
+    assert.equal(created.provisioningStatus, "provisioning_failed");
     assert.equal(meeting?.dailyRoomName, null);
     assert.equal(meeting?.dailyRoomUrl, null);
     assert.equal(meeting?.meetingUrl, null);
-    assert.equal(pollSnap.data()?.status, "closed");
+    assert.equal(meeting?.provisioningStatus, "provisioning_failed");
+    assert.equal(pollSnap.data()?.status, "close_failed");
+    assert.equal(pollSnap.data()?.closedAt, null);
+    assert.equal(typeof pollSnap.data()?.closeError?.code, "string");
     assert.equal(
       errorLogs.some((entry) => entry[0] === "daily_room_create_failed" && entry[1] === created.meetingId),
       true
@@ -130,6 +150,86 @@ test("closePollCreateMeeting keeps the meeting when Daily room creation fails", 
     globalThis.fetch = originalFetch;
     console.error = originalConsoleError;
   }
+});
+
+test("getUsableMeetingIdByPollId only returns meetings that are usable", async () => {
+  const { pollId, optionId } = await seedOpenPoll();
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async () => new Response("boom", { status: 500 });
+
+  try {
+    const failed = await closePollCreateMeeting({
+      pollId,
+      winningOptionId: optionId,
+      createdBy: "owner-failed-usable-lookup",
+    });
+
+    assert.equal(await getUsableMeetingIdByPollId(pollId), null);
+
+    globalThis.fetch = async (_input, init) => {
+      const payload = JSON.parse(String(init?.body ?? "{}"));
+
+      return new Response(
+        JSON.stringify({
+          name: payload.name,
+          url: `https://summareu.daily.co/${payload.name}`,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    };
+
+    const retried = await closePollCreateMeeting({
+      pollId,
+      winningOptionId: optionId,
+      createdBy: "owner-retry-usable-lookup",
+    });
+
+    assert.equal(failed.meetingId, retried.meetingId);
+    assert.equal(await getUsableMeetingIdByPollId(pollId), retried.meetingId);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("getMeetingById infers provisioning and recording defaults for legacy meetings", async () => {
+  const { pollId } = await seedOpenPoll();
+  const usableMeetingId = buildId("meeting-legacy-usable");
+  const failedMeetingId = buildId("meeting-legacy-failed");
+
+  await adminDb.collection("meetings").doc(usableMeetingId).set({
+    orgId: "org-test",
+    title: "Legacy usable",
+    description: null,
+    createdAt: Date.now(),
+    createdBy: "legacy-owner",
+    meetingUrl: "https://summareu.daily.co/legacy-usable",
+    dailyRoomUrl: "https://summareu.daily.co/legacy-usable",
+    pollId,
+  });
+
+  await adminDb.collection("meetings").doc(failedMeetingId).set({
+    orgId: "org-test",
+    title: "Legacy failed",
+    description: null,
+    createdAt: Date.now(),
+    createdBy: "legacy-owner",
+    meetingUrl: null,
+    pollId: buildId("poll-legacy-failed"),
+  });
+
+  const [usableMeeting, failedMeeting] = await Promise.all([
+    getMeetingById(usableMeetingId),
+    getMeetingById(failedMeetingId),
+  ]);
+
+  assert.equal(usableMeeting?.provisioningStatus, "usable");
+  assert.equal(usableMeeting?.recordingStatus, "none");
+  assert.equal(failedMeeting?.provisioningStatus, "provisioning_failed");
+  assert.equal(failedMeeting?.recordingStatus, "none");
 });
 
 test("legacy meetingUrl consumers keep working after closePollCreateMeeting", async () => {
@@ -319,64 +419,61 @@ test("deleteMeetingById removes the meeting with its nested assets and ingest jo
   }
 });
 
-test("getOwnerMeetings returns only past meetings that are not active", async () => {
-  const orgId = buildId("org");
-  const now = Date.now();
+test("deleteMeetingCascade removes both the meeting and its closed poll", async () => {
+  const { pollId, optionId } = await seedOpenPoll();
+  const originalFetch = globalThis.fetch;
 
-  await adminDb.collection("meetings").doc(buildId("meeting-past-ready")).set({
-    orgId,
-    title: "Past ready meeting",
-    description: null,
-    createdAt: now - 1000,
-    createdBy: "owner-dashboard",
-    meetingUrl: null,
-    dailyRoomName: null,
-    dailyRoomUrl: null,
-    recordingStatus: "ready",
-    recordingUrl: null,
-    transcript: null,
-    minutesDraft: null,
-    pollId: null,
-    scheduledAt: Timestamp.fromMillis(now - 3_600_000),
+  globalThis.fetch = async (_input, init) => {
+    const payload = JSON.parse(String(init?.body ?? "{}"));
+
+    return new Response(
+      JSON.stringify({
+        name: payload.name,
+        url: `https://summareu.daily.co/${payload.name}`,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  };
+
+  try {
+    const created = await closePollCreateMeeting({
+      pollId,
+      winningOptionId: optionId,
+      createdBy: "owner-delete-cascade",
+    });
+
+    const deleted = await deleteMeetingCascade({
+      meetingId: created.meetingId,
+      pollId,
+    });
+
+    const [meetingSnap, meetingLookup, pollSnap] = await Promise.all([
+      adminDb.collection("meetings").doc(created.meetingId).get(),
+      getMeetingById(created.meetingId),
+      adminDb.collection("polls").doc(pollId).get(),
+    ]);
+
+    assert.deepEqual(deleted, { deletedMeeting: true, deletedPoll: true });
+    assert.equal(meetingSnap.exists, false);
+    assert.equal(meetingLookup, null);
+    assert.equal(pollSnap.exists, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("deleteMeetingCascade removes a closed poll even when the meeting document is missing", async () => {
+  const { pollId } = await seedClosedPollWithoutMeeting();
+
+  const deleted = await deleteMeetingCascade({
+    pollId,
   });
 
-  await adminDb.collection("meetings").doc(buildId("meeting-future")).set({
-    orgId,
-    title: "Future meeting",
-    description: null,
-    createdAt: now - 900,
-    createdBy: "owner-dashboard",
-    meetingUrl: null,
-    dailyRoomName: null,
-    dailyRoomUrl: null,
-    recordingStatus: "none",
-    recordingUrl: null,
-    transcript: null,
-    minutesDraft: null,
-    pollId: null,
-    scheduledAt: Timestamp.fromMillis(now + 3_600_000),
-  });
+  const pollSnap = await adminDb.collection("polls").doc(pollId).get();
 
-  await adminDb.collection("meetings").doc(buildId("meeting-past-processing")).set({
-    orgId,
-    title: "Past processing meeting",
-    description: null,
-    createdAt: now - 800,
-    createdBy: "owner-dashboard",
-    meetingUrl: null,
-    dailyRoomName: null,
-    dailyRoomUrl: null,
-    recordingStatus: "processing",
-    recordingUrl: null,
-    transcript: null,
-    minutesDraft: null,
-    pollId: null,
-    scheduledAt: Timestamp.fromMillis(now - 7_200_000),
-  });
-
-  const meetings = await getOwnerMeetings(orgId);
-
-  assert.equal(meetings.length, 1);
-  assert.equal(meetings[0]?.title, "Past ready meeting");
-  assert.equal(canDeletePastMeeting(meetings[0]!), true);
+  assert.deepEqual(deleted, { deletedMeeting: false, deletedPoll: true });
+  assert.equal(pollSnap.exists, false);
 });

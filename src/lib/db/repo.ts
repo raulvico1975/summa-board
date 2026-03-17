@@ -12,6 +12,7 @@ import type {
   MeetingIngestJobDoc,
   MinutesDoc,
   MinutesJson,
+  OperationErrorDoc,
   OrgDoc,
   OrgSubscriptionStatus,
   PollDoc,
@@ -59,6 +60,34 @@ const meetingIngestJobsCol = adminDb.collection(
 ) as CollectionReference<MeetingIngestJobDoc>;
 const MAX_BATCH_OPERATIONS = 50;
 
+function buildOperationError(code: string, message?: string | null): OperationErrorDoc {
+  return {
+    code,
+    message: message ?? null,
+    at: Date.now(),
+  };
+}
+
+export function normalizeMeetingDoc(meeting: MeetingDoc): MeetingDoc {
+  const provisioningStatus =
+    meeting.provisioningStatus ?? (meeting.meetingUrl ? "usable" : "provisioning_failed");
+
+  return {
+    ...meeting,
+    provisioningStatus,
+    provisioningError: meeting.provisioningError ?? null,
+    provisioningAttemptedAt: meeting.provisioningAttemptedAt ?? null,
+    provisioningReadyAt: meeting.provisioningReadyAt ?? null,
+    recordingStatus: meeting.recordingStatus ?? "none",
+    lastWebhookAt: meeting.lastWebhookAt ?? null,
+  };
+}
+
+export function isMeetingUsable(meeting: Pick<MeetingDoc, "meetingUrl" | "provisioningStatus">): boolean {
+  const normalized = normalizeMeetingDoc(meeting as MeetingDoc);
+  return normalized.provisioningStatus === "usable" && !!normalized.meetingUrl;
+}
+
 function buildMeetingDoc(input: {
   orgId: string;
   title: string;
@@ -76,10 +105,15 @@ function buildMeetingDoc(input: {
     meetingUrl: null,
     dailyRoomName: null,
     dailyRoomUrl: null,
+    provisioningStatus: "provisioning",
+    provisioningError: null,
+    provisioningAttemptedAt: null,
+    provisioningReadyAt: null,
     recordingStatus: "none",
     recordingUrl: null,
     transcript: null,
     minutesDraft: null,
+    lastWebhookAt: null,
     pollId: input.pollId ?? null,
     scheduledAt: input.scheduledAt ?? null,
   };
@@ -316,49 +350,122 @@ export async function closePollCreateMeeting(input: {
 }): Promise<CreateMeetingWithDailyResult> {
   const pollRef = pollsCol.doc(input.pollId);
   const optionRef = pollRef.collection("options").doc(input.winningOptionId);
+  const preparedMeeting = await adminDb.runTransaction(async (trx) => {
+    const meetingsByPollQuery = meetingsCol.where("pollId", "==", input.pollId).limit(1);
+    const [pollDoc, optionDoc, existingMeetingSnap] = await Promise.all([
+      trx.get(pollRef),
+      trx.get(optionRef),
+      trx.get(meetingsByPollQuery),
+    ]);
 
-  const meeting = await createMeetingWithDaily({
-    createMeeting: async () =>
-      adminDb.runTransaction(async (trx) => {
-        const [pollDoc, optionDoc] = await Promise.all([trx.get(pollRef), trx.get(optionRef)]);
+    if (!pollDoc.exists) {
+      throw new Error("POLL_NOT_FOUND");
+    }
 
-        if (!pollDoc.exists) {
-          throw new Error("POLL_NOT_FOUND");
-        }
+    if (!optionDoc.exists) {
+      throw new Error("OPTION_NOT_FOUND");
+    }
 
-        if (!optionDoc.exists) {
-          throw new Error("OPTION_NOT_FOUND");
-        }
+    const poll = pollDoc.data() as PollDoc;
+    const existingMeetingDoc = existingMeetingSnap.docs[0];
+    const existingMeeting = existingMeetingDoc ? normalizeMeetingDoc(existingMeetingDoc.data() as MeetingDoc) : null;
+    const canRetryLegacyClosed = poll.status === "closed" && (!existingMeeting || !isMeetingUsable(existingMeeting));
 
-        const poll = pollDoc.data() as PollDoc;
-        if (poll.status !== "open") {
-          throw new Error("POLL_ALREADY_CLOSED");
-        }
+    if (poll.status === "closing") {
+      throw new Error("POLL_ALREADY_CLOSING");
+    }
 
-        trx.update(pollRef, {
-          status: "closed",
-          winningOptionId: input.winningOptionId,
-          closedAt: FieldValue.serverTimestamp(),
-        });
+    if (poll.status !== "open" && poll.status !== "close_failed" && !canRetryLegacyClosed) {
+      throw new Error("POLL_ALREADY_CLOSED");
+    }
 
-        const meetingRef = meetingsCol.doc();
-        const option = optionDoc.data() as PollOptionDoc;
+    if (existingMeeting && isMeetingUsable(existingMeeting)) {
+      throw new Error("MEETING_ALREADY_USABLE");
+    }
 
-        trx.set(
-          meetingRef,
-          buildMeetingDoc({
+    const option = optionDoc.data() as PollOptionDoc;
+    const meetingRef = existingMeetingDoc?.ref ?? meetingsCol.doc();
+
+    trx.set(
+      pollRef,
+      {
+        status: "closing",
+        winningOptionId: input.winningOptionId,
+        closedAt: null,
+        closeError: null,
+      },
+      { merge: true }
+    );
+
+    if (!existingMeetingDoc) {
+      trx.set(
+        meetingRef,
+        {
+          ...buildMeetingDoc({
             orgId: poll.orgId,
             title: poll.title,
             description: poll.description,
             createdBy: input.createdBy,
             pollId: pollRef.id,
             scheduledAt: option.startsAt,
-          })
-        );
+          }),
+          provisioningAttemptedAt: Date.now(),
+        }
+      );
+    } else {
+      trx.set(
+        meetingRef,
+        {
+          orgId: poll.orgId,
+          title: poll.title,
+          description: poll.description,
+          createdBy: input.createdBy,
+          pollId: pollRef.id,
+          scheduledAt: option.startsAt,
+          meetingUrl: null,
+          dailyRoomName: null,
+          dailyRoomUrl: null,
+          provisioningStatus: "provisioning",
+          provisioningError: null,
+          provisioningAttemptedAt: Date.now(),
+          provisioningReadyAt: null,
+        },
+        { merge: true }
+      );
+    }
 
-        return meetingRef.id;
-      }),
+    return {
+      meetingId: meetingRef.id,
+    };
   });
+
+  const meeting = await createMeetingWithDaily({
+    createMeeting: async () => preparedMeeting.meetingId,
+  });
+
+  if (meeting.provisioningStatus === "usable") {
+    await pollRef.set(
+      {
+        status: "closed",
+        winningOptionId: input.winningOptionId,
+        closedAt: FieldValue.serverTimestamp(),
+        closeError: null,
+      },
+      { merge: true }
+    );
+    return meeting;
+  }
+
+  await pollRef.set(
+    {
+      status: "close_failed",
+      winningOptionId: input.winningOptionId,
+      closedAt: null,
+      closeError:
+        meeting.provisioningError ?? buildOperationError("MEETING_PROVISIONING_FAILED", "Meeting provisioning failed"),
+    },
+    { merge: true }
+  );
 
   return meeting;
 }
@@ -391,7 +498,7 @@ export async function getMeetingById(meetingId: string): Promise<MeetingWithAsse
   const meetingDoc = await meetingsCol.doc(meetingId).get();
   if (!meetingDoc.exists) return null;
 
-  const meetingData = meetingDoc.data() as MeetingDoc;
+  const meetingData = normalizeMeetingDoc(meetingDoc.data() as MeetingDoc);
   const pollDoc = meetingData.pollId ? await pollsCol.doc(meetingData.pollId).get() : null;
 
   const [recordingsSnap, transcriptsSnap, minutesSnap, ingestJobSnap] = await Promise.all([
@@ -425,10 +532,28 @@ export async function getMeetingIdByPollId(pollId: string): Promise<string | nul
   return doc ? doc.id : null;
 }
 
+export async function getUsableMeetingIdByPollId(pollId: string): Promise<string | null> {
+  const snap = await meetingsCol.where("pollId", "==", pollId).get();
+  const usableMeetingDoc = snap.docs.find((doc) => isMeetingUsable(doc.data() as MeetingDoc));
+  return usableMeetingDoc ? usableMeetingDoc.id : null;
+}
+
 export async function getMeetingByMeetingUrl(meetingUrl: string): Promise<MeetingWithAssets | null> {
   const snap = await meetingsCol.where("meetingUrl", "==", meetingUrl).limit(1).get();
   const doc = snap.docs[0];
   return doc ? getMeetingById(doc.id) : null;
+}
+
+export async function deletePollById(pollId: string): Promise<boolean> {
+  const pollRef = pollsCol.doc(pollId);
+  const pollSnap = await pollRef.get();
+
+  if (!pollSnap.exists) {
+    return false;
+  }
+
+  await adminDb.recursiveDelete(pollRef);
+  return true;
 }
 
 export async function deleteMeetingById(meetingId: string): Promise<boolean> {
@@ -451,6 +576,24 @@ export async function deleteMeetingById(meetingId: string): Promise<boolean> {
 
   await adminDb.recursiveDelete(meetingRef);
   return true;
+}
+
+export async function deleteMeetingCascade(input: {
+  meetingId?: string | null;
+  pollId?: string | null;
+}): Promise<{ deletedMeeting: boolean; deletedPoll: boolean }> {
+  let deletedMeeting = false;
+  let deletedPoll = false;
+
+  if (input.meetingId) {
+    deletedMeeting = await deleteMeetingById(input.meetingId);
+  }
+
+  if (input.pollId) {
+    deletedPoll = await deletePollById(input.pollId);
+  }
+
+  return { deletedMeeting, deletedPoll };
 }
 
 export async function registerMeetingRecording(input: {

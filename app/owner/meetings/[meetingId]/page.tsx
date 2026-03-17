@@ -4,7 +4,7 @@ import { MeetingLiveRefresh } from "@/src/components/meetings/meeting-live-refre
 import { MeetingControlPanel } from "@/src/components/meetings/meeting-control-panel";
 import { MinutesEditor } from "@/src/components/meetings/minutes-editor";
 import { DeleteMeetingButton } from "@/src/components/meetings/delete-meeting-button";
-import { getMeetingById } from "@/src/lib/db/repo";
+import { getMeetingById, isMeetingUsable } from "@/src/lib/db/repo";
 import { formatDateTime } from "@/src/lib/dates";
 import { requireOwnerPage } from "@/src/lib/ui/owner-page";
 import { getRequestI18n } from "@/src/i18n/server";
@@ -20,7 +20,7 @@ export default async function OwnerMeetingPage({
   const { meetingId } = await params;
 
   const meeting = await getMeetingById(meetingId);
-  if (!meeting || meeting.orgId !== owner.orgId) {
+  if (!meeting || meeting.orgId !== owner.orgId || !isMeetingUsable(meeting)) {
     notFound();
   }
 
@@ -28,15 +28,13 @@ export default async function OwnerMeetingPage({
   const minutesDraft = meeting.minutesDraft ?? meeting.minutes[0]?.minutesMarkdown ?? "";
   const minutesId = meeting.minutes[0]?.id ?? "daily";
   const recordingStatus = meeting.recordingStatus ?? "none";
-  const showRefresh = recordingStatus === "stopping" || recordingStatus === "processing";
+  const showRefresh = recordingStatus === "processing";
   const latestIngestJob = meeting.latestIngestJob;
   const showProcessingError = recordingStatus === "error" || latestIngestJob?.status === "error";
-  const isAwaitingDailyConfirmation = recordingStatus === "stopping";
-  const isProcessing = latestIngestJob?.status === "processing" || recordingStatus === "processing";
   const dailyRoomUrl = meeting.dailyRoomUrl ?? meeting.meetingUrl ?? null;
-  const deleteRedirectHref = meeting.poll
-    ? withLocalePath(locale, `/polls/${meeting.poll.id}`)
-    : withLocalePath(locale, "/dashboard");
+  const deleteRedirectHref = withLocalePath(locale, "/dashboard");
+  const hasGeneratedMinutes =
+    (minutesDraft && minutesDraft.trim().length > 0) || meeting.minutes.length > 0;
 
   return (
     <div className="space-y-6">
@@ -75,10 +73,7 @@ export default async function OwnerMeetingPage({
               <p>{i18n.meeting.processingErrorAction}</p>
             </div>
           ) : null}
-          {isAwaitingDailyConfirmation ? (
-            <p className="text-sm text-slate-500">{i18n.meeting.recordingPendingWebhook}</p>
-          ) : null}
-          {isProcessing ? (
+          {latestIngestJob?.status === "processing" || recordingStatus === "processing" ? (
             <p className="text-sm text-slate-500">{i18n.meeting.recordingReady}</p>
           ) : null}
           <MeetingLiveRefresh enabled={showRefresh} />
@@ -101,8 +96,6 @@ export default async function OwnerMeetingPage({
             <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
               {transcript}
             </pre>
-          ) : isAwaitingDailyConfirmation ? (
-            <p className="text-sm text-slate-500">{i18n.meeting.transcriptPendingWebhook}</p>
           ) : recordingStatus === "processing" ? (
             <p className="text-sm text-slate-500">{i18n.meeting.transcriptProcessing}</p>
           ) : showProcessingError ? (
@@ -129,8 +122,6 @@ export default async function OwnerMeetingPage({
         <CardContent>
           {minutesDraft ? (
             <MinutesEditor meetingId={meeting.id} minutesId={minutesId} initialMarkdown={minutesDraft} />
-          ) : isAwaitingDailyConfirmation ? (
-            <p className="text-sm text-slate-500">{i18n.meeting.minutesPendingWebhook}</p>
           ) : recordingStatus === "processing" ? (
             <p className="text-sm text-slate-500">{i18n.meeting.minutesProcessing}</p>
           ) : showProcessingError ? (
@@ -149,8 +140,15 @@ export default async function OwnerMeetingPage({
           <h2 className="text-base font-semibold text-red-700">{i18n.meeting.deleteTitle}</h2>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-slate-600">{i18n.meeting.deleteDescription}</p>
-          <DeleteMeetingButton meetingId={meeting.id} redirectHref={deleteRedirectHref} />
+          <p className="text-sm text-slate-600">
+            {meeting.poll ? i18n.meeting.deleteDescriptionWithPoll : i18n.meeting.deleteDescription}
+          </p>
+          <DeleteMeetingButton
+            meetingId={meeting.id}
+            pollId={meeting.poll?.id ?? null}
+            hasGeneratedMinutes={hasGeneratedMinutes}
+            redirectHref={deleteRedirectHref}
+          />
         </CardContent>
       </Card>
     </div>

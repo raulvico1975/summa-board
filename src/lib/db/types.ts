@@ -1,20 +1,21 @@
 import type { Timestamp } from "firebase-admin/firestore";
 
-export type PollStatus = "open" | "closed";
+export type PollStatus = "open" | "closing" | "closed" | "close_failed";
 export type RecordingStatus = "uploaded" | "processing" | "done" | "error";
 export type TranscriptStatus = "pending" | "processing" | "done" | "error";
 export type MinutesTaskStatus = "todo" | "doing" | "done";
 export type OrgSubscriptionStatus = "none" | "pending" | "active" | "past_due" | "canceled";
 export type OrgPlan = "basic";
+export type MeetingProvisioningStatus = "provisioning" | "usable" | "provisioning_failed";
 // Meeting recording state machine: none -> recording -> stopping -> processing -> ready | error
-export type MeetingRecordingStatus =
-  | "none"
-  | "recording"
-  | "stopping"
-  | "processing"
-  | "ready"
-  | "error";
+export type MeetingRecordingStatus = "none" | "recording" | "stopping" | "processing" | "ready" | "error";
 export type MeetingIngestJobStatus = "queued" | "processing" | "completed" | "error";
+
+export type OperationErrorDoc = {
+  code: string;
+  message: string | null;
+  at: number;
+};
 
 export type OrgDoc = {
   name: string;
@@ -37,6 +38,7 @@ export type PollDoc = {
   winningOptionId: string | null;
   createdAt: Timestamp;
   closedAt: Timestamp | null;
+  closeError?: OperationErrorDoc | null;
 };
 
 export type PollOptionDoc = {
@@ -64,10 +66,15 @@ export type MeetingDoc = {
   meetingUrl?: string | null;
   dailyRoomName?: string | null;
   dailyRoomUrl?: string | null;
+  provisioningStatus?: MeetingProvisioningStatus;
+  provisioningError?: OperationErrorDoc | null;
+  provisioningAttemptedAt?: number | null;
+  provisioningReadyAt?: number | null;
   recordingStatus?: MeetingRecordingStatus;
   recordingUrl?: string | null;
   transcript?: string | null;
   minutesDraft?: string | null;
+  lastWebhookAt?: number | null;
   pollId?: string | null;
   scheduledAt?: Timestamp | null;
 };
