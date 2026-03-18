@@ -32,7 +32,7 @@ type DailyWebhookPayload = {
   };
 };
 
-export function resolveWebhookValue(
+function resolveWebhookValue(
   body: DailyWebhookPayload
 ): { event: string; roomName: string; recordingId: string | null; recordingUrl: string | null } {
   const event = body.event ?? body.type ?? body.payload?.event ?? body.payload?.type ?? "";
