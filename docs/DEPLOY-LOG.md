@@ -45,3 +45,31 @@ Validation:
 - SSR function active: ssrsummaboard (europe-west1), updated 2026-03-14T10:00:20Z
 - summareu.app responds 307 -> /ca and 200 on /ca after deploy
 - hosted backend responds at https://summa-board--summa-board.europe-west4.hosted.app
+
+2026-03-17
+PR #9 merged to main.
+Deployed SHA: 755b5b52da892f8462e393c9f5ab5879217a2c3a
+Phase 1 product contract validated in production:
+- close-poll only succeeds with a usable meeting
+- real success path validated with Daily
+- usable meeting created
+- meetingUrl present
+- meeting URL host was summareu.daily.co
+- owner UI showed "Entrar a la reunió"
+Operational issue discovered and resolved:
+- production runtime was missing DAILY_API_KEY and DAILY_DOMAIN
+- error category was CONFIG_MISSING
+- runtime config applied to service ssrsummaboard
+
+2026-03-18
+Phase 1 operational consolidation completed.
+Stable App Hosting configuration added in apphosting.yaml.
+Commit: 5b57193319de48988a22bc73ab350b9dd945d840
+Stable config now declares:
+- DAILY_DOMAIN at runtime
+- DAILY_API_KEY as App Hosting secret
+Secret access granted to backend summa-board.
+Current status:
+- phase 1 validated functionally
+- phase 1 deployed
+- phase 1 configuration consolidated at the stable App Hosting layer
