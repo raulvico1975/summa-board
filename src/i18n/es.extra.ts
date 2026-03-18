@@ -76,6 +76,11 @@ export const esExtra: DeepPartial<I18nCa> = {
     loadingClosing: "Cerrando...",
     createPollError: "No se ha podido crear la votación.",
     closePollError: "No se ha podido cerrar la votación.",
+    retryRoomCreationTitle: "Recuperar sala de reunión",
+    retryRoomCreation: "Reintentar creación de sala",
+    retryingRoomCreation: "Reintentando sala...",
+    retryRoomCreationHint:
+      "La reunión no quedó usable. Vuelve a intentar la creación de sala sobre esta misma convocatoria.",
     unexpectedError: "Error inesperado.",
   },
   meeting: {
@@ -158,6 +163,13 @@ export const esExtra: DeepPartial<I18nCa> = {
     clientSessionMissing: "Sesión cliente no disponible. Vuelve a entrar.",
     registerRecordingError: "No se ha podido registrar la grabación.",
     processRecordingError: "No se ha podido procesar la grabación.",
+    retryIngest: "Reintentar procesamiento",
+    retryIngestRunning: "Reintentando procesamiento...",
+    retryIngestHint:
+      "El resultado final no se ha podido completar. Puedes reintentar el procesamiento de la misma grabación.",
+    retryIngestUnavailable: "Ahora mismo no se puede reintentar el procesamiento de esta reunión.",
+    processingExpiredHint:
+      "El procesamiento está tardando más de lo previsto. Puedes reintentarlo manualmente desde aquí.",
     exportIcs: "Descargar ICS",
     exportMinutesMd: "Descargar acta (.md)",
     processNow: "Procesar",

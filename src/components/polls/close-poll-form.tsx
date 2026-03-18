@@ -11,10 +11,26 @@ type Option = {
   label: string;
 };
 
-export function ClosePollForm({ pollId, options }: { pollId: string; options: Option[] }) {
+export function ClosePollForm({
+  pollId,
+  options,
+  initialWinningOptionId,
+  lockOptionSelection,
+  submitLabel,
+  loadingLabel,
+  helperText,
+}: {
+  pollId: string;
+  options: Option[];
+  initialWinningOptionId?: string;
+  lockOptionSelection?: boolean;
+  submitLabel?: string;
+  loadingLabel?: string;
+  helperText?: string;
+}) {
   const { locale, i18n } = useI18n();
   const router = useRouter();
-  const [winningOptionId, setWinningOptionId] = useState(options[0]?.id ?? "");
+  const [winningOptionId, setWinningOptionId] = useState(initialWinningOptionId ?? options[0]?.id ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +61,11 @@ export function ClosePollForm({ pollId, options }: { pollId: string; options: Op
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+      {helperText ? <p className="text-sm text-slate-600">{helperText}</p> : null}
       <select
         value={winningOptionId}
         onChange={(event) => setWinningOptionId(event.target.value)}
+        disabled={lockOptionSelection}
         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
       >
         {options.map((option) => (
@@ -60,7 +78,7 @@ export function ClosePollForm({ pollId, options }: { pollId: string; options: Op
       {error ? <p className="break-words text-sm text-red-600">{error}</p> : null}
 
       <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-        {loading ? i18n.poll.loadingClosing : i18n.poll.closePoll}
+        {loading ? (loadingLabel ?? i18n.poll.loadingClosing) : (submitLabel ?? i18n.poll.closePoll)}
       </Button>
     </form>
   );

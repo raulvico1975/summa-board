@@ -4,7 +4,7 @@ import { MeetingLiveRefresh } from "@/src/components/meetings/meeting-live-refre
 import { MeetingControlPanel } from "@/src/components/meetings/meeting-control-panel";
 import { MinutesEditor } from "@/src/components/meetings/minutes-editor";
 import { DeleteMeetingButton } from "@/src/components/meetings/delete-meeting-button";
-import { getMeetingById, isMeetingUsable } from "@/src/lib/db/repo";
+import { getMeetingById, isMeetingProcessingExpired, isMeetingUsable } from "@/src/lib/db/repo";
 import { formatDateTime } from "@/src/lib/dates";
 import { requireOwnerPage } from "@/src/lib/ui/owner-page";
 import { getRequestI18n } from "@/src/i18n/server";
@@ -33,9 +33,12 @@ export default async function OwnerMeetingPage({
   const minutesId = meeting.minutes[0]?.id ?? "daily";
   const showRefresh = recordingStatus === "stopping" || recordingStatus === "processing";
   const latestIngestJob = meeting.latestIngestJob;
+  const isProcessingExpired = isMeetingProcessingExpired(meeting);
   const showProcessingError = recordingStatus === "error" || latestIngestJob?.status === "error";
   const isAwaitingDailyConfirmation = recordingStatus === "stopping";
   const isProcessing = latestIngestJob?.status === "processing" || recordingStatus === "processing";
+  const canRetryIngest =
+    !!latestIngestJob?.recordingUrl && (recordingStatus === "error" || isProcessingExpired);
   const dailyRoomUrl = meeting.dailyRoomUrl ?? meeting.meetingUrl ?? null;
   const deleteRedirectHref = meeting.poll
     ? withLocalePath(locale, `/polls/${meeting.poll.id}`)
@@ -71,6 +74,7 @@ export default async function OwnerMeetingPage({
             meetingId={meeting.id}
             meetingUrl={dailyRoomUrl}
             recordingStatus={recordingStatus}
+            canRetryIngest={canRetryIngest}
           />
           {showProcessingError ? (
             <div className="space-y-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -83,6 +87,9 @@ export default async function OwnerMeetingPage({
           ) : null}
           {isProcessing ? (
             <p className="text-sm text-slate-500">{i18n.meeting.recordingReady}</p>
+          ) : null}
+          {isProcessingExpired ? (
+            <p className="text-sm text-amber-700">{i18n.meeting.processingExpiredHint}</p>
           ) : null}
           <MeetingLiveRefresh enabled={showRefresh} />
         </CardContent>

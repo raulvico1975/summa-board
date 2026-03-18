@@ -9,6 +9,7 @@ import {
 import { adminDb, adminStorage } from "@/src/lib/firebase/admin";
 import type {
   MeetingDoc,
+  MeetingRecoveryState,
   MeetingIngestJobDoc,
   MinutesDoc,
   MinutesJson,
@@ -59,6 +60,7 @@ const meetingIngestJobsCol = adminDb.collection(
   "meeting_ingest_jobs"
 ) as CollectionReference<MeetingIngestJobDoc>;
 const MAX_BATCH_OPERATIONS = 50;
+export const MEETING_PROCESSING_DEADLINE_MS = 15 * 60 * 1000;
 
 function buildOperationError(code: string, message?: string | null): OperationErrorDoc {
   return {
@@ -80,12 +82,27 @@ export function normalizeMeetingDoc(meeting: MeetingDoc): MeetingDoc {
     provisioningReadyAt: meeting.provisioningReadyAt ?? null,
     recordingStatus: meeting.recordingStatus ?? "none",
     lastWebhookAt: meeting.lastWebhookAt ?? null,
+    recoveryState: meeting.recoveryState ?? null,
+    recoveryReason: meeting.recoveryReason ?? null,
+    processingDeadlineAt: meeting.processingDeadlineAt ?? null,
+    lastRecoveryAttemptAt: meeting.lastRecoveryAttemptAt ?? null,
   };
 }
 
 export function isMeetingUsable(meeting: Pick<MeetingDoc, "meetingUrl" | "provisioningStatus">): boolean {
   const normalized = normalizeMeetingDoc(meeting as MeetingDoc);
   return normalized.provisioningStatus === "usable" && !!normalized.meetingUrl;
+}
+
+export function buildMeetingProcessingDeadline(now = Date.now()): number {
+  return now + MEETING_PROCESSING_DEADLINE_MS;
+}
+
+export function isMeetingProcessingExpired(
+  meeting: Pick<MeetingDoc, "recordingStatus" | "processingDeadlineAt">,
+  now = Date.now()
+): boolean {
+  return meeting.recordingStatus === "processing" && !!meeting.processingDeadlineAt && meeting.processingDeadlineAt <= now;
 }
 
 function buildMeetingDoc(input: {
@@ -114,6 +131,10 @@ function buildMeetingDoc(input: {
     transcript: null,
     minutesDraft: null,
     lastWebhookAt: null,
+    recoveryState: null,
+    recoveryReason: null,
+    processingDeadlineAt: null,
+    lastRecoveryAttemptAt: null,
     pollId: input.pollId ?? null,
     scheduledAt: input.scheduledAt ?? null,
   };
@@ -350,6 +371,7 @@ export async function closePollCreateMeeting(input: {
 }): Promise<CreateMeetingWithDailyResult> {
   const pollRef = pollsCol.doc(input.pollId);
   const optionRef = pollRef.collection("options").doc(input.winningOptionId);
+  const attemptAt = Date.now();
   const preparedMeeting = await adminDb.runTransaction(async (trx) => {
     const meetingsByPollQuery = meetingsCol.where("pollId", "==", input.pollId).limit(1);
     const [pollDoc, optionDoc, existingMeetingSnap] = await Promise.all([
@@ -409,7 +431,7 @@ export async function closePollCreateMeeting(input: {
             pollId: pollRef.id,
             scheduledAt: option.startsAt,
           }),
-          provisioningAttemptedAt: Date.now(),
+          provisioningAttemptedAt: attemptAt,
         }
       );
     } else {
@@ -427,8 +449,11 @@ export async function closePollCreateMeeting(input: {
           dailyRoomUrl: null,
           provisioningStatus: "provisioning",
           provisioningError: null,
-          provisioningAttemptedAt: Date.now(),
+          provisioningAttemptedAt: attemptAt,
           provisioningReadyAt: null,
+          recoveryState: "retry_running",
+          recoveryReason: "retry_room_creation",
+          lastRecoveryAttemptAt: attemptAt,
         },
         { merge: true }
       );
@@ -436,11 +461,14 @@ export async function closePollCreateMeeting(input: {
 
     return {
       meetingId: meetingRef.id,
+      isRetry: !!existingMeetingDoc,
     };
   });
 
   const meeting = await createMeetingWithDaily({
     createMeeting: async () => preparedMeeting.meetingId,
+    recoveryState: preparedMeeting.isRetry ? "retry_room_creation" : null,
+    attemptedAt: attemptAt,
   });
 
   if (meeting.provisioningStatus === "usable") {
@@ -751,6 +779,11 @@ export async function updateMeetingRecordingState(input: {
   recordingStatus: MeetingDoc["recordingStatus"];
   recordingUrl?: string | null;
   clearArtifacts?: boolean;
+  processingDeadlineAt?: number | null;
+  recoveryState?: MeetingRecoveryState | null;
+  recoveryReason?: string | null;
+  lastRecoveryAttemptAt?: number | null;
+  lastWebhookAt?: number | null;
 }): Promise<void> {
   const payload: Partial<MeetingDoc> = {
     recordingStatus: input.recordingStatus ?? "none",
@@ -758,6 +791,28 @@ export async function updateMeetingRecordingState(input: {
 
   if (input.recordingUrl !== undefined) {
     payload.recordingUrl = input.recordingUrl;
+  }
+
+  if (input.processingDeadlineAt !== undefined) {
+    payload.processingDeadlineAt = input.processingDeadlineAt;
+  } else if (input.recordingStatus !== "processing") {
+    payload.processingDeadlineAt = null;
+  }
+
+  if (input.recoveryState !== undefined) {
+    payload.recoveryState = input.recoveryState;
+  }
+
+  if (input.recoveryReason !== undefined) {
+    payload.recoveryReason = input.recoveryReason;
+  }
+
+  if (input.lastRecoveryAttemptAt !== undefined) {
+    payload.lastRecoveryAttemptAt = input.lastRecoveryAttemptAt;
+  }
+
+  if (input.lastWebhookAt !== undefined) {
+    payload.lastWebhookAt = input.lastWebhookAt;
   }
 
   if (input.clearArtifacts) {
@@ -779,6 +834,9 @@ export async function updateMeetingArtifacts(input: {
     transcript: input.transcript,
     minutesDraft: input.minutesDraft,
     recordingStatus: input.recordingStatus,
+    processingDeadlineAt: null,
+    recoveryState: null,
+    recoveryReason: null,
   };
 
   if (input.recordingUrl !== undefined) {
@@ -813,6 +871,8 @@ export async function enqueueMeetingIngestJob(input: {
       error: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      retryCount: 0,
+      lastErrorAt: null,
     });
 
     return true;
@@ -863,15 +923,99 @@ export async function updateMeetingIngestJobStatus(input: {
   jobId: string;
   status: MeetingIngestJobDoc["status"];
   error?: string | null;
+  retryCount?: number;
+  lastErrorAt?: number | null;
 }): Promise<void> {
-  await meetingIngestJobsCol.doc(input.jobId).set(
-    {
-      status: input.status,
-      updatedAt: Date.now(),
-      error: input.error ?? null,
-    },
-    { merge: true }
-  );
+  const payload: Partial<MeetingIngestJobDoc> = {
+    status: input.status,
+    updatedAt: Date.now(),
+    error: input.error ?? null,
+  };
+
+  if (input.retryCount !== undefined) {
+    payload.retryCount = input.retryCount;
+  }
+
+  if (input.lastErrorAt !== undefined) {
+    payload.lastErrorAt = input.lastErrorAt;
+  } else if (input.status === "error") {
+    payload.lastErrorAt = Date.now();
+  }
+
+  await meetingIngestJobsCol.doc(input.jobId).set(payload, { merge: true });
+}
+
+export async function startMeetingIngestRetry(input: {
+  meetingId: string;
+}): Promise<
+  | { ok: true; jobId: string; recordingId: string; recordingUrl: string }
+  | { ok: false; reason: "meeting_not_found" | "ingest_missing" | "not_retryable" }
+> {
+  const meetingRef = meetingsCol.doc(input.meetingId);
+  const now = Date.now();
+
+  return adminDb.runTransaction(async (trx) => {
+    const [meetingSnap, jobsSnap] = await Promise.all([
+      trx.get(meetingRef),
+      trx.get(meetingIngestJobsCol.where("meetingId", "==", input.meetingId)),
+    ]);
+
+    if (!meetingSnap.exists) {
+      return { ok: false as const, reason: "meeting_not_found" as const };
+    }
+
+    const meeting = normalizeMeetingDoc(meetingSnap.data() as MeetingDoc);
+    const latestJobDoc = jobsSnap.docs
+      .slice()
+      .sort((left, right) => {
+        const leftCreatedAt = (left.data() as MeetingIngestJobDoc).createdAt ?? 0;
+        const rightCreatedAt = (right.data() as MeetingIngestJobDoc).createdAt ?? 0;
+        return rightCreatedAt - leftCreatedAt;
+      })[0];
+
+    if (!latestJobDoc) {
+      return { ok: false as const, reason: "ingest_missing" as const };
+    }
+
+    const latestJob = latestJobDoc.data() as MeetingIngestJobDoc;
+    const processingExpired = isMeetingProcessingExpired(meeting, now);
+    const canRetry = meeting.recordingStatus === "error" || processingExpired;
+
+    if (!canRetry || !latestJob.recordingUrl) {
+      return { ok: false as const, reason: "not_retryable" as const };
+    }
+
+    trx.set(
+      meetingRef,
+      {
+        recordingStatus: "processing",
+        recordingUrl: latestJob.recordingUrl,
+        processingDeadlineAt: buildMeetingProcessingDeadline(now),
+        recoveryState: "retry_running",
+        recoveryReason: processingExpired ? "processing_timeout" : "retry_ingest",
+        lastRecoveryAttemptAt: now,
+      },
+      { merge: true }
+    );
+
+    trx.set(
+      latestJobDoc.ref,
+      {
+        status: "processing",
+        updatedAt: now,
+        error: null,
+        retryCount: (latestJob.retryCount ?? 0) + 1,
+      },
+      { merge: true }
+    );
+
+    return {
+      ok: true as const,
+      jobId: latestJobDoc.id,
+      recordingId: latestJob.recordingId,
+      recordingUrl: latestJob.recordingUrl,
+    };
+  });
 }
 
 export async function createOrgForOwner(input: { ownerUid: string; name: string }): Promise<string> {

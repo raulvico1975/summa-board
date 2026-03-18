@@ -41,6 +41,7 @@ export default async function PollManagePage({
         ? "error"
         : effectivePollStatus;
   const canClosePoll = effectivePollStatus === "open" || effectivePollStatus === "close_failed";
+  const showRetryRoomCreation = effectivePollStatus === "close_failed" && !usableMeetingId;
 
   const options = poll.options.map((option) => ({
     id: option.id,
@@ -118,10 +119,20 @@ export default async function PollManagePage({
       {canClosePoll ? (
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold">{i18n.poll.closePoll}</h2>
+            <h2 className="text-base font-semibold">
+              {showRetryRoomCreation ? i18n.poll.retryRoomCreationTitle : i18n.poll.closePoll}
+            </h2>
           </CardHeader>
           <CardContent>
-            <ClosePollForm pollId={poll.id} options={options} />
+            <ClosePollForm
+              pollId={poll.id}
+              options={options}
+              initialWinningOptionId={poll.winningOptionId ?? options[0]?.id ?? ""}
+              lockOptionSelection={showRetryRoomCreation && !!poll.winningOptionId}
+              submitLabel={showRetryRoomCreation ? i18n.poll.retryRoomCreation : undefined}
+              loadingLabel={showRetryRoomCreation ? i18n.poll.retryingRoomCreation : undefined}
+              helperText={showRetryRoomCreation ? i18n.poll.retryRoomCreationHint : undefined}
+            />
           </CardContent>
         </Card>
       ) : null}

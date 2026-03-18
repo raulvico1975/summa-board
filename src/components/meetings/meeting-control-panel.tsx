@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/src/components/ui/button";
 import { StatusBadge } from "@/src/components/ui/status-badge";
 import { MeetingRecordingControls } from "@/src/components/meetings/meeting-recording-controls";
@@ -97,17 +98,45 @@ export function MeetingControlPanel({
   meetingId,
   meetingUrl,
   recordingStatus,
+  canRetryIngest,
 }: {
   meetingId: string;
   meetingUrl: string | null;
   recordingStatus: MeetingRecordingStatus;
+  canRetryIngest?: boolean;
 }) {
+  const router = useRouter();
   const { i18n } = useI18n();
   const [openedMeeting, setOpenedMeeting] = useState(false);
+  const [retryState, setRetryState] = useState<{ loading: boolean; error?: string }>({ loading: false });
 
   const meetingAvailable = Boolean(meetingUrl);
   const hasOpenedMeeting = openedMeeting || recordingStatus !== "none";
   const contextMessage = buildContextMessage(i18n, recordingStatus);
+
+  async function retryIngest() {
+    setRetryState({ loading: true });
+
+    try {
+      const res = await fetch("/api/owner/meetings/retry-ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meetingId }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? i18n.meeting.retryIngestUnavailable);
+      }
+
+      setRetryState({ loading: false });
+      router.refresh();
+    } catch (error) {
+      setRetryState({
+        loading: false,
+        error: error instanceof Error ? error.message : i18n.meeting.retryIngestUnavailable,
+      });
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -151,6 +180,16 @@ export function MeetingControlPanel({
         {!meetingAvailable ? (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {i18n.meeting.roomCreateError}
+          </div>
+        ) : null}
+
+        {canRetryIngest ? (
+          <div className="mt-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p>{i18n.meeting.retryIngestHint}</p>
+            <Button type="button" variant="secondary" disabled={retryState.loading} onClick={retryIngest}>
+              {retryState.loading ? i18n.meeting.retryIngestRunning : i18n.meeting.retryIngest}
+            </Button>
+            {retryState.error ? <p className="break-words text-sm text-red-700">{retryState.error}</p> : null}
           </div>
         ) : null}
       </div>
