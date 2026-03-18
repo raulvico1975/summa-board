@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  buildMeetingProcessingDeadline,
   claimMeetingIngestJob,
   enqueueMeetingIngestJob,
   getMeetingByMeetingUrl,
@@ -101,6 +102,10 @@ export async function POST(request: NextRequest) {
       meetingId: meeting.id,
       recordingStatus: "processing",
       recordingUrl: resolvedRecordingUrl,
+      processingDeadlineAt: buildMeetingProcessingDeadline(),
+      recoveryState: null,
+      recoveryReason: null,
+      lastWebhookAt: Date.now(),
     });
 
     console.info("DAILY_RECORDING_COMPLETE", {
@@ -158,12 +163,15 @@ export async function POST(request: NextRequest) {
           meetingId: meeting.id,
           recordingStatus: "error",
           recordingUrl: resolvedRecordingUrl,
+          recoveryState: "retry_pending",
+          recoveryReason: error instanceof Error ? error.message : "MEETING_INGEST_UNKNOWN_ERROR",
         });
 
         await updateMeetingIngestJobStatus({
           jobId: enqueued.jobId,
           status: "error",
           error: error instanceof Error ? error.message : "MEETING_INGEST_UNKNOWN_ERROR",
+          lastErrorAt: Date.now(),
         });
 
         console.error("meeting_ingest_job_error", {

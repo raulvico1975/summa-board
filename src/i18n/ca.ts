@@ -149,6 +149,12 @@ export const ca = {
     loadingClosing: "Tancant...",
     createPollError: "No s'ha pogut crear la votació.",
     closePollError: "No s'ha pogut tancar la votació.",
+    retryRoomCreationTitle: "Recuperar sala de reunió",
+    retryRoomCreation:
+      "Reintentar creació de sala",
+    retryingRoomCreation: "Reintentant sala...",
+    retryRoomCreationHint:
+      "La reunió no va quedar usable. Torna a provar la creació de sala sobre aquesta mateixa convocatòria.",
     unexpectedError: "Error inesperat.",
   },
   meeting: {
@@ -230,6 +236,13 @@ export const ca = {
     clientSessionMissing: "Sessió client no disponible. Torna a entrar.",
     registerRecordingError: "No s'ha pogut registrar la gravació.",
     processRecordingError: "No s'ha pogut processar la gravació.",
+    retryIngest: "Reintentar processament",
+    retryIngestRunning: "Reintentant processament...",
+    retryIngestHint:
+      "El resultat final no s'ha pogut completar. Pots reintentar el processament de la mateixa gravació.",
+    retryIngestUnavailable: "Ara mateix no es pot reintentar el processament d'aquesta reunió.",
+    processingExpiredHint:
+      "El processament està tardant més del previst. Pots reintentar-lo manualment des d'aquí.",
     exportIcs: "Descarregar ICS",
     exportMinutesMd: "Descarregar acta (.md)",
     processNow: "Processar",

@@ -9,6 +9,7 @@ export type OrgPlan = "basic";
 export type MeetingProvisioningStatus = "provisioning" | "usable" | "provisioning_failed";
 // Meeting recording state machine: none -> recording -> stopping -> processing -> ready | error
 export type MeetingRecordingStatus = "none" | "recording" | "stopping" | "processing" | "ready" | "error";
+export type MeetingRecoveryState = "retry_pending" | "retry_running" | "retry_failed";
 export type MeetingIngestJobStatus = "queued" | "processing" | "completed" | "error";
 
 export type OperationErrorDoc = {
@@ -75,6 +76,10 @@ export type MeetingDoc = {
   transcript?: string | null;
   minutesDraft?: string | null;
   lastWebhookAt?: number | null;
+  recoveryState?: MeetingRecoveryState | null;
+  recoveryReason?: string | null;
+  processingDeadlineAt?: number | null;
+  lastRecoveryAttemptAt?: number | null;
   pollId?: string | null;
   scheduledAt?: Timestamp | null;
 };
@@ -140,6 +145,8 @@ export type MeetingIngestJobDoc = {
   error: string | null;
   createdAt: number;
   updatedAt: number;
+  retryCount?: number;
+  lastErrorAt?: number | null;
 };
 
 export type StripeEventDoc = {

@@ -11,7 +11,19 @@ type Option = {
   label: string;
 };
 
-export function ClosePollForm({ pollId, options }: { pollId: string; options: Option[] }) {
+export function ClosePollForm({
+  pollId,
+  options,
+  submitLabel,
+  loadingLabel,
+  helperText,
+}: {
+  pollId: string;
+  options: Option[];
+  submitLabel?: string;
+  loadingLabel?: string;
+  helperText?: string;
+}) {
   const { locale, i18n } = useI18n();
   const router = useRouter();
   const [winningOptionId, setWinningOptionId] = useState(options[0]?.id ?? "");
@@ -45,6 +57,7 @@ export function ClosePollForm({ pollId, options }: { pollId: string; options: Op
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+      {helperText ? <p className="text-sm text-slate-600">{helperText}</p> : null}
       <select
         value={winningOptionId}
         onChange={(event) => setWinningOptionId(event.target.value)}
@@ -60,7 +73,7 @@ export function ClosePollForm({ pollId, options }: { pollId: string; options: Op
       {error ? <p className="break-words text-sm text-red-600">{error}</p> : null}
 
       <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-        {loading ? i18n.poll.loadingClosing : i18n.poll.closePoll}
+        {loading ? (loadingLabel ?? i18n.poll.loadingClosing) : (submitLabel ?? i18n.poll.closePoll)}
       </Button>
     </form>
   );
