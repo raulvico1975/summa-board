@@ -1,0 +1,10 @@
+env:
+  - variable: DAILY_DOMAIN
+    value: summareu
+    availability:
+      - RUNTIME
+
+  - variable: DAILY_API_KEY
+    secret: DAILY_API_KEY
+    availability:
+      - RUNTIME
