@@ -1,330 +1,18 @@
-# SUMMA REU - REFERÈNCIA COMPLETA
+# SUMMA REU - REFERENCIA COMPLETA
 
-> Document viu de referència de producte i tecnologia de Summa Reu.
-> Data de base: **9 de març de 2026** (`Europe/Madrid`).
-> Abast: estat real implementat al repositori `summa-board` i roadmap immediat explícit.
+> Auditada contra el codi del workspace el **19 de març de 2026** (`Europe/Madrid`).
+> Aquest document descriu només comportaments, rutes, models i integracions verificats al repositori `summa-board`.
 
-## 1) Propòsit del document
+## 1) Abast verificat
 
-Aquest document és la **font de veritat** de Summa Reu per:
+- Aplicació principal amb **Next.js App Router** (`app/`) i lògica de domini a `src/`.
+- Persistència amb **Firebase Auth**, **Firestore** i **Firebase Storage**.
+- Integracions reals al codi amb **Daily**, **Gemini**, **Stripe** i **Telegram**.
+- `functions/src/index.ts` està buit de manera intencional; la lògica funcional principal no viu a Cloud Functions pròpies.
 
-- entendre el producte i el seu estat actual,
-- prendre decisions de producte i tecnologia amb context compartit,
-- reduir dependència de context oral,
-- mantenir alineats producte, enginyeria i operacions.
+## 2) Superfície de producte implementada
 
-## 2) Identitat del producte
-
-### 2.1 Nom i context
-
-- Nom de producte: **Summa Reu**
-- Domini canònic: `summareu.app`
-- Repositori de treball: `summa-board`
-
-### 2.2 Posicionament
-
-Summa Reu és una plataforma per a entitats socials per concentrar en un únic sistema:
-
-- convocatòria de reunió,
-- recollida de disponibilitats,
-- tancament de data,
-- espai de reunió,
-- transcripció,
-- generació i edició d’actes.
-
-Flux de posicionament objectiu:
-
-`convocatòria -> votació -> reunió -> gravació -> transcripció -> acta`
-
-### 2.3 Principi de producte
-
-Summa Reu no és:
-
-- una eina de videoconferència generalista,
-- un ERP/CRM complet per entitats,
-- un editor col·laboratiu en temps real.
-
-Summa Reu és:
-
-- un sistema operatiu lleuger per preparar reunions i publicar actes amb poc esforç manual.
-
-## 3) Problema que resol
-
-Les entitats socials acostumen a operar amb eines fragmentades:
-
-- correu i missatgeria per convocar,
-- Doodle o equivalents per votar,
-- Zoom/Meet per reunir-se,
-- documents separats per redactar actes.
-
-Això provoca:
-
-- pèrdua de temps per coordinar,
-- baixa traçabilitat,
-- actes tardanes o incompletes,
-- poca continuïtat entre convocatòria, reunió i document final.
-
-## 4) Proposta de valor
-
-Summa Reu permet:
-
-1. Crear una votació amb franges candidates.
-2. Compartir un enllaç públic perquè els participants indiquin disponibilitat.
-3. Consultar resultats i tancar la millor opció.
-4. Crear automàticament la reunió associada.
-5. Pujar una gravació o text base.
-6. Generar transcripció i esborrany d’acta.
-7. Editar i exportar el resultat final.
-
-Punts clau de valor actual:
-
-- experiència simple per a participants sense compte,
-- aïllament de dades per entitat,
-- pipeline resilient per a transcripció i actes,
-- arquitectura prou sòlida per operar pilots reals.
-
-## 5) Objectius de negoci i producte
-
-### 5.1 Objectius principals
-
-- Reduir el temps de tancament d’una reunió.
-- Augmentar el percentatge de reunions amb acta final publicada.
-- Donar traçabilitat de decisions i tasques.
-- Oferir una experiència robusta per equips no tècnics.
-
-### 5.2 KPI orientatius
-
-- Temps mitjà per tancar una votació.
-- % de votacions tancades que acaben en reunió creada.
-- % de reunions amb acta exportada.
-- Temps mitjà entre reunió i acta publicada.
-- Incidències crítiques per setmana.
-
-### 5.3 No-objectius actuals
-
-- ERP/CRM complet.
-- Multi-tenant amb rols interns avançats.
-- Videoconferència pròpia.
-- Edició col·laborativa tipus Google Docs.
-
-## 6) Estat del producte (09/03/2026)
-
-### 6.1 Fase global
-
-- **MVP funcional, desplegat i obertura pública tècnicament tancada**.
-- Onboarding públic amb subscripció Stripe operativa.
-- Amb extensió immediata oberta en àrees de reunió en directe i operació asíncrona.
-
-### 6.2 Implementat actualment
-
-- Home pública de producte amb CTA d’accés i alta.
-- Localització català/castellà amb routing localitzat i fallback controlat.
-- Login owner amb sessió server via cookie `__session`.
-- Logout amb revocació de tokens.
-- Alta d’entitat pública amb creació d’org.
-- Pantalla `/billing` i checkout Stripe de subscripció.
-- Webhook Stripe amb activació de subscripció i auditoria a `stripe_events`.
-- Guard global de subscripció a UI i `api/owner/*`.
-- Dashboard owner amb llistat de votacions.
-- Creació de votacions amb selector assistit de franges.
-- Votació pública sense registre.
-- Resultats públics i vista owner.
-- Còpia d’enllaç públic de votació.
-- Tancament de votació i creació automàtica de reunió.
-- Control d’inici/aturada de gravació a reunions Daily.
-- Pujada manual d’àudio/vídeo o text base.
-- Processament asíncron de gravació amb transcripció i acta.
-- Edició i export d’acta en Markdown.
-- Eliminació de reunions amb esborrat en cascada de subcol·leccions, jobs i fitxers associats.
-- Export d’ICS de reunió.
-- Monitorització d’errors server/client amb alertes Telegram.
-- CI amb lint + smoke sobre emuladors.
-
-### 6.3 Implementat parcialment
-
-- Verificació visual manual final de confort amb l’owner actiu a `/dashboard`.
-
-### 6.4 En desenvolupament / roadmap immediat
-
-- Enduriment del processament asíncron amb cua dedicada.
-- Reunió en directe dins la plataforma o integrada amb proveïdor extern.
-- Gravació automàtica i pipeline plenament automàtic.
-
-## 7) Usuaris principals
-
-### 7.1 Owner d’entitat
-
-- Perfil: presidència, coordinació, secretaria.
-- Necessitat: convocar, tancar votacions, gestionar la reunió i validar actes.
-
-### 7.2 Participant públic
-
-- Perfil: membre, voluntari, col·laborador.
-- Necessitat: votar disponibilitat ràpidament i sense compte.
-
-### 7.3 Visitant comercial
-
-- Perfil: entitat encara no registrada.
-- Necessitat: entendre la proposta de valor i iniciar l’alta.
-
-### 7.4 Operador tècnic
-
-- Perfil: enginyeria/operació.
-- Necessitat: observabilitat, seguretat i desplegaments segurs.
-
-## 8) Principis de producte i UX
-
-### 8.1 Principis
-
-- Simplicitat operativa.
-- Baixa càrrega cognitiva.
-- Mobile-first útil.
-- Feedback immediat en accions i errors.
-- Consistència entre estat públic i estat owner.
-- Localització pragmàtica: català per defecte, castellà quan hi ha cobertura suficient.
-
-### 8.2 UI actual
-
-- Stack UI: Next App Router + Tailwind v4.
-- Estètica: base clara `slate` amb accent `sky`.
-- Components base: `Button`, `Card`, `Badge`, `Table`, `Field`.
-- Tipografia: `Inter`.
-- Idiomes disponibles: `ca`, `es`.
-
-### 8.3 Criteris a mantenir
-
-- Accions irreversibles clares, especialment `tancar votació` i `eliminar reunió`.
-- Errors curts i accionables.
-- Estats coherents: `open`, `closed`, `uploaded`, `processing`, `done`, `error`.
-- Evitar bucles de routing o pèrdua de context de locale.
-
-## 9) Flux principal del producte
-
-### 9.1 Flux actual implementat
-
-1. Usuari arriba a `/` i entén la proposta de valor.
-2. Owner inicia sessió a `/login`.
-3. Crea votació a `/polls/new`.
-4. Comparteix enllaç públic `/p/{slug}`.
-5. Participants voten i poden consultar resultats.
-6. Owner revisa resultats i tanca la votació.
-7. El sistema crea una reunió amb `meetingUrl` Daily.
-8. Owner entra a la reunió des de Summa.
-9. Owner inicia i atura la gravació des de Summa.
-10. Daily envia webhook de gravació completada.
-11. El sistema crea `meeting_ingest_job` idempotent i processa transcripció + esborrany d’acta.
-12. Owner revisa transcripció, edita acta i exporta.
-13. Si cal, owner elimina la reunió amb neteja en cascada i redirecció segura.
-
-### 9.2 Flux objectiu immediat
-
-1. Crear votació.
-2. Compartir enllaç públic.
-3. Recollir disponibilitat.
-4. Tancar opció guanyadora.
-5. Entrar a reunió dins plataforma o integrada.
-6. Obtenir gravació automàtica.
-7. Generar transcripció i acta sense intervenció manual.
-8. Revisar, publicar i exportar.
-
-## 10) Funcionalitats principals
-
-### 10.1 Accés i identitat
-
-- Login owner via formulari server-side a `POST /api/auth/password-login`: **Implementat**.
-- Sessió server via `POST /api/auth/session-login`: **Implementat**.
-- Logout amb revocació de tokens a `POST /api/auth/session-logout`: **Implementat**.
-- Alta d’entitat via `POST /api/auth/entity-signup`: **Implementat**.
-- Exposició pública completa del signup autoservei: **Parcial**.
-
-### 10.2 Home pública i captació
-
-- Landing pública amb CTA d’accés i alta: **Implementat**.
-- Pàgina `/signup` amb missatge comercial i estat del pla: **Implementat**.
-- Activació de subscripció via `/billing` i Stripe Checkout: **Implementat**.
-
-### 10.3 Votacions
-
-- Crear votació amb màxim 20 franges: **Implementat**.
-- Selector assistit de franges amb finestres ràpides i 5/7/10 dies: **Implementat**.
-- Enllaç públic per votar: **Implementat**.
-- Persistència de votant via token al navegador i hash al servidor: **Implementat**.
-- Resultats públics: **Implementat**.
-- Resultats owner en dashboard i pàgina de gestió: **Implementat**.
-- Còpia d’enllaç públic: **Implementat**.
-- Tancament manual de votació i creació de reunió: **Implementat**.
-
-### 10.4 Reunions
-
-Quan es tanca una votació:
-
-- es crea el document de reunió,
-- es crea una room Daily,
-- es mostra una pantalla específica de reunió a `/owner/meetings/{meetingId}`,
-- s’habiliten entrada a reunió, control de gravació, transcripció i acta.
-
-Capacitats actuals:
-
-- entrada a reunió des de Summa amb `iframe` si el proveïdor ho permet i fallback a pestanya nova,
-- inici i aturada de gravació des de Summa via API owner,
-- webhook Daily per tancar gravació i llançar ingestió,
-- `meeting_ingest_job` idempotent per cada `meetingId + recordingId`,
-- refresc automàtic de la pantalla mentre hi ha processament,
-- eliminació de reunió amb esborrat de `recordings`, `transcripts`, `minutes`, `meeting_ingest_jobs` i prefix de Storage `meetings/{meetingId}/`,
-- export d’ICS,
-- export d’acta en `.md`.
-
-Capacitats encara no implementades o pendents d’enduriment:
-
-- ingestió real de fitxers grans fora del límit inline actual de Gemini,
-- proves E2E contra Daily real fora de l’entorn mock controlat de smoke.
-
-### 10.5 Pipeline d’acta
-
-Flux actual de reunió premium:
-
-`close poll -> create meeting + room -> start recording -> stop recording -> daily webhook -> meeting_ingest_job -> transcript -> minutesDraft -> edició -> export`
-
-Sortida persistent:
-
-- `meetings/{meetingId}.recordingStatus`
-- `meetings/{meetingId}.recordingUrl`
-- `meetings/{meetingId}.transcript`
-- `meetings/{meetingId}.minutesDraft`
-- `meeting_ingest_jobs/{jobId}`
-- `meetings/{meetingId}/transcripts/{recordingId}`
-- `meetings/{meetingId}/minutes/{recordingId}`
-
-Contractes d’estat nous:
-
-- `meeting.recordingStatus`: `none -> recording -> processing -> ready | error`
-- `meeting_ingest_job.status`: `queued -> processing -> completed | error`
-
-Modes de generació:
-
-- `real` si hi ha `GEMINI_API_KEY` i la gravació es pot ingerir,
-- `mock` només en smoke controlat via `MEETING_INGEST_MOCK_MODE=true`,
-- `error` si la ingestió real no és possible; no hi ha `stub` silenciós en el flux premium.
-
-### 10.6 Localització i routing
-
-- Idiomes: `ca` i `es`.
-- Cookie de preferència: `summa-locale`.
-- En producció, les rutes es serveixen amb prefix localitzat (`/ca/...`, `/es/...`).
-- En local, es mantenen URLs estables sense prefix i el locale viatja per header/cookie.
-- Hi ha regles de “no fallback” per evitar mostrar castellà incomplet en rutes crítiques.
-
-### 10.7 Monitorització i incidències
-
-- Captura d’errors server via `instrumentation.ts`: **Implementat**.
-- Captura d’errors client via `ErrorMonitor` + `/api/public/error-report`: **Implementat**.
-- Alertes Telegram amb deduplicació temporal: **Implementat**.
-
-## 11) Arquitectura funcional del sistema
-
-### 11.1 Rutes de producte
-
-Públiques:
+### 2.1 Rutes públiques
 
 - `/`
 - `/login`
@@ -332,85 +20,82 @@ Públiques:
 - `/p/[slug]`
 - `/p/[slug]/results`
 
-Owner:
+### 2.2 Rutes owner
 
+- `/billing`
 - `/dashboard`
 - `/polls/new`
 - `/polls/[pollId]`
 - `/owner/meetings/[meetingId]`
-- `/meetings/[meetingId]` (redirect localitzat)
+- `/meetings/[meetingId]` redirigeix cap a `/owner/meetings/[meetingId]`
 
-Notes de locale:
+### 2.3 Capacitats visibles verificades
 
-- en producció es presenten com `/ca/...` o `/es/...`,
-- internament App Router treballa sobre les rutes sense prefix.
+- Home pública amb CTA cap a `login` i `signup`.
+- Signup autoservei amb creació d’usuari Firebase, creació d’org i obertura de sessió owner.
+- Login owner amb formulari HTML contra `POST /api/auth/password-login`.
+- Pantalla `/billing` per activar subscripció amb Stripe Checkout.
+- Dashboard owner amb votacions actives i reunions passades.
+- Creació de votacions amb franges candidates.
+- Votació pública sense compte.
+- Resultats públics i vista owner de la votació.
+- Tancament de votació amb creació de reunió.
+- Pantalla owner de reunió amb control de gravació, transcripció, acta, exportacions i esborrat.
+- Edició de l’acta en Markdown i export `.md`.
+- Export `.ics` de reunió per owner autenticat.
+- Monitorització d’errors client i server amb notificació a Telegram.
 
-### 11.2 Regla de transició principal
+## 3) Rutes API verificades
 
-- En tancar una votació: `poll -> meeting`.
+### 3.1 Auth
 
-### 11.3 BFF intern
+- `POST /api/auth/entity-signup`
+- `POST /api/auth/password-login`
+- `POST /api/auth/session-login`
+- `POST /api/auth/session-logout`
 
-El backend funcional principal resideix dins de Next API routes:
+### 3.2 Billing
 
-- auth,
-- operacions owner,
-- operacions públiques,
-- export i monitorització.
+- `POST /api/billing/create-checkout-session`
 
-## 12) Arquitectura tècnica
+### 3.3 Owner
 
-### 12.1 Stack tècnic
+- `POST /api/owner/polls/create`
+- `POST /api/owner/close-poll`
+- `POST /api/owner/meetings/create`
+- `POST /api/owner/meetings/start-recording`
+- `POST /api/owner/meetings/stop-recording`
+- `POST /api/owner/meetings/delete`
+- `POST /api/owner/recordings/register`
+- `POST /api/owner/process-recording`
+- `POST /api/owner/minutes/update`
+- `GET /api/owner/minutes/export`
 
-- Frontend/BFF: Next.js 15 + React 19 + TypeScript.
-- Dades: Firestore.
-- Fitxers: Firebase Storage.
-- Identitat: Firebase Auth.
-- Deploy: Firebase Hosting amb frameworks backend.
-- IA: Gemini opcional; el flux premium falla explícitament si la ingestió real no és possible.
-- Observabilitat: Telegram Bot API.
+### 3.4 Públic
 
-### 12.2 Arquitectura real de reunions avui
+- `POST /api/public/vote`
+- `GET /api/public/ics`
+- `POST /api/public/error-report`
 
-Summa Reu no incorpora tecnologia de videoconferència pròpia, però **sí integra Daily** per crear rooms, obrir la reunió, controlar gravació i processar la sortida via webhook.
+### 3.5 Webhooks
 
-L’arquitectura de reunió actual és:
+- `POST /api/webhooks/daily/recording-complete`
+- `GET /api/webhooks/stripe`
+- `POST /api/webhooks/stripe`
 
-- document de reunió a Firestore,
-- room Daily associada al `meetingId`,
-- reunió accessible dins Summa via `iframe` o en pestanya nova,
-- gravació Daily controlada des de la UI owner,
-- pujada manual de gravació/text base com a camí alternatiu,
-- processament llançat des d’un endpoint HTTP o via webhook de Daily,
-- persistència de transcript i acta en subcol·leccions,
-- UI de reunió que es refresca mentre hi ha estat `processing`.
+### 3.6 Contracte d’accés
 
-La capa pròpia de videoconferència continua sent **roadmap**, però la integració amb Daily sí és estat implementat.
+- Les mutacions fan comprovació `same-origin`.
+- Les rutes owner requereixen sessió owner.
+- Les rutes owner que modifiquen negoci requereixen subscripció activa; si no, retornen `402` amb `subscription_required`.
+- `GET /api/public/ics` està sota el namespace `public`, però el codi exigeix sessió owner i ownership de la reunió.
 
-### 12.3 Estructura del codi
+## 4) Model funcional verificat
 
-- `app/`: pàgines i API routes.
-- `src/components/`: UI i formularis.
-- `src/lib/`: domini, dades, Firebase, seguretat, IA, monitorització.
-- `src/i18n/`: catàlegs, routing i cobertura de localització.
-- `functions/`: codebase separat, avui sense lògica funcional rellevant.
-- `scripts/`: bootstrap, smoke, seed, monitor i utilitats operatives.
-- `.github/workflows/`: CI, deploy manual i mirror.
-
-### 12.4 Patrons arquitectònics
-
-- BFF simple dins Next.
-- Domini concentrat a `src/lib/db/repo.ts`.
-- Validació d’entrada amb `zod`.
-- Autorització server-side per a totes les operacions owner.
-- Middleware per locale, cookies i redirecció canònica.
-- Metadata pública localitzada per SEO.
-
-## 13) Model de dades
-
-### 13.1 Entitats principals
+### 4.1 Entitats principals
 
 - `orgs/{orgId}`
+- `stripe_events/{eventId}`
 - `polls/{pollId}`
 - `polls/{pollId}/options/{optionId}`
 - `polls/{pollId}/voters/{voterId}`
@@ -419,291 +104,216 @@ La capa pròpia de videoconferència continua sent **roadmap**, però la integra
 - `meetings/{meetingId}/recordings/{recordingId}`
 - `meetings/{meetingId}/transcripts/{transcriptId}`
 - `meetings/{meetingId}/minutes/{minutesId}`
+- `meeting_ingest_jobs/{jobId}`
 - `_rate_limits/{hash}`
 
-### 13.2 Camps clau
+### 4.2 Camps rellevants
 
-- `orgs`: `name`, `ownerUid`, `createdAt`
-- `polls`: `orgId`, `title`, `description`, `timezone`, `slug`, `status`, `winningOptionId`, `createdAt`, `closedAt`
-- `meetings`: `pollId`, `orgId`, `scheduledAt`, `createdAt`
+- `orgs`: `name`, `ownerUid`, `createdAt`, `subscriptionStatus`, `stripeCustomerId`, `stripeSubscriptionId`, `plan`, `recordingLimitMinutes`
+- `stripe_events`: `eventId`, `type`, `created`, `orgId`, `subscriptionId`, `receivedAt`, `raw`
+- `polls`: `orgId`, `title`, `description`, `timezone`, `slug`, `status`, `winningOptionId`, `createdAt`, `closedAt`, `closeError`
+- `meetings`: `orgId`, `title`, `description`, `createdAt`, `createdBy`, `pollId`, `scheduledAt`, `meetingUrl`, `dailyRoomName`, `dailyRoomUrl`, `provisioningStatus`, `provisioningError`, `provisioningAttemptedAt`, `provisioningReadyAt`, `recordingStatus`, `recordingUrl`, `transcript`, `minutesDraft`, `lastWebhookAt`
 - `recordings`: `storagePath`, `rawText`, `mimeType`, `originalName`, `status`, `error`, `createdAt`
 - `transcripts`: `recordingId`, `status`, `text`, `storagePathTxt`, `createdAt`
 - `minutes`: `recordingId`, `status`, `minutesMarkdown`, `minutesJson`, `createdAt`
+- `meeting_ingest_jobs`: `meetingId`, `orgId`, `recordingId`, `source`, `status`, `recordingUrl`, `error`, `createdAt`, `updatedAt`
 
-### 13.3 Estats
+### 4.3 Estats verificats al codi
 
-- Poll: `open | closed`
-- Recording: `uploaded | processing | done | error`
-- Transcript: `pending | processing | done | error`
-- Tasques dins `minutesJson`: `todo | doing | done`
+- `PollStatus`: `open | closing | closed | close_failed`
+- `MeetingProvisioningStatus`: `provisioning | usable | provisioning_failed`
+- `MeetingRecordingStatus`: `none | recording | stopping | processing | ready | error`
+- `RecordingStatus`: `uploaded | processing | done | error`
+- `TranscriptStatus`: `pending | processing | done | error`
+- `MinutesTaskStatus`: `todo | doing | done`
+- `MeetingIngestJobStatus`: `queued | processing | completed | error`
 
-### 13.4 Regles clau
+### 4.4 Invariants observables
 
-- `orgId` canònic = `ownerUid`, mantenint compatibilitat amb orgs legacy.
-- El token de votant raw només viu al client.
-- El servidor només persisteix el hash del token.
-- L’acta es desa en JSON estructurat i Markdown editable.
+- L’`orgId` canònic d’una org nova coincideix amb `ownerUid`, però el codi conserva compatibilitat amb orgs legacy cercant també per `ownerUid`.
+- Una reunió només es considera usable si `provisioningStatus === "usable"` i `meetingUrl` existeix.
+- El vot públic persisteix `tokenHash`; el token raw es retorna al client.
+- `meeting_ingest_jobs` usa idempotència per `meetingId + recordingId`.
 
-## 14) API de negoci
+## 5) Seguretat, sessió i routing
 
-### 14.1 Auth
+### 5.1 Sessió owner
 
-- `POST /api/auth/entity-signup`
-- `POST /api/auth/password-login`
-- `POST /api/auth/session-login`
-- `POST /api/auth/session-logout`
+- La cookie de sessió és `__session`.
+- `requireOwnerPage()` redirigeix a `/login` si no hi ha owner.
+- `requireOwnerPage()` redirigeix a `/billing` si la subscripció no és `active`.
+- `POST /api/auth/session-logout` revoca refresh tokens i esborra la cookie.
 
-### 14.2 Owner
+### 5.2 Regles Firestore i Storage
 
-- `POST /api/owner/polls/create`
-- `POST /api/owner/close-poll`
-- `POST /api/owner/recordings/register`
-- `POST /api/owner/process-recording`
-- `POST /api/owner/meetings/start-recording`
-- `POST /api/owner/meetings/stop-recording`
-- `POST /api/owner/meetings/delete`
-- `POST /api/owner/minutes/update`
-- `GET /api/owner/minutes/export?meetingId=...`
+- Firestore restringeix accés per ownership d’org, poll i meeting.
+- Storage només permet llegir i escriure sota `meetings/{meetingId}/recordings/**` a l’owner de la reunió.
+- Tots dos rulesets tenen una regla final `deny all`.
 
-### 14.3 Públic
+### 5.3 Rate limit verificat
 
-- `POST /api/public/vote`
-- `GET /api/public/ics?meetingId=...` requereix sessió owner
-- `POST /api/public/error-report`
+- Signup: `10` intents per `10` minuts per IP.
+- Vot públic: `40` intents per `10` minuts per `poll + IP`.
+- Error report client: `12` intents per `10` minuts per IP.
+- L’emmagatzematge principal és Firestore (`_rate_limits`) amb fallback a memòria si la transacció falla.
 
-## 15) IA i qualitat de contingut
+### 5.4 Locale i host
 
-### 15.1 Modes
+- En producció, el middleware redirigeix cap a rutes amb prefix `/ca/...` o `/es/...`.
+- En local, les rutes es mantenen sense prefix i el locale viatja per `header` i cookie.
+- El middleware pot redirigir del host Firebase cap a `summareu.app`.
+- Hi ha control de “no fallback” per evitar castellà incomplet en determinades rutes.
 
-- Sense `GEMINI_API_KEY`: `error` al flux premium
-- Amb `GEMINI_API_KEY`: `real`
-- Smoke controlat: `mock`
-- Si falla transcripció o generació al flux premium: `error`
+### 5.5 Headers de seguretat
 
-### 15.2 Contracte d’acta
+- `Content-Security-Policy`
+- `Referrer-Policy`
+- `X-Frame-Options: DENY`
+- `X-Content-Type-Options: nosniff`
+- `Permissions-Policy`
+- `Cross-Origin-Opener-Policy`
+- `Cross-Origin-Resource-Policy`
+- `Strict-Transport-Security`
+- `skipTrailingSlashRedirect: true`
 
-L’acta estructurada inclou:
+## 6) Fluxos verificats
 
-- `language`
-- `summary`
-- `attendees`
-- `agenda`
-- `decisions`
-- `tasks`
+### 6.1 Signup i accés
 
-La validació és estricta amb `zod` i després es renderitza a Markdown homogeni.
+1. La persona usuària entra a `/signup`.
+2. `EntitySignupForm` crida `POST /api/auth/entity-signup`.
+3. El backend crea usuari Firebase Auth i l’org a Firestore.
+4. El client fa `signInWithEmailAndPassword`.
+5. El client intercanvia `idToken` per cookie server amb `POST /api/auth/session-login`.
+6. La UI redirigeix a `/dashboard`.
 
-### 15.3 Criteri rector
+### 6.2 Billing
 
-- `robustesa > qualitat IA`
-- El flux de negoci no pot quedar bloquejat per error del model.
+1. Una org sense subscripció activa és redirigida a `/billing`.
+2. `POST /api/billing/create-checkout-session` crea client Stripe si falta.
+3. El backend crea una checkout session de subscripció.
+4. L’org passa a `subscriptionStatus = "pending"`.
+5. El webhook Stripe actualitza l’org a `active`, `past_due` o `canceled` segons l’event rebut.
+6. Els events es registren a `stripe_events`.
 
-## 16) Seguretat i privacitat
+### 6.3 Votació
 
-### 16.1 Control d’accés
+1. L’owner crea una votació a `/polls/new`.
+2. El formulari envia `title`, `description`, `timezone` i fins a `20` `optionsIso`.
+3. El backend crea `polls/{pollId}` i la subcol·lecció `options`.
+4. Els participants voten a `/p/{slug}` via `POST /api/public/vote`.
+5. El backend genera o reutilitza `voterToken`, en calcula `tokenHash` i desa votant + vot.
+6. La vista owner a `/polls/[pollId]` mostra resultats, estat i enllaços públics.
 
-- Sessió server via cookie `__session` `httpOnly`.
-- Guard owner a pàgines i endpoints.
-- Firestore i Storage rules modelades per owner/org.
+### 6.4 Tancament de votació i creació de reunió
 
-### 16.2 Proteccions aplicades
+1. `POST /api/owner/close-poll` valida ownership i subscripció.
+2. Una transacció posa la votació a `closing`, valida l’opció guanyadora i crea o reutilitza el document `meetings/{meetingId}`.
+3. El document de reunió es crea abans d’intentar provisionar Daily.
+4. `createMeetingWithDaily()` intenta crear la room i actualitza `meetingUrl`, `dailyRoomName`, `dailyRoomUrl` i `provisioningStatus`.
+5. Si la provision és correcta, la votació passa a `closed`.
+6. Si la provision falla, la votació passa a `close_failed` i desa `closeError`.
 
-- Validació d’entrada amb `zod`.
-- Same-origin check per mutacions.
-- Rate limit server-side amb fallback a memòria.
-- CSP i headers de seguretat globals.
-- Redirecció host canònic cap a `summareu.app`.
-- `skipTrailingSlashRedirect` activat per evitar bucles de locale per slash final.
+### 6.5 Reunió owner
 
-### 16.3 Riscos coneguts
+- `/owner/meetings/[meetingId]` només mostra reunions de l’org activa i només si la reunió és usable.
+- La UI obre la reunió amb `window.open(meetingUrl, "_blank", "noopener,noreferrer")`.
+- La pantalla mostra estat de gravació, transcripció, acta, errors de processament i botó d’eliminació.
+- `MeetingLiveRefresh` refresca la pàgina cada `5` segons quan `recordingStatus === "processing"`.
 
-- Processament asíncron encara dins el context d’una crida HTTP.
-- Deduplicació Telegram mantinguda en memòria de procés, no global.
-- Col·lecció `_rate_limits` sense neteja automàtica explícita.
-- Signup autoservei públic encara no activat a la UI.
+### 6.6 Gravació amb Daily i ingestió per webhook
 
-## 17) Operació, monitorització i alertes
+1. `POST /api/owner/meetings/start-recording` exigeix reunió usable i estat `none`, `ready` o `error`.
+2. En iniciar gravació, el backend neteja `transcript` i `minutesDraft` i posa `recordingStatus = "recording"`.
+3. `POST /api/owner/meetings/stop-recording` exigeix estat `recording`.
+4. Si Daily atura correctament la gravació, el backend posa `recordingStatus = "processing"`.
+5. `POST /api/webhooks/daily/recording-complete` accepta només events de gravació completada.
+6. El webhook resol la reunió a partir de la `meetingUrl`, desa `recordingUrl`, posa `recordingStatus = "processing"` i crea `meeting_ingest_jobs/{jobId}` de manera idempotent.
+7. El job es reclama, es processa i després passa a `completed` o `error`.
 
-### 17.1 Monitorització
+### 6.7 Processament de `meeting_ingest_job`
 
-- Errors server i API reportats a Telegram.
-- Errors client reportats a backend i reenviats a Telegram.
-- Dedupe temporal per reduir soroll.
+- El flux viu a `src/lib/jobs/processMeetingIngestJob.ts`.
+- Si `MEETING_INGEST_MOCK_MODE=true`, genera transcript i acta de prova.
+- Si no hi ha `GEMINI_API_KEY`, el job falla.
+- Si la descàrrega falla o la gravació supera `7 MB` inline, el job falla.
+- En mode real, el backend descarrega el fitxer, en fa transcripció amb Gemini i genera l’acta.
+- En completar, desa `transcripts/{recordingId}`, `minutes/{recordingId}` i actualitza `meeting.transcript`, `meeting.minutesDraft` i `meeting.recordingStatus = "ready"`.
+- En error, el webhook posa `meeting.recordingStatus = "error"` i actualitza el job amb l’error.
 
-### 17.2 Runbooks actuals
+### 6.8 Camí manual de gravació
 
-- `npm run test:permissions`
-- `npm run test:telegram`
-- `npm run ci:smoke`
-- `npm run monitor:login`
-- `npm run i18n:check-es`
+- Existeix backend per registrar una gravació manual amb `POST /api/owner/recordings/register`.
+- Existeix backend per processar-la amb `POST /api/owner/process-recording`.
+- `processRecordingTask()` pot treballar des de `rawText` o des d’un fitxer a Storage.
+- Aquest camí pot acabar en mode `stub` o `real`.
+- El component reutilitzable `src/components/meetings/recording-uploader.tsx` existeix al codi, però no hi ha cap ruta actual que el munti.
 
-## 18) Entorns i configuració
+### 6.9 Exportacions i esborrat
 
-### 18.1 Variables clau
+- `GET /api/owner/minutes/export?meetingId=...` exporta el Markdown de l’acta.
+- `GET /api/public/ics?meetingId=...` construeix un `.ics` per a la reunió de l’owner autenticat.
+- `POST /api/owner/meetings/delete` pot eliminar reunió, votació o totes dues.
+- Si hi ha acta generada, el backend exigeix `confirmDeleteGeneratedMinutes`.
+- L’eliminació esborra subcol·leccions de la reunió, `meeting_ingest_jobs` i el prefix `meetings/{meetingId}/` a Storage.
 
-- Firebase client: `NEXT_PUBLIC_FIREBASE_*`
-- Firebase server: `FIREBASE_*`
-- Daily: `DAILY_API_KEY`, `DAILY_API_BASE_URL`, `DAILY_DOMAIN`, `DAILY_WEBHOOK_BEARER_TOKEN`
-- Mocks controlats: `DAILY_MOCK_MODE`, `MEETING_INGEST_MOCK_MODE`
-- IA: `GEMINI_*`
-- Canònic: `CANONICAL_HOST`, `FORCE_CANONICAL_REDIRECT`
-- Alertes: `TELEGRAM_*`
+## 7) Observabilitat
 
-### 18.2 Entorn local recomanat
+- `instrumentation.ts` registra gestors per `unhandledRejection` i `uncaughtException`.
+- `ErrorMonitor` envia errors client a `POST /api/public/error-report`.
+- Els errors inesperats d’API, server i client es poden reenviar a Telegram.
+- La deduplicació de Telegram és temporal i basada en procés.
 
-1. `npm run bootstrap:firebase`
-2. `npm run emu`
-3. `npm run seed`
-4. `npm run test:smoke`
+## 8) Estructura del codi
 
-## 19) CI/CD i desplegament
+- `app/`: pàgines i API routes.
+- `src/components/`: components de UI i formularis.
+- `src/lib/db/`: tipus i repositori Firestore.
+- `src/lib/meetings/`: control Daily i processament de reunions.
+- `src/lib/gemini/`: client i selecció de model.
+- `src/lib/billing/`: integració Stripe.
+- `src/lib/monitoring/`: reporting i Telegram.
+- `src/i18n/`: routing, diccionaris i cobertura.
+- `scripts/`: bootstrap, smoke, seed i utilitats operatives.
+- `functions/`: codebase separada sense lògica funcional pròpia activa.
 
-- `CI` (`.github/workflows/ci.yml`): `lint` + smoke sobre emuladors.
-- `Deploy Manual Emergency` (`.github/workflows/deploy.yml`): revalida i desplega hosting manualment.
-- `Prod Mirror Sync` (`.github/workflows/prod-mirror-sync.yml`): mirror unidireccional segur cap a branca mirror.
+## 9) Scripts i workflows verificats
 
-Política recomanada:
+### 9.1 `package.json`
 
-- PR obligatori a `main`.
-- Checks requerits: `lint` i smoke.
-- Deploy d’emergència només amb aprovació via environment `production`.
+- `dev`
+- `dev:preview`
+- `build`
+- `start`
+- `lint`
+- `i18n:check-es`
+- `ci:smoke`
+- `emu`
+- `seed`
+- `test:smoke`
+- `test:permissions`
+- `test:telegram`
+- `monitor:login`
+- `bootstrap:firebase`
+- `test:close-poll`
 
-## 20) Model de producte
+### 9.2 GitHub Actions
 
-Summa Reu s’orienta a subscripció per entitat.
+- `CI`: `lint` i `ci:smoke`
+- `Deploy Manual Emergency`: `lint`, `ci:smoke` i `firebase deploy --only hosting`
+- `Prod Mirror Sync`: sincronització cap a branca mirror
 
-### 20.1 Capacitat base avui
+## 10) Decisions tècniques observables
 
-- votacions,
-- tancament de data,
-- reunió com a espai de seguiment,
-- pujades manuals,
-- transcripció i acta amb suport IA,
-- edició i export.
-
-### 20.2 Capacitat premium/objectiu
-
-- reunió dins plataforma o integrada,
-- gravació automàtica,
-- pipeline complet sense intervenció manual,
-- packaging comercial i cobrament tancats.
-
-## 21) Roadmap viu
-
-### 21.1 Curt termini
-
-- Verificació visual final de confort amb l’owner actiu a `/dashboard`.
-- Validar flux real de Daily de punta a punta fora del mock controlat.
-- Resoldre ingestió de gravacions grans sense degradar experiència premium.
-- Consolidar govern de dades efímeres a `_rate_limits`.
-- Endurir observabilitat i runbook de `meeting_ingest_job`.
-
-### 21.2 Mig termini
-
-- Millora de qualitat d’actes.
-- Analytics de producte.
-- Rols interns addicionals per entitat.
-- Millor cobertura d’i18n sense fallback en més pantalles.
-
-## 22) Estat de qualitat actual
-
-Execucions verificades avui, **9 de març de 2026**:
-
-- `npm run lint` -> **OK**
-- `npm run i18n:check-es` -> **OK**
-- `npm run build` -> **OK**
-- `npm run ci:smoke` -> **OK**
-
-El smoke cobreix com a mínim:
-
-- home pública,
-- login owner,
-- vot públic,
-- re-vot amb manteniment de `voterId`,
-- protecció d’ICS sense sessió,
-- sessió owner vàlida,
-- alta d’entitat via API,
-- aïllament multi-entitat,
-- logout i revocació de sessió.
-
-## 23) Decisions tècniques vigents
-
-- El backend funcional principal viu a Next API routes.
-- Firestore és la font principal de veritat.
-- L’estratègia IA és resilient: millor resultat possible sense bloquejar operativa.
+- El backend funcional principal viu dins Next API routes.
+- Firestore és la font principal de veritat per orgs, votacions, reunions i jobs d’ingestió.
 - Els vots públics no escriuen directament a Firestore des del client.
-- La localització s’aplica a nivell de middleware i no amb estructura duplicada de rutes.
-- La capa de reunió en directe encara no condiciona l’arquitectura actual perquè no està integrada.
+- La sessió owner es resol al servidor a partir de `__session`.
+- La reunió no té capa pròpia de videoconferència; la implementació actual depèn de Daily.
+- Hi ha dos camins de processament de gravació al codi:
+  - webhook Daily + `meeting_ingest_job`
+  - registre manual + `processRecordingTask`
 
-## 24) Definition of Done per canvis
+## 11) Principi de manteniment
 
-Un canvi es considera complet quan:
-
-- resol el flux funcional objectiu,
-- no introdueix regressió al flux principal,
-- manté seguretat i aïllament de dades,
-- incorpora validació mínima adequada,
-- actualitza aquest document si canvia comportament, arquitectura o operació.
-
-## 25) Govern del document
-
-Aquest fitxer és persistent i evolutiu.
-
-Norma d’actualització:
-
-1. Actualitzar la secció afectada.
-2. Afegir entrada al registre de canvis.
-3. Si canvia negoci o operació, revisar també objectius, riscos, runbooks i roadmap.
-
-## 26) Registre de canvis del document
-
-### 2026-03-09
-
-- Actualitzada la data base del document a 9 de març de 2026.
-- Documentats els commits recents de reunions `043f33ca`, `5ee58d95`, `56af8ae9` i `76516339`.
-- Afegida la capacitat d’eliminar reunions amb esborrat en cascada de subcol·leccions, jobs i fitxers associats.
-- Corregides les rutes owner de reunió i els endpoints reals de control de gravació/eliminació.
-
-### 2026-03-08
-
-- Actualitzada la data base del document a 8 de març de 2026.
-- Corregit l’estat real d’onboarding: signup públic + billing Stripe operatius a producció.
-- Actualitzat el flux de reunions: Summa crea room Daily, controla gravació i processa transcripció/acta via webhook + `meeting_ingest_job`.
-- Documentat el contracte del flux premium: `recordingStatus` (`none -> recording -> processing -> ready|error`) i ingestió idempotent per `meetingId + recordingId`.
-- Afegides les novetats de localització `ca/es`, routing per locale i control de fallback.
-- Incorporada la home pública i el flux comercial actual.
-- Afegides les rutes i endpoints d’autenticació reals, incloent `password-login`.
-- Documentada la resolució del blocker de build antiga amb el commit `151c9473`.
-- Afegida evidència de validació real amb l’org `FnNsMxFscHfOyt2oxhTPi3uUQD22`, `subscriptionStatus = active`, `stripeSubscriptionId = sub_1T8hIy1w5oTdm9u8IBZeBPjW` i `stripe_events/evt_1T8hJ81w5oTdm9u8pvhPgF6r`.
-- Ajustats riscos, roadmap i decisions tècniques a l’estat real del codi.
-- Actualitzada l’evidència de qualitat amb `lint`, `i18n:check-es`, `build` i `ci:smoke` executats avui.
-
-## Annex C - Checklist postobertura
-
-- Revisar noves `orgs/*` creades a Firestore
-- Revisar `subscriptionStatus` i detectar `pending` anòmals
-- Revisar `stripe_events` i confirmar `checkout.session.completed`
-- Revisar logs SSR i webhook Stripe
-- Revisar alertes Telegram de `past_due`, `canceled` o errors inesperats
-
-### 2026-03-05
-
-- Creat `SUMMA-REU-REFERENCIA-COMPLETA.md` com a referència única de producte + tecnologia.
-- Integrat estat inicial del projecte, arquitectura, seguretat, operació i roadmap viu.
-
----
-
-## Annex A - Mapa ràpid de fitxers clau
-
-- Producte/UI: `app/`, `src/components/`, `src/i18n/`
-- Dades: `src/lib/db/repo.ts`, `src/lib/db/types.ts`
-- Firebase/Auth: `src/lib/firebase/*`
-- Seguretat: `src/lib/security.ts`, `src/lib/security/request.ts`, `firestore.rules`, `storage.rules`, `middleware.ts`, `next.config.ts`
-- IA i actes: `src/lib/gemini/*`, `src/lib/minutes/*`, `src/lib/meetings/process-recording-task.ts`
-- Monitorització: `instrumentation.ts`, `src/lib/monitoring/*`, `app/api/public/error-report/route.ts`
-- DevOps: `scripts/*`, `.github/workflows/*`, `firebase.json`
-
-## Annex B - Principi de manteniment
-
-Si hi ha conflicte entre codi i document, **preval el codi** temporalment i aquest document s’ha d’actualitzar dins el mateix cicle de treball.
+Si hi ha conflicte entre aquest document i el codi, preval el codi i aquest document s’ha de tornar a auditar.
