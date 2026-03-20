@@ -205,14 +205,14 @@ emit_worktree_warning_if_needed() {
     return
   fi
 
-  if [ "$worktree_count" -le 20 ]; then
+  if [ "$worktree_count" -lt 10 ]; then
     return
   fi
 
   say ""
   say "WARNING"
   say "- worktrees actius: $worktree_count"
-  say "- hi ha més de 20 worktrees; revisa si en pots tancar algun abans de continuar"
+  say "- s'acosta el límit operatiu; revisa 'npm run worktree:list' o 'npm run worktree:gc' abans de continuar"
 }
 
 emit_acabat_completion() {
@@ -227,6 +227,7 @@ emit_acabat_completion() {
   say "SEGÜENT PAS RECOMANAT"
   say "- aquesta feina està llesta però NO integrada a main"
   say "- per integrar: executar npm run integra"
+  say "- després d'integrar, pots tancar el worktree amb npm run worktree:close $branch"
 }
 
 current_branch() {
