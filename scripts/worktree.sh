@@ -254,6 +254,36 @@ link_control_env_file() {
   return 0
 }
 
+link_control_shared_path() {
+  local worktree_path="$1"
+  local relative_path="$2"
+  local control_path="$CONTROL_REPO_DIR/$relative_path"
+  local worktree_target="$worktree_path/$relative_path"
+
+  if [ ! -e "$control_path" ]; then
+    return 0
+  fi
+
+  if [ -e "$worktree_target" ]; then
+    return 0
+  fi
+
+  if ln -s "$control_path" "$worktree_target"; then
+    say "Enllaç compartit creat: $relative_path"
+    return 0
+  fi
+
+  say "Avís: no s'ha pogut enllaçar $relative_path al worktree."
+  return 0
+}
+
+prepare_worktree_runtime() {
+  local worktree_path="$1"
+  link_control_env_file "$worktree_path" ".env.local"
+  link_control_env_file "$worktree_path" ".env.demo"
+  link_control_shared_path "$worktree_path" "node_modules"
+}
+
 worktree_records() {
   git_control worktree list --porcelain | awk '
     BEGIN { RS=""; FS="\n" }
@@ -464,6 +494,13 @@ print_worktree_detail() {
   say "- commits no pujats: $unpushed_label"
   say "- antiguitat aproximada: ${age_days}d"
   say "- estat recomanat: $state"
+  if [ "$state" = "TANCAR" ] && [ -n "$wt_branch" ] && [ "$wt_branch" != "-" ]; then
+    say "- acció recomanada: npm run worktree:close $wt_branch"
+  elif [ "$state" = "REVISAR" ]; then
+    say "- acció recomanada: revisar abans de tancar o descartar"
+  else
+    say "- acció recomanada: continuar o integrar quan estigui llest"
+  fi
   if [ -n "$wt_prunable" ]; then
     say "- observació: prunable ($wt_prunable)"
   elif [ "$path_exists_label" = "NO" ]; then
@@ -511,27 +548,83 @@ create_cmd() {
   worktree_path="$(build_worktree_path "$branch")"
 
   git_control worktree add -b "$branch" "$worktree_path" main >/dev/null
-  link_control_env_file "$worktree_path" ".env.local"
-  link_control_env_file "$worktree_path" ".env.demo"
+  prepare_worktree_runtime "$worktree_path"
 
   say "Branca de tasca creada: $branch"
   say "Worktree creat: $worktree_path"
   say "Treballa dins del worktree per implementar aquesta tasca."
 }
 
+print_control_repo_status() {
+  local control_abs branch local_changes_label
+  control_abs="$(cd "$CONTROL_REPO_DIR" && pwd -P)"
+  branch="$(current_branch_in_repo "$CONTROL_REPO_DIR")"
+  local_changes_label="$(worktree_local_changes_label "$control_abs")"
+
+  say "CONTROL"
+  say "- path: $control_abs"
+  say "- branca: $branch"
+  say "- canvis locals: $local_changes_label"
+  say "- estat esperat: main neta abans d'integrar o publicar"
+  say ""
+}
+
 list_cmd() {
   local active_count
+  local closable_count review_count active_items_count
   active_count="$(active_worktree_count)"
+  closable_count=0
+  review_count=0
+  active_items_count=0
 
-  say "CONTROL: $(cd "$CONTROL_REPO_DIR" && pwd -P)"
   say "ROOT TASQUES: $DEFAULT_WORKTREE_ROOT"
   say "WORKTREES ACTIUS: $active_count/$MAX_ACTIVE_WORKTREES"
+  say ""
+  print_control_repo_status
+  say "WORKTREES DE TASCA"
   say ""
 
   local wt_path wt_branch wt_detached wt_prunable
   while IFS=$'\t' read -r wt_path wt_branch wt_detached wt_prunable; do
+    local wt_abs
+    wt_abs="$(safe_abs_path_if_exists "$wt_path")"
+    if [ "$wt_abs" = "$(cd "$CONTROL_REPO_DIR" && pwd -P)" ]; then
+      continue
+    fi
+
+    local repo_dir local_changes age_days unpushed_count state path_exists_label
+    repo_dir="$wt_abs"
+    if [ -d "$wt_path" ]; then
+      path_exists_label="SI"
+      local_changes="$(worktree_local_changes_label "$repo_dir")"
+      age_days="$(age_days_for_repo "$repo_dir")"
+      unpushed_count="$(unpushed_commit_count_for_repo "$repo_dir" "$wt_branch")"
+    else
+      path_exists_label="NO"
+      local_changes="-"
+      age_days="?"
+      unpushed_count=0
+    fi
+    state="$(recommended_state_for_worktree "$wt_branch" "$wt_detached" "$wt_prunable" "$path_exists_label" "$local_changes" "$unpushed_count" "$age_days")"
+    case "$state" in
+      TANCAR) closable_count=$((closable_count + 1)) ;;
+      REVISAR) review_count=$((review_count + 1)) ;;
+      *) active_items_count=$((active_items_count + 1)) ;;
+    esac
     print_worktree_detail "$wt_path" "$wt_branch" "$wt_detached" "$wt_prunable"
   done < <(worktree_records)
+
+  say "RESUM"
+  say "- tancables ara: $closable_count"
+  say "- en revisió manual: $review_count"
+  say "- actius: $active_items_count"
+  say ""
+  say "SEGÜENT PAS RECOMANAT"
+  if [ "$closable_count" -gt 0 ]; then
+    say "- tanca els worktrees integrats amb 'npm run worktree:close <branca>' o executa 'npm run worktree:gc'"
+  else
+    say "- si tot està al dia, continua només als worktrees marcats com ACTIU"
+  fi
 }
 
 close_cmd() {
@@ -687,13 +780,15 @@ gc_cmd() {
     return 1
   fi
 
-  local safe_items review_items safe_count review_count
+  local removed_items review_items removed_count review_count
   local control_abs wt_path wt_branch wt_detached wt_prunable
-  safe_items=""
+  removed_items=""
   review_items=""
-  safe_count=0
+  removed_count=0
   review_count=0
   control_abs="$(cd "$CONTROL_REPO_DIR" && pwd -P)"
+
+  git_control worktree prune --expire now >/dev/null 2>&1 || true
 
   while IFS=$'\t' read -r wt_path wt_branch wt_detached wt_prunable; do
     local wt_abs local_changes_label age_days unpushed_count reason
@@ -704,8 +799,9 @@ gc_cmd() {
     fi
 
     if [ -n "$wt_prunable" ] || [ ! -d "$wt_path" ]; then
-      safe_items="${safe_items}- worktree orfe/prunable: $wt_path\n"
-      safe_count=$((safe_count + 1))
+      git_control worktree prune --expire now >/dev/null 2>&1 || true
+      removed_items="${removed_items}- registre worktree orfe/prunable: $wt_path\n"
+      removed_count=$((removed_count + 1))
       continue
     fi
 
@@ -720,8 +816,16 @@ gc_cmd() {
     unpushed_count="$(unpushed_commit_count_for_repo "$wt_abs" "$wt_branch")"
 
     if [ -n "$wt_branch" ] && is_branch_integrated_to_main "$wt_branch" && [ "$local_changes_label" = "NO" ] && [ "$unpushed_count" -eq 0 ] 2>/dev/null; then
-      safe_items="${safe_items}- worktree net i integrat: $wt_path ($wt_branch)\n"
-      safe_count=$((safe_count + 1))
+      if git_control worktree remove "$wt_path" >/dev/null 2>&1; then
+        removed_items="${removed_items}- worktree net i integrat tancat: $wt_path ($wt_branch)\n"
+        removed_count=$((removed_count + 1))
+        if ! branch_has_registered_worktree_elsewhere "$wt_branch" "$wt_path"; then
+          git_control branch -d "$wt_branch" >/dev/null 2>&1 || true
+        fi
+      else
+        review_items="${review_items}- revisar: $wt_path ($wt_branch, no s'ha pogut tancar automàticament)\n"
+        review_count=$((review_count + 1))
+      fi
       continue
     fi
 
@@ -751,18 +855,23 @@ gc_cmd() {
       continue
     fi
 
-    safe_items="${safe_items}- branca codex fusionada sense worktree: $branch\n"
-    safe_count=$((safe_count + 1))
+    if git_control branch -d "$branch" >/dev/null 2>&1; then
+      removed_items="${removed_items}- branca codex fusionada eliminada: $branch\n"
+      removed_count=$((removed_count + 1))
+    else
+      review_items="${review_items}- revisar: $branch (no s'ha pogut eliminar automàticament)\n"
+      review_count=$((review_count + 1))
+    fi
   done < <(git_control for-each-ref --format='%(refname:short)' refs/heads/codex)
 
   say "RESUM GC WORKTREES"
   say "- TTL de revisió: ${ttl_days} dies"
   say ""
-  say "ELIMINABLE SEGUR"
-  if [ "$safe_count" -eq 0 ]; then
+  say "NETEJA FETA"
+  if [ "$removed_count" -eq 0 ]; then
     say "- cap"
   else
-    printf '%b' "$safe_items"
+    printf '%b' "$removed_items"
   fi
   say ""
   say "REVISIÓ MANUAL"
@@ -771,6 +880,10 @@ gc_cmd() {
   else
     printf '%b' "$review_items"
   fi
+  say ""
+  say "RESUM"
+  say "- elements netejats: $removed_count"
+  say "- pendents de revisió: $review_count"
 }
 
 usage() {
