@@ -8,6 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SummaTooltip } from '@/components/ui/summa-tooltip';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -36,6 +41,9 @@ import {
   canSplitStripeRemittance as canSplitStripeRemittanceCandidate,
   isStripeLikeTransaction,
 } from '@/lib/transactions/stripe-detection';
+import {
+  type StripeImputationSummary,
+} from '@/lib/stripe/activeStripeImputation';
 
 /**
  * Helper: middle ellipsis per a noms llargs
@@ -51,12 +59,14 @@ interface TransactionRowMobileProps {
   transaction: Transaction;
   contactName: string | null;
   contactType: ContactType | null;
+  stripeImputationSummary?: StripeImputationSummary | null;
   categoryDisplayName: string;
   onEdit: (tx: Transaction) => void;
   onDelete: (tx: Transaction) => void;
   onSplitRemittance?: (tx: Transaction) => void;
   onSplitAmount?: (tx: Transaction) => void;
   onSplitStripeRemittance?: (tx: Transaction) => void;
+  onOpenStripeImputationDetail?: (tx: Transaction) => void;
   onOpenSplitDetail?: (txId: string) => void;
   onUndoSplit?: (txId: string) => void;
   onUndoRemittance?: (tx: Transaction) => void;
@@ -88,6 +98,9 @@ interface TransactionRowMobileProps {
     splitProcessedLabel?: string;
     undoSplit?: string;
     undoRemittance?: string;
+    stripeImputed?: string;
+    viewStripeImputationDetail?: string;
+    undoStripeImputation?: string;
     remittanceQuotes: string;
     manageReturn?: string;
     generateReturnEmail?: string;
@@ -100,12 +113,14 @@ interface TransactionRowMobileProps {
 export const TransactionRowMobile = React.memo(function TransactionRowMobile({
   transaction: tx,
   contactName,
+  stripeImputationSummary,
   categoryDisplayName,
   onEdit,
   onDelete,
   onSplitRemittance,
   onSplitAmount,
   onSplitStripeRemittance,
+  onOpenStripeImputationDetail,
   onOpenSplitDetail,
   onUndoSplit,
   onUndoRemittance,
@@ -129,7 +144,11 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
   const balanceText = hasBalanceAfter ? formatCurrencyEU(Math.abs(tx.balanceAfter!)) : '—';
   const isFromStripe = tx.source === 'stripe';
   const isStripeLike = isStripeLikeTransaction(tx);
-  const hasStripeChildren = !!tx.stripeTransferId;
+  const hasStripeImputation = !!stripeImputationSummary;
+  const hasStripeChildren = !!tx.stripeTransferId || hasStripeImputation;
+  const stripeDonorEntries = stripeImputationSummary?.donorEntries ?? [];
+  const hasSingleStripeDonor = stripeImputationSummary?.donorCount === 1;
+  const hasMultipleStripeDonors = (stripeImputationSummary?.donorCount ?? 0) > 1;
   const canManageReturn =
     tx.amount < 0 &&
     !tx.isRemittance &&
@@ -302,6 +321,15 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
     }, 50);
   }, [onSplitStripeRemittance, tx]);
 
+  const handleOpenStripeDetail = React.useCallback(() => {
+    if (!onOpenStripeImputationDetail) return;
+    setIsMenuOpen(false);
+    setTimeout(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      onOpenStripeImputationDetail(tx);
+    }, 50);
+  }, [onOpenStripeImputationDetail, tx]);
+
   return (
     <div className={`border rounded-lg p-3 ${bgClass}`}>
       {/* Line 1: Data · Import · Saldo */}
@@ -343,7 +371,49 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
         <Badge variant="outline" className="max-w-[48%] text-xs py-0 px-1.5 font-normal">
           <span className="inline-flex items-center gap-1 min-w-0">
             <User className="h-3 w-3 shrink-0" />
-            {contactName ? (
+            {hasSingleStripeDonor && stripeImputationSummary?.singleDonorDisplayName ? (
+              <SummaTooltip content={stripeImputationSummary.singleDonorDisplayName}>
+                <button
+                  type="button"
+                  onClick={handleOpenStripeDetail}
+                  className="truncate text-left"
+                >
+                  {middleEllipsis(stripeImputationSummary.singleDonorDisplayName)}
+                </button>
+              </SummaTooltip>
+            ) : hasMultipleStripeDonors ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="truncate text-left"
+                  >
+                    {stripeImputationSummary?.donorCount} socis
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-3">
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Repartiment Stripe
+                    </div>
+                    {stripeDonorEntries.map((entry) => (
+                      <div key={entry.key} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate">{entry.donorDisplayName}</span>
+                        <span className="shrink-0 font-mono">{formatCurrencyEU(entry.totalAmount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : hasStripeImputation ? (
+              <button
+                type="button"
+                onClick={handleOpenStripeDetail}
+                className="truncate text-left"
+              >
+                {t.stripeImputed || 'Stripe imputat'}
+              </button>
+            ) : contactName ? (
               <SummaTooltip content={contactName}>
                 <span className="truncate">{middleEllipsis(contactName)}</span>
               </SummaTooltip>
@@ -355,7 +425,7 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
       </div>
 
       {/* Middle: Badges (type + remittance) */}
-      {(isReturn || isReturnFee || isReturnedDonation || tx.isRemittance || canShowUndoSplitAction(tx)) && (
+      {(isReturn || isReturnFee || isReturnedDonation || tx.isRemittance || canShowUndoSplitAction(tx) || hasStripeImputation) && (
         <div className="mt-2 flex flex-wrap gap-1">
           {isReturn && (
             <Badge variant="destructive" className="gap-0.5 text-xs py-0 px-1.5">
@@ -382,6 +452,15 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
             >
               <Eye className="h-3 w-3" />
               {tx.remittanceResolvedCount ?? tx.remittanceItemCount}/{tx.remittanceItemCount} {t.remittanceQuotes}
+            </Badge>
+          )}
+          {hasStripeImputation && (
+            <Badge
+              variant="outline"
+              className="cursor-pointer text-xs py-0 px-1.5 hover:bg-accent"
+              onClick={handleOpenStripeDetail}
+            >
+              {t.stripeImputed || 'Stripe imputat'}
             </Badge>
           )}
           {canShowUndoSplitAction(tx) && onOpenSplitDetail && (
@@ -449,7 +528,13 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            {canSplitStripeRemittance && onSplitStripeRemittance && (
+            {hasStripeImputation && onOpenStripeImputationDetail && (
+              <DropdownMenuItem onClick={handleOpenStripeDetail}>
+                <Eye className="h-4 w-4 mr-2 text-blue-600" />
+                {t.viewStripeImputationDetail || 'Veure detall Stripe'}
+              </DropdownMenuItem>
+            )}
+            {!hasStripeImputation && canSplitStripeRemittance && onSplitStripeRemittance && (
               <DropdownMenuItem onClick={handleSplitStripeRemittance}>
                 <GitMerge className="h-4 w-4 mr-2 text-purple-600" />
                 {'Imputar Stripe'}
@@ -482,7 +567,9 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
             {(tx.isRemittance || hasStripeChildren) && onUndoRemittance && (
               <DropdownMenuItem onClick={handleUndoRemittance} className="text-orange-600">
                 <Undo2 className="h-4 w-4 mr-2" />
-                {hasStripeChildren ? 'Desfer imputacio Stripe' : (t.undoRemittance || 'Desfer remesa')}
+                {hasStripeImputation
+                  ? (t.undoStripeImputation || 'Desfer imputació Stripe')
+                  : (t.undoRemittance || 'Desfer remesa')}
               </DropdownMenuItem>
             )}
             {deleteBlockedMessage ? (
