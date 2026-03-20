@@ -35,10 +35,18 @@ print_summary() {
   say "RESULTAT: INTEGRACIÓ $RESULT_STATUS"
   say ""
   say "BRANQUES INTEGRADES"
-  print_list_or_empty "${INTEGRATED_BRANCHES[@]}"
+  if [ "${#INTEGRATED_BRANCHES[@]}" -eq 0 ]; then
+    say "- cap"
+  else
+    print_list_or_empty "${INTEGRATED_BRANCHES[@]}"
+  fi
   say ""
   say "CONFLICTES"
-  print_list_or_empty "${CONFLICT_ITEMS[@]}"
+  if [ "${#CONFLICT_ITEMS[@]}" -eq 0 ]; then
+    say "- cap"
+  else
+    print_list_or_empty "${CONFLICT_ITEMS[@]}"
+  fi
   say ""
   say "VALIDACIONS"
   say "- typecheck: $TYPECHECK_STATUS"
