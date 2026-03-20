@@ -58,11 +58,39 @@ test('moviment pare imputat retorna count i resum curt de donants', () => {
   assert.ok(summary);
   assert.equal(summary?.donationCount, 3);
   assert.equal(summary?.adjustmentCount, 1);
+  assert.equal(summary?.donorCount, 3);
+  assert.equal(summary?.singleDonorDisplayName, null);
   assert.equal(summary?.donorPreview, 'Lourdes H., Pere M. +1');
+  assert.deepEqual(
+    summary?.donorEntries.map((entry) => [entry.donorDisplayName, entry.totalAmount]),
+    [
+      ['Pere Martí', 12],
+      ['Lourdes Herrera', 10],
+      ['Anna Serra', 8],
+    ]
+  );
   assert.equal(
     summary ? formatStripeImputationStatus(summary) : '',
-    'Stripe imputat · 3 donacions · Lourdes H., Pere M. +1'
+    'Stripe imputat · 3 donacions'
   );
+});
+
+test('si totes les donations son del mateix contacte, el resum exposa el contacte unic', () => {
+  const summary = summarizeActiveStripeImputation({
+    parentTransactionId: 'parent-1',
+    donations: [
+      makeDonation({ id: 'don_1', contactId: 'donor-1', amountGross: 10 }),
+      makeDonation({ id: 'don_2', contactId: 'donor-1', amountGross: 12, stripePaymentId: 'pay_2' }),
+    ],
+    donorNameById: {
+      'donor-1': 'Lourdes Herrera',
+    },
+  });
+
+  assert.ok(summary);
+  assert.equal(summary?.donorCount, 1);
+  assert.equal(summary?.singleDonorDisplayName, 'Lourdes Herrera');
+  assert.deepEqual(summary?.donorEntries.map((entry) => entry.totalAmount), [22]);
 });
 
 test('la reimputacio bloquejada indica que es pot desfer des del detall Stripe', () => {

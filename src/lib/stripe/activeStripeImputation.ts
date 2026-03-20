@@ -16,13 +16,24 @@ export interface StripeImputationLineSummary {
   imputationOrigin: string | null;
 }
 
+export interface StripeImputationDonorEntry {
+  key: string;
+  contactId: string | null;
+  donorDisplayName: string;
+  totalAmount: number;
+  donationCount: number;
+}
+
 export interface StripeImputationSummary {
   parentTransactionId: string;
   donationCount: number;
   adjustmentCount: number;
   totalAmount: number;
+  donorCount: number;
+  singleDonorDisplayName: string | null;
   donorNames: string[];
   donorPreview: string;
+  donorEntries: StripeImputationDonorEntry[];
   lines: StripeImputationLineSummary[];
 }
 
@@ -78,7 +89,7 @@ export function buildStripeImputationDonorPreview(donorNames: string[]): string 
 
 export function formatStripeImputationStatus(summary: StripeImputationSummary): string {
   const donationLabel = `${summary.donationCount} donaci${summary.donationCount === 1 ? 'o' : 'ons'}`;
-  return `Stripe imputat · ${donationLabel} · ${summary.donorPreview}`;
+  return `Stripe imputat · ${donationLabel}`;
 }
 
 export function getStripeParentAlreadyImputedMessage(): string {
@@ -135,13 +146,49 @@ export function summarizeActiveStripeImputation(input: {
       return left.id.localeCompare(right.id);
     });
 
+  const donorEntries = Array.from(
+    lines.reduce((accumulator, line) => {
+      const donorDisplayName = hasValue(line.donorDisplayName)
+        ? line.donorDisplayName.trim()
+        : hasValue(line.customerEmail)
+        ? line.customerEmail.trim()
+        : 'Sense donant';
+      const key = line.contactId ?? donorDisplayName;
+      const existing = accumulator.get(key);
+
+      if (existing) {
+        existing.totalAmount += line.amountGross;
+        existing.donationCount += 1;
+        return accumulator;
+      }
+
+      accumulator.set(key, {
+        key,
+        contactId: line.contactId,
+        donorDisplayName,
+        totalAmount: line.amountGross,
+        donationCount: 1,
+      });
+      return accumulator;
+    }, new Map<string, StripeImputationDonorEntry>())
+      .values()
+  ).sort((left, right) => {
+    if (left.totalAmount !== right.totalAmount) {
+      return right.totalAmount - left.totalAmount;
+    }
+    return left.donorDisplayName.localeCompare(right.donorDisplayName);
+  });
+
   return {
     parentTransactionId: input.parentTransactionId,
     donationCount: donationLines.length,
     adjustmentCount: activeLines.filter((donation) => donation.type === 'stripe_adjustment').length,
     totalAmount: donationLines.reduce((sum, donation) => sum + normalizeStripeDonationAmount(donation), 0),
+    donorCount: donorEntries.length,
+    singleDonorDisplayName: donorEntries.length === 1 ? donorEntries[0].donorDisplayName : null,
     donorNames,
     donorPreview: buildStripeImputationDonorPreview(donorNames),
+    donorEntries,
     lines,
   };
 }

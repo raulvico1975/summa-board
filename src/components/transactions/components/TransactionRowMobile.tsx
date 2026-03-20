@@ -8,6 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SummaTooltip } from '@/components/ui/summa-tooltip';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -37,7 +42,6 @@ import {
   isStripeLikeTransaction,
 } from '@/lib/transactions/stripe-detection';
 import {
-  formatStripeImputationStatus,
   type StripeImputationSummary,
 } from '@/lib/stripe/activeStripeImputation';
 
@@ -142,7 +146,9 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
   const isStripeLike = isStripeLikeTransaction(tx);
   const hasStripeImputation = !!stripeImputationSummary;
   const hasStripeChildren = !!tx.stripeTransferId || hasStripeImputation;
-  const stripeStatusText = stripeImputationSummary ? formatStripeImputationStatus(stripeImputationSummary) : null;
+  const stripeDonorEntries = stripeImputationSummary?.donorEntries ?? [];
+  const hasSingleStripeDonor = stripeImputationSummary?.donorCount === 1;
+  const hasMultipleStripeDonors = (stripeImputationSummary?.donorCount ?? 0) > 1;
   const canManageReturn =
     tx.amount < 0 &&
     !tx.isRemittance &&
@@ -365,11 +371,45 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
         <Badge variant="outline" className="max-w-[48%] text-xs py-0 px-1.5 font-normal">
           <span className="inline-flex items-center gap-1 min-w-0">
             <User className="h-3 w-3 shrink-0" />
-            {hasStripeImputation && stripeStatusText ? (
+            {hasSingleStripeDonor && stripeImputationSummary?.singleDonorDisplayName ? (
+              <SummaTooltip content={stripeImputationSummary.singleDonorDisplayName}>
+                <button
+                  type="button"
+                  onClick={handleOpenStripeDetail}
+                  className="truncate text-left"
+                >
+                  {middleEllipsis(stripeImputationSummary.singleDonorDisplayName)}
+                </button>
+              </SummaTooltip>
+            ) : hasMultipleStripeDonors ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="truncate text-left"
+                  >
+                    {stripeImputationSummary?.donorCount} socis
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-3">
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Repartiment Stripe
+                    </div>
+                    {stripeDonorEntries.map((entry) => (
+                      <div key={entry.key} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate">{entry.donorDisplayName}</span>
+                        <span className="shrink-0 font-mono">{formatCurrencyEU(entry.totalAmount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : hasStripeImputation ? (
               <button
                 type="button"
                 onClick={handleOpenStripeDetail}
-                className="truncate text-left text-blue-700"
+                className="truncate text-left"
               >
                 {t.stripeImputed || 'Stripe imputat'}
               </button>
@@ -414,13 +454,13 @@ export const TransactionRowMobile = React.memo(function TransactionRowMobile({
               {tx.remittanceResolvedCount ?? tx.remittanceItemCount}/{tx.remittanceItemCount} {t.remittanceQuotes}
             </Badge>
           )}
-          {hasStripeImputation && stripeStatusText && (
+          {hasStripeImputation && (
             <Badge
               variant="outline"
-              className="cursor-pointer border-blue-300 bg-blue-50 text-xs text-blue-700"
+              className="cursor-pointer text-xs py-0 px-1.5 hover:bg-accent"
               onClick={handleOpenStripeDetail}
             >
-              {stripeStatusText}
+              {t.stripeImputed || 'Stripe imputat'}
             </Badge>
           )}
           {canShowUndoSplitAction(tx) && onOpenSplitDetail && (

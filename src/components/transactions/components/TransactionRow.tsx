@@ -67,7 +67,6 @@ import {
   isStripeLikeTransaction,
 } from '@/lib/transactions/stripe-detection';
 import {
-  formatStripeImputationStatus,
   type StripeImputationSummary,
 } from '@/lib/stripe/activeStripeImputation';
 
@@ -294,6 +293,9 @@ export const TransactionRow = React.memo(function TransactionRow({
   const showStripeBadge = isStripeLikeTransaction(tx);
   const hasStripeImputation = !!stripeImputationSummary;
   const hasStripeChildren = !!tx.stripeTransferId || hasStripeImputation;
+  const stripeDonorEntries = stripeImputationSummary?.donorEntries ?? [];
+  const hasSingleStripeDonor = stripeImputationSummary?.donorCount === 1;
+  const hasMultipleStripeDonors = (stripeImputationSummary?.donorCount ?? 0) > 1;
   const canSplitAmount =
     tx.amount > 0 &&
     !tx.isRemittance &&
@@ -304,7 +306,6 @@ export const TransactionRow = React.memo(function TransactionRow({
     !showStripeBadge &&
     tx.transactionType !== 'donation' &&
     tx.transactionType !== 'fee';
-  const stripeStatusText = stripeImputationSummary ? formatStripeImputationStatus(stripeImputationSummary) : null;
 
   // Stable callbacks using useCallback to prevent child re-renders
   const handleSelectContact = React.useCallback((contactId: string | null) => {
@@ -662,10 +663,10 @@ export const TransactionRow = React.memo(function TransactionRow({
             <p className={`text-[13px] truncate max-w-[320px] ${isReturnedDonation ? 'text-gray-400' : ''}`} title={tx.description}>
               {tx.description}
             </p>
-            {hasStripeImputation && stripeStatusText && onOpenStripeImputationDetail && (
+            {hasStripeImputation && onOpenStripeImputationDetail && (
               <Badge
                 variant="outline"
-                className="cursor-pointer border-blue-300 bg-blue-50 text-[10px] text-blue-700 hover:bg-blue-100"
+                className="cursor-pointer text-xs py-0 px-1.5 hover:bg-accent"
                 onClick={handleOpenStripeDetail}
               >
                 {t.stripeImputed || 'Stripe imputat'}
@@ -687,13 +688,13 @@ export const TransactionRow = React.memo(function TransactionRow({
           <div className="lg:hidden mt-1 text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
             <span className="truncate max-w-[120px]">{getCategoryDisplayName(tx.category) || 'Sense categoria'}{isLegacyCategory && <span className="text-amber-600 ml-0.5" title={t.legacyCategory ?? 'Cal recategoritzar'}>⚠</span>}</span>
             <span className="text-muted-foreground/50">·</span>
-            {hasStripeImputation && stripeStatusText ? (
+            {hasStripeImputation ? (
               <button
                 type="button"
                 onClick={handleOpenStripeDetail}
-                className="max-w-[220px] truncate text-left text-blue-700 hover:text-blue-800"
+                className="max-w-[180px] truncate text-left"
               >
-                {stripeStatusText}
+                {t.stripeImputed || 'Stripe imputat'}
               </button>
             ) : contactName ? (
               <SummaTooltip content={contactName}>
@@ -768,18 +769,44 @@ export const TransactionRow = React.memo(function TransactionRow({
         ) : isProcessedDonationRemittance ? (
           // Cas 2: Remesa de donacions processada - NO té contacte, mostrar "—"
           <span className="text-muted-foreground text-sm">{t.remittanceNotApplicable}</span>
-        ) : hasStripeImputation && stripeStatusText ? (
-          <button
-            type="button"
-            onClick={handleOpenStripeDetail}
-            className="flex max-w-full flex-col items-start text-left"
-          >
-            <Badge variant="outline" className="border-blue-300 bg-blue-50 text-xs text-blue-700">
+        ) : hasSingleStripeDonor && stripeImputationSummary?.singleDonorDisplayName ? (
+          <SummaTooltip content={stripeImputationSummary.singleDonorDisplayName}>
+            <button
+              type="button"
+              onClick={handleOpenStripeDetail}
+              className="max-w-[180px] truncate text-left text-sm hover:underline"
+            >
+              {stripeImputationSummary.singleDonorDisplayName}
+            </button>
+          </SummaTooltip>
+        ) : hasMultipleStripeDonors ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className="text-left">
+                <Badge variant="outline" className="text-xs py-0 px-1.5 hover:bg-accent">
+                  {stripeImputationSummary?.donorCount} socis
+                </Badge>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 p-3">
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Repartiment Stripe
+                </div>
+                {stripeDonorEntries.map((entry) => (
+                  <div key={entry.key} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate">{entry.donorDisplayName}</span>
+                    <span className="shrink-0 font-mono">{formatCurrencyEU(entry.totalAmount)}</span>
+                  </div>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : hasStripeImputation ? (
+          <button type="button" onClick={handleOpenStripeDetail} className="text-left">
+            <Badge variant="outline" className="text-xs py-0 px-1.5 hover:bg-accent">
               {t.stripeImputed || 'Stripe imputat'}
             </Badge>
-            <span className="mt-1 max-w-[220px] truncate text-xs text-muted-foreground">
-              {stripeStatusText}
-            </span>
           </button>
         ) : isReturn && !tx.contactId ? (
           // Cas 3: Devolució individual pendent (NO és pare de remesa)
