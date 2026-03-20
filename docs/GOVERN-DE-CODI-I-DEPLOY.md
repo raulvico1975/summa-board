@@ -57,8 +57,9 @@ Aquesta classificació determina els requisits de validació (secció 4).
    ```bash
    node scripts/check-build-env.mjs && npm run build && npm test
    ```
-4. `npm run acabat` des del worktree: checks + commit + push + cua d'integració + prova prèvia de merge + integració a `main` (control)
-5. Després d'`acabat`, el sistema pregunta si vols tancar el worktree (`npm run worktree:close`)
+4. `npm run acabat` des del worktree: checks + commit + push de la branca `codex/*`
+5. `npm run integra` des del repositori de control: prova de merge en worktree temporal + validacions + actualització d'`origin/main` + sincronització de `main`
+6. Un cop integrat, si el worktree ja no fa falta: `npm run worktree:close`
 
 ---
 
@@ -125,7 +126,8 @@ El ritual complet d'"acabar feina" i publicar s'executa via scripts deterministe
 ```bash
 npm run inicia    # crea branca codex/* + worktree extern de tasca
 npm run implementa # equivalent a inicia
-npm run acabat    # tanca tasca des del worktree (checks + commit + push + cua + integració a main)
+npm run acabat    # tanca tasca des del worktree (checks + commit + push)
+npm run integra   # integra a main des del repositori de control
 npm run publica   # publica main -> prod (només des del repositori de control)
 npm run worktree:list
 npm run worktree:close
@@ -146,12 +148,16 @@ Si ja hi ha una tasca activa d'aquella àrea, el sistema bloqueja l'inici (`BLOC
 1. Detectar canvis pendents i classificar risc (ALT/MITJÀ/BAIX)
 2. Verificacions (`verify-local.sh`, `verify-ci.sh`) quan hi ha canvis locals
 3. Commit i push automàtics de la branca de treball (`codex/...`) quan hi ha canvis locals
-4. Entrada a **cua d'integració única** (lock) per evitar carreres entre agents
-5. **Prova prèvia de merge** contra `main` actualitzat (sense publicar encara)
-6. Integració automàtica a `main` via repositori de control si la prova passa
-7. Pregunta operativa de tancament del worktree
+4. Sortida clara indicant que la branca ja és llesta per integrar amb `npm run integra`
 
-No cal cap flag manual per integrar.
+`npm run integra` (`scripts/integrate.sh`) fa aquests passos:
+1. Verifica que el repositori de control és `main` i està net
+2. Detecta les branques `codex/*` pendents i deixa seleccionar un bloc coherent
+3. Fa una **prova de merge en worktree temporal**, sense tocar `main`
+4. Regenera `.next/types` al worktree temporal i executa `typecheck` + `test:node`
+5. Si tot és correcte, actualitza `origin/main` amb el cap validat
+6. Sincronitza `main` local amb `origin/main`
+7. Mostra un resum inequívoc de què ha entrat, si `main` és neta i si queda pendent decidir deploy
 
 `npm run publica` executa `scripts/deploy.sh`, que fa:
 1. Preflight git al **repositori de control** (branca=main, working tree net, pull ff-only)
@@ -172,6 +178,7 @@ No cal cap flag manual per integrar.
 
 - **Trigger d'inici:** el CEO escriu `"Comença"`, `"Inicia"` o `"Implementa"` → Codex executa `npm run inicia` o `npm run implementa` (mateix efecte)
 - **Trigger de tancament:** el CEO escriu `"Acabat"` → Codex executa `npm run acabat`
+- **Trigger d'integració:** quan la branca ja és llesta → Codex executa `npm run integra`
 - **Trigger de publicació:** el CEO escriu `"Autoritzo deploy"` → Codex executa `npm run publica`
 - El script detecta el nivell de risc automàticament
 - El script s'atura si les verificacions fallen
@@ -182,9 +189,14 @@ No cal cap flag manual per integrar.
 - Quan hi ha canvis locals, el sistema mostra sempre:
   - bloc `RESUM NO TÈCNIC` (què s'ha fet, implicació, què pot notar l'entitat)
   - bloc `SEGÜENT PAS RECOMANAT` indicant quan dir `Acabat`
-- Després d'`acabat` amb estat `Preparat per producció`, el sistema mostra:
-  - bloc `QUÈ VOL DIR AUTORITZO DEPLOY`
-  - bloc `SEGÜENT PAS RECOMANAT` indicant quan dir `Autoritzo deploy`
+- Després d'`acabat`, el sistema mostra:
+  - estat curt de la branca (`commit pujat`, `llest per integració`)
+  - bloc `SEGÜENT PAS RECOMANAT` indicant `npm run integra`
+- Després d'`integra` OK, el sistema mostra:
+  - quines branques han entrat
+  - si `origin/main` ha quedat actualitzat
+  - si `main` local ha quedat alineada i neta
+  - bloc `SEGÜENT PAS RECOMANAT` indicant si ja es pot decidir deploy
 - Text obligatori del bloc `QUÈ VOL DIR AUTORITZO DEPLOY`:
   - Dir `Autoritzo deploy` vol dir publicar els canvis preparats a producció.
   - Es faran comprovacions automàtiques abans i després.
@@ -201,8 +213,8 @@ No cal cap flag manual per integrar.
 - Check post-producció de 3 minuts automatitzat.
 - Mini-registre d'incidència quan un deploy queda bloquejat.
 - Si no hi ha URLs de smoke definides, el sistema prova automàticament amb `DEPLOY_BASE_URL` o amb la URL publicada detectada a `firebase.json`.
-- Cua d'integració única per `acabat` (evita integracions simultànies sobre `main`).
-- Prova prèvia de merge a `acabat` per detectar solapaments abans d'integrar.
+- Prova prèvia de merge a `integra` en worktree temporal per detectar solapaments abans de tocar `main`.
+- `worktree:gc` neteja automàticament worktrees integrats nets i branques `codex/*` fusionades que ja no tenen worktree.
 - `check-doc-sync` en mode flexible per defecte (warnings). Si cal bloqueig estricte de documentació: `DOC_SYNC_STRICT=1`.
 
 ### Missatge de commit

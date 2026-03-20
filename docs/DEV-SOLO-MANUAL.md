@@ -148,9 +148,9 @@ El hook Husky (`.husky/pre-commit`) bloqueja `git commit` si estàs a la branca 
    - branca `codex/...`
    - worktree extern a `../summa-social-worktrees/<branch>`
 3. Implementar dins del worktree nou
-4. Tancar amb `npm run acabat` des del worktree (checks + commit/push + cua + integració)
-5. Respondre la pregunta operativa de tancament:
-   - recomanat: `npm run worktree:close`
+4. Tancar amb `npm run acabat` des del worktree (checks + commit/push)
+5. Integrar amb `npm run integra` des del repositori de control
+6. Si el worktree ja no cal: `npm run worktree:close`
 
 **Reserva d'àrea (opcional, recomanada):**
 - Pots iniciar amb àrea per evitar solapaments: `npm run inicia -- remeses` (també vàlid amb `implementa`).
@@ -159,7 +159,7 @@ El hook Husky (`.husky/pre-commit`) bloqueja `git commit` si estàs a la branca 
 **Operacions de manteniment:**
 - Llistar worktrees: `npm run worktree:list`
 - Tancar worktree actual o indicat: `npm run worktree:close`
-- Neteja automàtica (TTL 14 dies): `npm run worktree:gc`
+- Neteja automàtica segura (TTL 14 dies + integrats nets): `npm run worktree:gc`
 
 ### Bloqueig d’artefactes
 
@@ -188,7 +188,17 @@ En cas de test intern del mecanisme, pot ser necessari utilitzar `git add -f` pe
 4. `main` queda apte per esperar deploy, però sense desplegar encara.
 5. Millora estructural pendent:
    - portar cerca i filtres de Moviments a backend
-   - evitar haver de completar el dataset al client per resoldre filtres
+
+**Incidència operativa resolta — ritual `npm run integra` (2026-03-20)**
+1. El fals `KO` venia d'executar `typecheck` abans de regenerar `.next/types`.
+2. El ritual actual valida en un worktree temporal, regenera `next typegen` i només actualitza `origin/main` si tot passa.
+3. Això evita dos errors de procés:
+   - reportar `KO` quan el merge real era bo
+   - deixar `main` local en estat ambigu després d'una validació fallida
+4. El resum final d'`integra` ha de reflectir sempre:
+   - si `origin/main` s'ha actualitzat
+   - si `main` local ha quedat alineada
+   - si `main` és neta
 
 Guia ràpida d'execució: [scripts/verify-fiscal.md](../scripts/verify-fiscal.md)
 
@@ -205,7 +215,8 @@ npm run inicia -- remeses # opcional: reserva d'àrea (exemple)
 npm run worktree:list # identifica la ruta del worktree actiu
 npm run estat         # et suggereix quan dir "Acabat" amb resum no tècnic
 npm run acabat
-npm run worktree:close # recomanat després d'integrar a main
+npm run integra
+npm run worktree:close # recomanat quan la branca ja està integrada
 npm run estat         # et suggereix quan dir "Autoritzo deploy" i què vol dir
 npm run publica
 ```
@@ -233,7 +244,7 @@ Si no vols reservar àrea, usa `npm run inicia` / `npm run implementa` sense arg
 Per defecte, si no es defineixen URLs de comprovació, el sistema intenta deduir-les automàticament a partir de `DEPLOY_BASE_URL` o de la URL publicada detectada a `firebase.json`.
 
 **Si falla:**
-- Solapament detectat a `acabat` (prova prèvia de merge) → el canvi queda guardat a la teva branca; cal reintentar després d'actualitzar o resoldre el conflicte.
+- Solapament detectat a `integra` (prova prèvia de merge) → el canvi queda guardat a la teva branca; `main` no es toca.
 - Conflicte de merge → el script aborta i torna a `main`. Resol el conflicte manualment.
 - Verificació falla → corregeix els errors i torna a executar `npm run publica`.
 - En risc ALT residual, el sistema t'avisa amb llenguatge de negoci i recomanació clara.
