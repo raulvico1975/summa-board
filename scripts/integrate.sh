@@ -215,7 +215,7 @@ select_branches_to_integrate() {
       fi
     fi
 
-    if ! array_contains "$selected_branch" "${SELECTED_BRANCHES[@]}"; then
+    if [ "${#SELECTED_BRANCHES[@]}" -eq 0 ] || ! array_contains "$selected_branch" "${SELECTED_BRANCHES[@]}"; then
       SELECTED_BRANCHES+=("$selected_branch")
     fi
   done
