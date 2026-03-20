@@ -654,7 +654,8 @@ export function StripeImporter({
         const existing = existingMatch.contact;
         const roleUpdateData = needsRoleUpdate(existing, 'donor')
           ? { roles: addRole(existing, 'donor') }
-          : undefined;
+          : null;
+        const donorMatchOptions = roleUpdateData ? { roleUpdateData } : {};
 
         if (roleUpdateData) {
           toast({
@@ -675,7 +676,7 @@ export function StripeImporter({
             existing.id,
             existing.name,
             (existing as any).email || null,
-            { roleUpdateData }
+            donorMatchOptions
           );
         }
 

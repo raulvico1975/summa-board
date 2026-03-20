@@ -103,7 +103,7 @@ export function parseStripeAmount(value: string): number {
  *
  * NO fa trim dels valors per preservar espais significatius
  */
-function parseCsvLine(line: string): string[] {
+function parseCsvLine(line: string, separator: ',' | ';'): string[] {
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -120,7 +120,7 @@ function parseCsvLine(line: string): string[] {
         // Toggle quotes
         inQuotes = !inQuotes;
       }
-    } else if (char === ',' && !inQuotes) {
+    } else if (char === separator && !inQuotes) {
       result.push(current);
       current = '';
     } else {
@@ -132,6 +132,12 @@ function parseCsvLine(line: string): string[] {
   result.push(current);
 
   return result;
+}
+
+function detectCsvSeparator(firstLine: string): ',' | ';' {
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  return semicolonCount > commaCount ? ';' : ',';
 }
 
 /**
@@ -221,8 +227,10 @@ export function parseStripeCsv(text: string): ParseResult {
     throw new Error('El fitxer no conté donacions');
   }
 
+  const separator = detectCsvSeparator(lines[0]);
+
   // Primera línia = headers
-  const headers = parseCsvLine(lines[0]);
+  const headers = parseCsvLine(lines[0], separator);
 
   // Crear mapa d'índexs amb aliases (case-insensitive)
   const colIndex: Record<string, number> = {};
@@ -256,7 +264,7 @@ export function parseStripeCsv(text: string): ParseResult {
 
   // Processar files de dades
   for (let i = 1; i < lines.length; i++) {
-    const values = parseCsvLine(lines[i]);
+    const values = parseCsvLine(lines[i], separator);
 
     // Saltar files buides (tolerant a files amb menys camps)
     if (values.length === 0) continue;
@@ -273,15 +281,16 @@ export function parseStripeCsv(text: string): ParseResult {
     };
 
     const status = getValue('Status');
-    const statusLower = status.trim().toLowerCase();
     const amountRefundedStr = getValue('Amount Refunded') || '0';
     const amountRefunded = parseStripeAmount(amountRefundedStr);
-
-    // Stripe exports poden venir com "Paid" (p.ex. unified_payments.csv)
-    const ALLOWED_STATUSES = new Set(['succeeded', 'paid']);
+    const isSuccessful =
+      status === 'succeeded' ||
+      status === 'paid' ||
+      status === 'Paid' ||
+      status.trim().toLowerCase() === 'paid';
 
     // Filtrar: Status no acceptat → excloure silenciosament
-    if (!ALLOWED_STATUSES.has(statusLower)) {
+    if (!isSuccessful) {
       continue;
     }
 
@@ -336,8 +345,7 @@ export function groupStripeRowsByTransfer(rows: StripeRow[]): StripePayoutGroup[
   const rowsWithTransfer = rows.filter(r => r.transfer && r.transfer.trim() !== '');
   if (rowsWithTransfer.length === 0) {
     throw new Error(
-      "ERR_NO_PAYOUT_ROWS: Aquest export de Stripe encara no conté cap payout. " +
-      "Torna a exportar-lo més tard quan Stripe hagi generat la transferència al banc."
+      "ERR_NO_PAYOUT_ROWS: Aquest export de Stripe encara no conté cap payout conciliable amb el banc."
     );
   }
 
