@@ -1,17 +1,17 @@
 # Rollback Plan (auto) — Summa Social
 
-Generat: 2026-03-20 07:00
-Risc: ALT
-Backup curt: SKIPPED_NO_BUCKET
+Generat: 2026-03-20 09:13
+Risc: MITJA
+Backup curt: NO_REQUIRED
 SHA prod abans de publicar: 137918d
-SHA main a publicar: b580cdb
+SHA main a publicar: 9f3995e
 
 ## Si cal marxa enrere rapida
 
 Opcio recomanada (preserva historial):
 ```bash
 git checkout main
-git revert b580cdb --no-edit
+git revert 9f3995e --no-edit
 git push origin main
 bash scripts/deploy.sh
 ```
