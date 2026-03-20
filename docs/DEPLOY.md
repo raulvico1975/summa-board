@@ -65,3 +65,28 @@ Resultat esperat:
 ## Verificació operativa
 
 - Smoke del 2026-03-20: worktree creat amb `.env.local`, `.env.demo` i `node_modules` enllaçats automàticament, sense passos manuals extra.
+
+## Traça mínima de l'estabilització del ritual (2026-03-20)
+
+- Defectes corregits:
+  - `npm run integra` podia donar fals `KO` perquè `typecheck` corria abans de regenerar `.next/types`.
+  - `npm run integra` podia deixar dubte sobre si `origin/main` i `main` havien quedat realment alineades.
+  - `npm run publica` podia deixar `main` per davant d'`origin/main` després dels commits automàtics de logs.
+  - `npm run publica` podia acabar en `PENDENT` fals quan només fallava la propagació immediata del SHA remot però la resta de comprovacions ja havien confirmat el deploy.
+  - el cicle de worktrees exigia massa diagnòstic manual per saber què era actiu, què es podia tancar i què es podia netejar.
+- Fitxers tocats en aquesta estabilització:
+  - `scripts/integrate.sh`
+  - `scripts/worktree.sh`
+  - `scripts/workflow.sh`
+  - `scripts/deploy.sh`
+  - `docs/GOVERN-DE-CODI-I-DEPLOY.md`
+  - `docs/DEV-SOLO-MANUAL.md`
+  - `docs/DEPLOY.md`
+- Bloc de commits que conté la correcció:
+  - `b070bedc` — fiabilitat d'`integra`, resum operatiu i higiene de worktrees
+  - `2f6a91ca` — sincronització final de `main` després de `publica`
+  - `955f7cb1` — normalització del resultat final de `publica` quan el SHA remot arriba tard
+- Prova real del flux complet:
+  - el 2026-03-20 es va executar un cicle complet `codex/* -> acabat -> integra -> worktree:close -> publica` amb resultat final `OK`
+  - el deploy va quedar confirmat per smoke, contingut públic, check de 3 minuts i oracle postdeploy
+  - `main` i `origin/main` van quedar alineades al final del ritual i `prod` va quedar actualitzada
