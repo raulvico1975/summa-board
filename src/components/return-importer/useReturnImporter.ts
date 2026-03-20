@@ -16,10 +16,9 @@ import {
   parseReturnCsvBuffer,
 } from '@/lib/returns/import-csv';
 import {
-  buildExistingReturnRemittanceState,
   deriveReturnRemittanceStatus,
-  determineReturnRemittanceReprocessMode,
 } from '@/lib/remittances/returns-remittance-state';
+import { assertNoActiveReturnChildren } from '@/lib/returns/process-guards';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TIPUS
@@ -1210,27 +1209,26 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
           where('parentTransactionId', '==', parentId)
         );
         const existingChildrenSnap = await getDocs(existingChildrenQuery);
+        const existingChildren = existingChildrenSnap.docs.map((childDoc) => childDoc.data());
         const existingActiveChildrenDocs = existingChildrenSnap.docs.filter((childDoc) =>
           isActiveRemittanceChild(childDoc.data())
         );
         const existingChildrenCount = existingActiveChildrenDocs.length;
 
         // ═══════════════════════════════════════════════════════════════════
+        // GUARD D'IDEMPOTÈNCIA: el flux normal només pot processar pares sense filles actives
+        // ═══════════════════════════════════════════════════════════════════
+        if (!forceRecreateChildren) {
+          assertNoActiveReturnChildren(parentId, existingChildren);
+        }
+
         // MODE FORCE RECREATE: Eliminar TOTS els fills i crear des de zero
         // Aquest és el mode determinista per migracions - garanteix consistència
-        // ═══════════════════════════════════════════════════════════════════
-        const reprocessMode = determineReturnRemittanceReprocessMode(
-          existingChildrenSnap.docs.map((childDoc) => childDoc.data()),
-          forceRecreateChildren
-        );
-
-        if (reprocessMode === 'recreate_active_children') {
+        if (forceRecreateChildren && existingChildrenCount > 0) {
           // 1. ELIMINAR tots els fills existents (devolucions)
-          let deletedChildrenCount = 0;
           if (existingChildrenCount > 0) {
             for (const childDoc of existingActiveChildrenDocs) {
               await deleteDoc(doc(firestore, 'organizations', organizationId, 'transactions', childDoc.id));
-              deletedChildrenCount++;
             }
           }
           // 2. CREAR TOTES les filles des de les devolucions parsejades
@@ -1358,11 +1356,8 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // MODE NORMAL (sense forceRecreate): idempotència tradicional
+        // MODE NORMAL (sense forceRecreate): crear només si el pare està net
         // ═══════════════════════════════════════════════════════════════════
-
-        // Si ja hi ha fills, només actualitzem el pare (no creem més fills)
-        const skipChildCreation = reprocessMode === 'reuse_active_children';
 
         // SEPARAR: resolubles (amb donant) vs pendents (sense donant) - P0: usar resolvedDonorId
         const resolubles = group.returns.filter(r => r.resolvedDonorId);
@@ -1382,55 +1377,39 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
           returnReason?: string;
         }> | null;
 
-        if (skipChildCreation) {
-          // Ja hi ha fills - recalcular estat des de Firestore
-          const existingState = buildExistingReturnRemittanceState({
-            children: existingChildrenSnap.docs.map((doc) => doc.data()),
-            fallbackItemCount: group.originalTransaction.remittanceItemCount,
-            fallbackPendingReturns: group.originalTransaction.pendingReturns ?? null,
-          });
+        // ═══════════════════════════════════════════════════════════════════
+        // CALCULAR ESTAT DES DE DADES PARSEJADES (primer processament)
+        // ═══════════════════════════════════════════════════════════════════
 
-          remittanceStatus = existingState.remittanceStatus;
-          itemCount = existingState.itemCount;
-          resolvedCount = existingState.resolvedCount;
-          pendingCount = existingState.pendingCount;
-          pendingTotalAmount = existingState.pendingTotalAmount;
-          pendingReturnsData = existingState.pendingReturnsData;
-        } else {
-          // ═══════════════════════════════════════════════════════════════════
-          // CALCULAR ESTAT DES DE DADES PARSEJADES (primer processament)
-          // ═══════════════════════════════════════════════════════════════════
+        itemCount = group.returns.length;
+        resolvedCount = resolubles.length;
+        pendingCount = pendents.length;
+        pendingTotalAmount = pendents.reduce((sum, r) => sum + r.amount, 0);
 
-          itemCount = group.returns.length;
-          resolvedCount = resolubles.length;
-          pendingCount = pendents.length;
-          pendingTotalAmount = pendents.reduce((sum, r) => sum + r.amount, 0);
+        // Calcular remittanceStatus
+        remittanceStatus = deriveReturnRemittanceStatus({
+          hasActiveChildren: itemCount > 0,
+          resolvedCount,
+          pendingCount,
+        });
 
-          // Calcular remittanceStatus
-          remittanceStatus = deriveReturnRemittanceStatus({
-            hasActiveChildren: itemCount > 0,
-            resolvedCount,
-            pendingCount,
-          });
-
-          // Preparar pendingReturns (dades per assistència posterior)
-          pendingReturnsData = pendingCount > 0 ? pendents.map(r => {
-            const item: {
-              iban: string;
-              amount: number;
-              date: string;
-              originalName?: string;
-              returnReason?: string;
-            } = {
-              iban: r.iban,
-              amount: r.amount,
-              date: r.date?.toISOString().split('T')[0] || '',
-            };
-            if (r.originalName) item.originalName = r.originalName;
-            if (r.returnReason) item.returnReason = r.returnReason;
-            return item;
-          }) : null;
-        }
+        // Preparar pendingReturns (dades per assistència posterior)
+        pendingReturnsData = pendingCount > 0 ? pendents.map(r => {
+          const item: {
+            iban: string;
+            amount: number;
+            date: string;
+            originalName?: string;
+            returnReason?: string;
+          } = {
+            iban: r.iban,
+            amount: r.amount,
+            date: r.date?.toISOString().split('T')[0] || '',
+          };
+          if (r.originalName) item.originalName = r.originalName;
+          if (r.returnReason) item.returnReason = r.returnReason;
+          return item;
+        }) : null;
 
         // MARCAR EL PARE com a remesa (NO esborrar! NO tocar amount/date/description/contactId)
         const parentTxRef = doc(firestore, 'organizations', organizationId, 'transactions', group.originalTransaction.id);
@@ -1450,64 +1429,61 @@ export function useReturnImporter(options: UseReturnImporterOptions = {}) {
         await updateDoc(parentTxRef, parentUpdateData);
 
         // Crear transaccions FILLES NOMÉS per resolubles (amb donant)
-        // SKIP si ja existeixen fills (idempotency)
-        if (!skipChildCreation) {
-          for (const ret of resolubles) {
-            // P0: usar camp canònic resolvedDonorId + mapa donorsById
-            const donorId = ret.resolvedDonorId!;
-            const donor = donorsById.get(donorId);
-            const donorName = donor?.name ?? 'Donant';
-            const childTxData = {
-              // Camps de la filla
-              source: 'remittance',
-              parentTransactionId: group.originalTransaction.id,
-              isRemittanceItem: true,
-              amount: -Math.abs(ret.amount),  // Import SEMPRE negatiu (devolució)
-              date: ret.date?.toISOString().split('T')[0] || group.date.toISOString().split('T')[0],
-              transactionType: 'return',
-              description: ret.returnReason || group.originalTransaction.description || 'Devolució',
-              // Donant assignat: contactId + contactType + contactName + legacy
-              contactId: donorId,
-              contactType: 'donor',
-              contactName: donorName,
-              // Compat legacy (pantalles que llegeixen emisor*)
-              emisorId: donorId,
-              emisorName: donorName,
-              // Heretar bankAccountId del pare
-              bankAccountId: group.originalTransaction.bankAccountId ?? null,
-            };
+        for (const ret of resolubles) {
+          // P0: usar camp canònic resolvedDonorId + mapa donorsById
+          const donorId = ret.resolvedDonorId!;
+          const donor = donorsById.get(donorId);
+          const donorName = donor?.name ?? 'Donant';
+          const childTxData = {
+            // Camps de la filla
+            source: 'remittance',
+            parentTransactionId: group.originalTransaction.id,
+            isRemittanceItem: true,
+            amount: -Math.abs(ret.amount),  // Import SEMPRE negatiu (devolució)
+            date: ret.date?.toISOString().split('T')[0] || group.date.toISOString().split('T')[0],
+            transactionType: 'return',
+            description: ret.returnReason || group.originalTransaction.description || 'Devolució',
+            // Donant assignat: contactId + contactType + contactName + legacy
+            contactId: donorId,
+            contactType: 'donor',
+            contactName: donorName,
+            // Compat legacy (pantalles que llegeixen emisor*)
+            emisorId: donorId,
+            emisorName: donorName,
+            // Heretar bankAccountId del pare
+            bankAccountId: group.originalTransaction.bankAccountId ?? null,
+          };
 
-            // P0: Validar invariants fiscals abans d'escriure
-            assertFiscalTxCanBeSaved(
-              {
-                transactionType: childTxData.transactionType as 'return',
-                amount: childTxData.amount,
-                contactId: childTxData.contactId,
-                source: childTxData.source as 'remittance',
-              },
-              {
-                firestore,
-                orgId: organizationId,
-                operation: 'createReturn',
-                route: '/return-importer',
-              }
-            );
+          // P0: Validar invariants fiscals abans d'escriure
+          assertFiscalTxCanBeSaved(
+            {
+              transactionType: childTxData.transactionType as 'return',
+              amount: childTxData.amount,
+              contactId: childTxData.contactId,
+              source: childTxData.source as 'remittance',
+            },
+            {
+              firestore,
+              orgId: organizationId,
+              operation: 'createReturn',
+              route: '/return-importer',
+            }
+          );
 
-            await addDoc(
-              collection(firestore, 'organizations', organizationId, 'transactions'),
-              childTxData
-            );
+          await addDoc(
+            collection(firestore, 'organizations', organizationId, 'transactions'),
+            childTxData
+          );
 
-            // Actualitzar donant (P0: usar resolvedDonorId)
-            const donorRef = doc(firestore, 'organizations', organizationId, 'contacts', ret.resolvedDonorId!);
-            await updateDoc(donorRef, {
-              returnCount: increment(1),
-              lastReturnDate: ret.date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-              status: 'pending_return',
-            });
+          // Actualitzar donant (P0: usar resolvedDonorId)
+          const donorRef = doc(firestore, 'organizations', organizationId, 'contacts', ret.resolvedDonorId!);
+          await updateDoc(donorRef, {
+            returnCount: increment(1),
+            lastReturnDate: ret.date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+            status: 'pending_return',
+          });
 
-            processedGrouped++;
-          }
+          processedGrouped++;
         }
 
         // Log de l'estat de la remesa
