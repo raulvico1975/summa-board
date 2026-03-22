@@ -5,7 +5,10 @@ import { getStorage } from 'firebase-admin/storage'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAdminApp } from '@/lib/api/admin-sdk'
 import { buildBlogUrl } from '@/lib/blog/firestore'
-import { isLocalBlogPublishStorageEnabled } from '@/lib/blog/publish-local-store'
+import {
+  assertNoLocalBlogPublishStorageInProduction,
+  isLocalBlogPublishStorageEnabled,
+} from '@/lib/blog/publish-local-store'
 
 type UploadBlogCoverSuccessResponse = {
   success: true
@@ -260,6 +263,13 @@ export async function handleBlogCoverUpload(
   request: RequestLike,
   deps: UploadDeps = DEFAULT_DEPS
 ): Promise<NextResponse<UploadBlogCoverResponse>> {
+  try {
+    assertNoLocalBlogPublishStorageInProduction()
+  } catch (error) {
+    console.error('[blog/upload-cover] misconfiguration:', error)
+    return NextResponse.json({ success: false, error: 'misconfigured_storage' }, { status: 503 })
+  }
+
   try {
     const secret = deps.getUploadSecretFn()
     if (!secret || !hasValidAuthorization(request, secret)) {
