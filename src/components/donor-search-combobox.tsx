@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTranslations } from '@/i18n';
 import type { Donor } from '@/lib/data';
 
@@ -38,6 +37,7 @@ export function DonorSearchCombobox({
   const { t } = useTranslations();
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   const placeholderText = placeholder || t.movements.table.selectDonor;
   const selectedDonor = donors.find((donor) => donor.id === value);
@@ -53,6 +53,19 @@ export function DonorSearchCombobox({
       (donor.email && donor.email.toLowerCase().includes(normalizedSearch))
     );
   }, [donors, normalizedSearch]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [open]);
 
   const handleSelect = (donorId: string) => {
     onSelect(donorId === value ? null : donorId);
@@ -73,13 +86,13 @@ export function DonorSearchCombobox({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={false}>
-      <PopoverTrigger asChild>
+    <div ref={containerRef} className="relative w-full min-w-0">
         <Button
           type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
           className={cn('w-full min-w-0 justify-between overflow-hidden', className)}
         >
           {selectedDonor ? (
@@ -110,95 +123,91 @@ export function DonorSearchCombobox({
             <Search className="h-4 w-4 shrink-0 opacity-50" />
           )}
         </Button>
-      </PopoverTrigger>
 
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        className="w-[min(30rem,calc(100vw-2rem))] p-0"
-        onOpenAutoFocus={(event) => event.preventDefault()}
-      >
-        <div className="border-b p-2">
-          <Input
-            placeholder={t.donorSearchCombobox?.searchPlaceholder || 'Cerca per nom, DNI o email...'}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 min-w-0"
-            autoFocus
-          />
-        </div>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-[120] mt-1 min-w-0 rounded-md border bg-popover shadow-lg">
+          <div className="border-b p-2">
+            <Input
+              placeholder={t.donorSearchCombobox?.searchPlaceholder || 'Cerca per nom, DNI o email...'}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 min-w-0"
+              autoFocus
+            />
+          </div>
 
-        <ScrollArea className="max-h-[22rem]">
-          <div className="p-1">
-            {filteredDonors.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                {t.donorSearchCombobox?.noResults || 'Cap resultat'}
-              </div>
-            ) : (
-              <>
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                  {t.donorSearchCombobox?.donors || 'Donants'} ({filteredDonors.length})
+          <ScrollArea className="max-h-[22rem]">
+            <div className="p-1">
+              {filteredDonors.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  {t.donorSearchCombobox?.noResults || 'Cap resultat'}
                 </div>
-                {filteredDonors.map((donor) => (
-                  <button
-                    key={donor.id}
-                    type="button"
-                    onClick={() => handleSelect(donor.id)}
-                    className={cn(
-                      'flex w-full items-start gap-2 rounded-sm px-2 py-2 text-sm',
-                      'hover:bg-accent hover:text-accent-foreground',
-                      'focus:bg-accent focus:text-accent-foreground focus:outline-none',
-                      value === donor.id && 'bg-accent'
-                    )}
-                  >
-                    <Check
+              ) : (
+                <>
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                    {t.donorSearchCombobox?.donors || 'Donants'} ({filteredDonors.length})
+                  </div>
+                  {filteredDonors.map((donor) => (
+                    <button
+                      key={donor.id}
+                      type="button"
+                      onClick={() => handleSelect(donor.id)}
                       className={cn(
-                        'mt-0.5 h-4 w-4 shrink-0',
-                        value === donor.id ? 'opacity-100' : 'opacity-0'
+                        'flex w-full items-start gap-2 rounded-sm px-2 py-2 text-sm',
+                        'hover:bg-accent hover:text-accent-foreground',
+                        'focus:bg-accent focus:text-accent-foreground focus:outline-none',
+                        value === donor.id && 'bg-accent'
                       )}
-                    />
-                    <Heart className="mt-0.5 h-3 w-3 shrink-0 text-red-500" />
-                    <div className="min-w-0 flex-1 text-left">
-                      <span className="flex items-center gap-2 truncate">
-                        <span className="truncate">{donor.name}</span>
-                        {badgesByDonorId[donor.id] && (
-                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
-                            {badgesByDonorId[donor.id]}
+                    >
+                      <Check
+                        className={cn(
+                          'mt-0.5 h-4 w-4 shrink-0',
+                          value === donor.id ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                      <Heart className="mt-0.5 h-3 w-3 shrink-0 text-red-500" />
+                      <div className="min-w-0 flex-1 text-left">
+                        <span className="flex items-center gap-2 truncate">
+                          <span className="truncate">{donor.name}</span>
+                          {badgesByDonorId[donor.id] && (
+                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                              {badgesByDonorId[donor.id]}
+                            </span>
+                          )}
+                        </span>
+                        {(donor.taxId || donor.email) && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {[donor.taxId, donor.email].filter(Boolean).join(' · ')}
                           </span>
                         )}
-                      </span>
-                      {(donor.taxId || donor.email) && (
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {[donor.taxId, donor.email].filter(Boolean).join(' · ')}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </>
-            )}
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
 
-            {createActions.length > 0 && (
-              <div className="mt-2 border-t pt-2">
-                {createActions.map((action) => (
-                  <button
-                    key={action.key}
-                    type="button"
-                    onClick={() => handleCreateAction(action)}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm font-medium',
-                      'text-emerald-700 hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none'
-                    )}
-                  >
-                    <UserPlus className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{action.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
+              {createActions.length > 0 && (
+                <div className="mt-2 border-t pt-2">
+                  {createActions.map((action) => (
+                    <button
+                      key={action.key}
+                      type="button"
+                      onClick={() => handleCreateAction(action)}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm font-medium',
+                        'text-emerald-700 hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none'
+                      )}
+                    >
+                      <UserPlus className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+    </div>
   );
 }

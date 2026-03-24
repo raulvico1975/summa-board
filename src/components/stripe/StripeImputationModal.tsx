@@ -728,7 +728,7 @@ export function StripeImputationModal({
                 </Alert>
               )}
 
-              <div className="min-h-0 overflow-auto rounded-md border">
+              <div className="min-h-0 overflow-x-auto overflow-y-visible rounded-md border">
                 <Table className="min-w-[820px]">
                   <TableHeader className="sticky top-0 z-10 bg-background">
                     <TableRow>
