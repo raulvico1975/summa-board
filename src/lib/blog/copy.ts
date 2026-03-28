@@ -19,6 +19,7 @@ const EXTRA_COPY: Record<
     backToHome: string
     readArticle: string
     browseBlog: string
+    editorialLabel: string
     browseUpdates: string
     discoverFeatures: string
     panelTitle: string
@@ -35,6 +36,7 @@ const EXTRA_COPY: Record<
     backToHome: "Tornar a l'inici",
     readArticle: 'Llegir article',
     browseBlog: 'Veure tots els articles',
+    editorialLabel: 'Criteri editorial',
     browseUpdates: 'Veure novetats',
     discoverFeatures: 'Veure funcionalitats',
     panelTitle: 'Què hi trobaràs',
@@ -56,6 +58,7 @@ const EXTRA_COPY: Record<
     backToHome: 'Volver al inicio',
     readArticle: 'Leer artículo',
     browseBlog: 'Ver todos los artículos',
+    editorialLabel: 'Criterio editorial',
     browseUpdates: 'Ver novedades',
     discoverFeatures: 'Ver funcionalidades',
     panelTitle: 'Qué encontrarás',
@@ -77,6 +80,7 @@ const EXTRA_COPY: Record<
     backToHome: "Retour à l'accueil",
     readArticle: "Lire l'article",
     browseBlog: 'Voir tous les articles',
+    editorialLabel: 'Perspective éditoriale',
     browseUpdates: 'Voir les nouveautés',
     discoverFeatures: 'Voir les fonctionnalités',
     panelTitle: 'Ce que vous y trouverez',
@@ -98,6 +102,7 @@ const EXTRA_COPY: Record<
     backToHome: 'Voltar ao início',
     readArticle: 'Ler artigo',
     browseBlog: 'Ver todos os artigos',
+    editorialLabel: 'Critério editorial',
     browseUpdates: 'Ver novidades',
     discoverFeatures: 'Ver funcionalidades',
     panelTitle: 'O que vais encontrar',
@@ -129,6 +134,7 @@ export function getBlogCopy(locale: PublicLocale = 'ca') {
     backToHome: extra.backToHome,
     readArticle: extra.readArticle,
     browseBlog: extra.browseBlog,
+    editorialLabel: extra.editorialLabel,
     browseUpdates: extra.browseUpdates,
     discoverFeatures: extra.discoverFeatures,
     panelTitle: extra.panelTitle,
