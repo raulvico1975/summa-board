@@ -102,6 +102,7 @@ Gestors, administradors i tresorers d'entitats sense ànim de lucre que necessit
 
 - Flux extern pensat per OpenClaw: genera contingut + portada, puja la portada i després publica el post a Summa
 - Variables d'entorn requerides: `BLOG_ORG_ID`, `BLOG_PUBLISH_SECRET`
+- Per publicació server-to-server de novetats de producte: `PRODUCT_UPDATES_PUBLISH_SECRET`
 - Auth: `Authorization: Bearer <secret>`
 - Endpoint upload portada: `POST /api/blog/upload-cover`
 - Endpoint publicació: `POST /api/blog/publish`

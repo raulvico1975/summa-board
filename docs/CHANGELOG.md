@@ -10,6 +10,13 @@ Aquest fitxer ja no pretén duplicar el document mestre.
 
 ## Resum dels canvis recents
 
+### 2026-03-26
+
+- novetats de producte: web públic més descobrible (enllaç visible a home/header), sitemap amb rutes de detall i publicació/despublicació server-to-server més robusta
+- mòdul projectes: les despeses bancàries negatives sense categoria entren al feed com "Categoria pendent" i queden bloquejades per assignació fins recategoritzar
+- bot d'ajuda: ampliada cobertura operativa amb noves guies i millor desambiguació/retrieval
+- operativa App Hosting: afegit secret `PRODUCT_UPDATES_PUBLISH_SECRET` per al flux oficial `POST /api/product-updates/publish`
+
 ### 2026-03-17
 
 - Stripe deixa de dividir remeses: nou flux d'imputació sobre abonament bancari amb persistència a `donations`, anti-duplicació per `stripePaymentId` i undo per `parentTransactionId`

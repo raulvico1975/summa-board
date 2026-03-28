@@ -3733,6 +3733,19 @@ Flag a `UnifiedExpense`:
 |------|-------|------------|
 | `pendingConversion` | `boolean` | `true` si `originalAmount` existeix però no hi ha TC disponible |
 
+### 3.11.13.1 Regla "categoria pendent" al feed de despeses
+
+La capa `exports/projectExpenses/items` inclou també moviments bancaris negatius sense categoria final.
+
+Comportament operatiu:
+- A la UI es marquen com **"Categoria pendent"** (inclou categoria buida, "Revisar", "Sense categoria" o "Sin categoria")
+- Es poden veure i filtrar a la safata d'assignació
+- Queden bloquejats per assignació (quick assign, edició detall i selecció bulk) fins que es categoritzen a Moviments
+
+Racional:
+- Evitar que despeses elegibles quedin invisibles al feed
+- Mantenir blindatge funcional: cap imputació a projecte mentre la categoria no sigui vàlida
+
 ### 3.11.14 Entrada ràpida de despeses
 
 Pantalla dedicada per a l'entrada ràpida de despeses des del mòbil, **sense layout de dashboard** (sense sidebar, header ni breadcrumbs).
@@ -6497,6 +6510,7 @@ El punt oficial de publicació server-to-server és:
 - `POST /api/product-updates/publish`
 
 Aquest endpoint:
+- exigeix `Authorization: Bearer <PRODUCT_UPDATES_PUBLISH_SECRET>`
 - valida el payload
 - escriu a `productUpdates/{externalId}`
 - resol la URL pública si `web.enabled = true`
