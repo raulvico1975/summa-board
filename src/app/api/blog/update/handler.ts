@@ -278,6 +278,20 @@ function arraysEqual(a: string[] | undefined, b: string[] | undefined): boolean 
   return a.every((value, index) => value === b[index])
 }
 
+function readPathValue(source: Record<string, unknown>, path: string): unknown {
+  const segments = path.split('.')
+  let cursor: unknown = source
+
+  for (const segment of segments) {
+    if (typeof cursor !== 'object' || cursor === null || Array.isArray(cursor)) {
+      return undefined
+    }
+    cursor = (cursor as Record<string, unknown>)[segment]
+  }
+
+  return cursor
+}
+
 function assignIfChanged(
   out: Record<string, unknown>,
   key: string,
@@ -292,52 +306,71 @@ function assignIfChanged(
 }
 
 function buildFirestoreUpdatePayload(
-  existing: BlogPost,
+  existingStored: Record<string, unknown>,
   next: BlogPostPublishInput,
   nowIso: string
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
 
-  assignIfChanged(payload, 'title', existing.title, next.title)
-  assignIfChanged(payload, 'seoTitle', existing.seoTitle, next.seoTitle)
-  assignIfChanged(payload, 'metaDescription', existing.metaDescription, next.metaDescription)
-  assignIfChanged(payload, 'excerpt', existing.excerpt, next.excerpt)
-  assignIfChanged(payload, 'contentHtml', existing.contentHtml, next.contentHtml)
+  assignIfChanged(payload, 'title', readPathValue(existingStored, 'title'), next.title)
+  assignIfChanged(payload, 'seoTitle', readPathValue(existingStored, 'seoTitle'), next.seoTitle)
+  assignIfChanged(
+    payload,
+    'metaDescription',
+    readPathValue(existingStored, 'metaDescription'),
+    next.metaDescription
+  )
+  assignIfChanged(payload, 'excerpt', readPathValue(existingStored, 'excerpt'), next.excerpt)
+  assignIfChanged(payload, 'contentHtml', readPathValue(existingStored, 'contentHtml'), next.contentHtml)
   assignIfChanged(
     payload,
     'tags',
-    existing.tags,
+    readPathValue(existingStored, 'tags'),
     next.tags,
     (a, b) => arraysEqual(a as string[] | undefined, b as string[] | undefined)
   )
-  assignIfChanged(payload, 'category', existing.category, next.category)
-  assignIfChanged(payload, 'publishedAt', existing.publishedAt, next.publishedAt)
-  assignIfChanged(payload, 'baseLocale', existing.baseLocale, next.baseLocale)
-  assignIfChanged(payload, 'coverImageUrl', existing.coverImageUrl ?? null, next.coverImageUrl ?? null)
-  assignIfChanged(payload, 'coverImageAlt', existing.coverImageAlt ?? null, next.coverImageAlt ?? null)
+  assignIfChanged(payload, 'category', readPathValue(existingStored, 'category'), next.category)
+  assignIfChanged(payload, 'publishedAt', readPathValue(existingStored, 'publishedAt'), next.publishedAt)
+  assignIfChanged(payload, 'baseLocale', readPathValue(existingStored, 'baseLocale'), next.baseLocale)
+  assignIfChanged(
+    payload,
+    'coverImageUrl',
+    readPathValue(existingStored, 'coverImageUrl') ?? null,
+    next.coverImageUrl ?? null
+  )
+  assignIfChanged(
+    payload,
+    'coverImageAlt',
+    readPathValue(existingStored, 'coverImageAlt') ?? null,
+    next.coverImageAlt ?? null
+  )
 
-  const existingEs = existing.translations?.es
   const nextEs = next.translations?.es
 
-  assignIfChanged(payload, 'translations.es.title', existingEs?.title, nextEs?.title)
-  assignIfChanged(payload, 'translations.es.seoTitle', existingEs?.seoTitle, nextEs?.seoTitle)
+  assignIfChanged(payload, 'translations.es.title', readPathValue(existingStored, 'translations.es.title'), nextEs?.title)
+  assignIfChanged(
+    payload,
+    'translations.es.seoTitle',
+    readPathValue(existingStored, 'translations.es.seoTitle'),
+    nextEs?.seoTitle
+  )
   assignIfChanged(
     payload,
     'translations.es.metaDescription',
-    existingEs?.metaDescription,
+    readPathValue(existingStored, 'translations.es.metaDescription'),
     nextEs?.metaDescription
   )
-  assignIfChanged(payload, 'translations.es.excerpt', existingEs?.excerpt, nextEs?.excerpt)
+  assignIfChanged(payload, 'translations.es.excerpt', readPathValue(existingStored, 'translations.es.excerpt'), nextEs?.excerpt)
   assignIfChanged(
     payload,
     'translations.es.contentHtml',
-    existingEs?.contentHtml,
+    readPathValue(existingStored, 'translations.es.contentHtml'),
     nextEs?.contentHtml
   )
   assignIfChanged(
     payload,
     'translations.es.coverImageAlt',
-    existingEs?.coverImageAlt ?? null,
+    readPathValue(existingStored, 'translations.es.coverImageAlt') ?? null,
     nextEs?.coverImageAlt ?? null
   )
 
@@ -470,7 +503,11 @@ export async function handleBlogUpdate(
         )
       }
 
-      const updatePayload = buildFirestoreUpdatePayload(existingPost, mergedValidation.value, now)
+      const updatePayload = buildFirestoreUpdatePayload(
+        rawExistingData as Record<string, unknown>,
+        mergedValidation.value,
+        now
+      )
       await postRef.update(updatePayload)
     }
 

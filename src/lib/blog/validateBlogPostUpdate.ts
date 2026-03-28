@@ -1,4 +1,5 @@
 import type { BlogPostTranslation } from '@/lib/blog/types'
+import { normalizeBlogContentHtml } from '@/lib/blog/normalizeContentHtml'
 
 type BlogPostTranslationUpdateInput = Partial<BlogPostTranslation>
 
@@ -96,6 +97,16 @@ function normalizeOptionalUpdateString(
   }
 
   return normalized
+}
+
+function normalizeOptionalContentHtml(
+  value: unknown,
+  field: string,
+  errors: string[],
+  title?: string
+): string | undefined {
+  const normalized = normalizeOptionalUpdateString(value, field, errors)
+  return normalized !== undefined ? normalizeBlogContentHtml(normalized, title) : undefined
 }
 
 function normalizeOptionalCoverImageUrl(
@@ -262,10 +273,11 @@ function normalizePartialEsTranslation(
     if (normalized !== undefined) patch.excerpt = normalized
   }
   if ('contentHtml' in value) {
-    const normalized = normalizeOptionalUpdateString(
+    const normalized = normalizeOptionalContentHtml(
       value.contentHtml,
       'translations.es.contentHtml',
-      errors
+      errors,
+      patch.title
     )
     if (normalized !== undefined) patch.contentHtml = normalized
   }
@@ -357,7 +369,7 @@ export function validateBlogPostUpdate(payload: unknown): BlogPostUpdateValidati
     if (normalized !== undefined) patch.excerpt = normalized
   }
   if ('contentHtml' in payload) {
-    const normalized = normalizeOptionalUpdateString(payload.contentHtml, 'contentHtml', errors)
+    const normalized = normalizeOptionalContentHtml(payload.contentHtml, 'contentHtml', errors, patch.title)
     if (normalized !== undefined) patch.contentHtml = normalized
   }
   if ('tags' in payload) {
