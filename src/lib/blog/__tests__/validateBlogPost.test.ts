@@ -187,6 +187,30 @@ test('validateBlogPost accepts an es translation payload', () => {
   }
 })
 
+test('validateBlogPost normalizes duplicated lead headings and markdown strong markers', () => {
+  const result = validateBlogPost({
+    ...buildLocalizedPayload(),
+    title: 'Gestió de quotes',
+    contentHtml: '<h1>Gestió de quotes</h1><p>Text amb **negreta**.</p>',
+    translations: {
+      es: {
+        ...buildLocalizedPayload().translations.es,
+        title: 'Gestión de cuotas',
+        contentHtml: '<h1>Gestión de cuotas</h1><p>Texto con **negrita**.</p>',
+      },
+    },
+  })
+
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.value.contentHtml, '<p>Text amb <strong>negreta</strong>.</p>')
+    assert.equal(
+      result.value.translations?.es?.contentHtml,
+      '<p>Texto con <strong>negrita</strong>.</p>'
+    )
+  }
+})
+
 test('validateBlogPost rejects unsupported translations locales', () => {
   const payload = {
     ...buildLocalizedPayload(),

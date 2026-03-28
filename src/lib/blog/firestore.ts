@@ -6,6 +6,7 @@ import {
   resolveLocalizedBlogPosts,
   type LocalizedBlogPost,
 } from '@/lib/blog/localized'
+import { normalizeBlogContentHtml } from '@/lib/blog/normalizeContentHtml'
 import type { PublicLocale } from '@/lib/public-locale'
 
 const BLOG_SITE_URL = 'https://summasocial.app'
@@ -59,7 +60,7 @@ function mapBlogTranslation(value: unknown): BlogPostTranslation | null {
     seoTitle,
     metaDescription,
     excerpt,
-    contentHtml,
+    contentHtml: normalizeBlogContentHtml(contentHtml, title),
   }
 
   if (coverImageAlt !== undefined) {
@@ -192,7 +193,7 @@ function mapBlogPost(docId: string, value: unknown): BlogPost | null {
     seoTitle,
     metaDescription,
     excerpt,
-    contentHtml,
+    contentHtml: normalizeBlogContentHtml(contentHtml, title),
     tags,
     category,
     coverImageUrl: coverImageUrl ?? null,

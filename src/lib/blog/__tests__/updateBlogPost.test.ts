@@ -367,3 +367,51 @@ test('handleBlogUpdate writes only defined fields and never persists undefined',
     updatedAt: '2026-03-19T12:00:00.000Z',
   })
 })
+
+test('handleBlogUpdate persists normalized contentHtml for legacy posts when any update touches the post', async () => {
+  const legacyPost = buildValidStoredPost()
+  legacyPost.title = 'Gestió de quotes'
+  legacyPost.contentHtml = '<h1>Gestió de quotes</h1><p>Text amb **negreta**.</p>'
+  legacyPost.translations.es.title = 'Gestión de cuotas'
+  legacyPost.translations.es.contentHtml =
+    '<h1>Gestión de cuotas</h1><p>Texto con **negrita**.</p>'
+
+  const store = new Map<string, Record<string, unknown>>()
+  store.set('organizations/blog-org', { name: 'Blog org' })
+  store.set(
+    'organizations/blog-org/blogPosts/primer-post',
+    legacyPost as unknown as Record<string, unknown>
+  )
+
+  const response = await withFirestorePublishMode(async () =>
+    handleBlogUpdate(
+      {
+        headers: new Headers({
+          Authorization: 'Bearer top-secret',
+        }),
+        json: async () => ({
+          slug: 'primer-post',
+          excerpt: 'Resum actualitzat',
+        }),
+      } as never,
+      {
+        getAdminDbFn: () => buildFirestoreMock(store) as never,
+        nowIsoFn: () => '2026-03-19T12:00:00.000Z',
+        getPublishSecretFn: () => 'top-secret',
+        getBlogOrgIdFn: () => 'blog-org',
+        assertBlogOrganizationExistsFn: async () => {},
+        revalidatePathsFn: async () => {},
+      }
+    )
+  )
+
+  assert.equal(response.status, 200)
+
+  const updated = store.get('organizations/blog-org/blogPosts/primer-post')
+  assert.equal(updated?.excerpt, 'Resum actualitzat')
+  assert.equal(updated?.contentHtml, '<p>Text amb <strong>negreta</strong>.</p>')
+  assert.equal(
+    (updated?.translations as { es?: { contentHtml?: string } })?.es?.contentHtml,
+    '<p>Texto con <strong>negrita</strong>.</p>'
+  )
+})
