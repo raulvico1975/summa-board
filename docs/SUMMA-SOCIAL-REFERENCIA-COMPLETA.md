@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # SUMMA SOCIAL - REFERÈNCIA COMPLETA DEL PROJECTE
-# Última actualització: 26 Març 2026
+# Última actualització: 27 Març 2026
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -5778,6 +5778,7 @@ Les fites històriques i els desplegaments anteriors es documenten a `docs/CHANG
 | 1.7 | Des 2024 | Excel Model 182 per gestoria, suport Excel remeses, camps city/province, session persistence |
 | 1.8 | Des 2024 | Importador devolucions del banc, remeses parcials, suport multi-banc (Santander/Triodos), tests unitaris, fixes modals Radix, UX simplificada |
 | 1.9 | Des 2025 | Importador Stripe (payouts → donacions + comissions), matching per email, traçabilitat completa |
+| **1.48** | **27 Mar 2026** | **Novetats localitzades per idioma: contracte `productUpdates` amb `locale` base i `locales.es`, publicació S2S amb auto-generació de castellà, i consum públic/app amb fallback `fr/pt -> es`. Home, llistat i detall de novetats en mode dinàmic per evitar contingut congelat post-publish.** |
 | **1.47** | **22 Mar 2026** | **Web pública reforçada: HOME comercial polida, capçalera amb accés visible a funcionalitats/"Qui som"/blog, nova pàgina corporativa `/{lang}/qui-som` amb aliases ES/FR/PT, i millores visuals al detall de blog. Blog editorial operable per API: nou endpoint `/api/blog/upload-cover`, validació server-side de portada i `publish`, persistència local segura per entorns no productius, verificació d'escriptura i smoke test local `test:blog-publish-local`. Operativa de deploy accelerada per canvis de web/blog amb perfil `FAST_PUBLIC` i guardrails associats.** |
 | **1.10** | **Des 2025** | **Mòdul Projectes: justificació econòmica per partides, suggerències heurístiques, split parcial de despeses, simulació en memòria** |
 | **1.11** | **Des 2025** | **Captura de despeses de terreny (quickMode, pujada ràpida <10s), i18n Francès complet (fr.ts), selector d'idioma amb 3 opcions** |
@@ -6464,12 +6465,28 @@ Les novetats es mostren **només via inbox** (campaneta o FAB), mai amb toast au
 ```
 /productUpdates/{updateId}
   id: string
+  locale: 'ca' | 'es'
   title: string
   description: string
   link: string | null
   isActive: boolean
   publishedAt: Timestamp
   createdAt: Timestamp
+
+  // Localitzacions addicionals (actualment: castellà)
+  locales?: {
+    es?: {
+      title: string
+      description: string
+      contentLong?: string | null
+      ctaLabel?: string | null
+      web?: {
+        title?: string | null
+        excerpt?: string | null
+        content?: string | null
+      } | null
+    }
+  } | null
 
   // Detall (TEXT PLA, NO HTML)
   contentLong?: string | null
@@ -6479,9 +6496,17 @@ Les novetats es mostren **només via inbox** (campaneta o FAB), mai amb toast au
   // Web
   web?: {
     enabled: boolean
+    locale: 'ca' | 'es'
     slug: string
     excerpt?: string | null
     content?: string | null
+    locales?: {
+      es?: {
+        title?: string | null
+        excerpt?: string | null
+        content?: string | null
+      }
+    } | null
   } | null
 
   // Social
@@ -6501,7 +6526,8 @@ La lectura es resol server-side amb Admin SDK sobre `productUpdates`.
 **Conseqüència operativa:**
 - `public/novetats-data.json` ja NO és la font principal del web públic
 - la font de veritat per `app` i `web` és `productUpdates`
-- el detall i el llistat públics es renderitzen SSR a partir de `productUpdates`
+- home, llistat i detall públics es renderitzen SSR dinàmic (`force-dynamic`) a partir de `productUpdates`
+- el locale efectiu és: `ca -> ca`, `es -> es`, `fr/pt -> es` (si no existeix variant `es`, l'entrada no es publica en aquell idioma)
 
 ### Publicació server-to-server oficial
 
@@ -6512,6 +6538,8 @@ El punt oficial de publicació server-to-server és:
 Aquest endpoint:
 - exigeix `Authorization: Bearer <PRODUCT_UPDATES_PUBLISH_SECRET>`
 - valida el payload
+- admet `locale` base (`ca|es`) i `locales.es` opcional
+- auto-genera variant castellana quan la base és `ca` i no arriba `locales.es`
 - escriu a `productUpdates/{externalId}`
 - resol la URL pública si `web.enabled = true`
 - revalida només les rutes/idiomes públics que existeixen al repo
