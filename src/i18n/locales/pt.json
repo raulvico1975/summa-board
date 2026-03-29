@@ -5170,6 +5170,8 @@
   "members.exportMembers": "Exportar membros para Excel",
   "members.importInvitations": "Importar convites em massa",
   "members.permissions": "Permissões",
+  "employees.importFromExcel": "Importar do Excel",
+  "employees.exportToExcel": "Exportar para Excel",
   "settings.bankAccounts.creditorIdHint": "Necessário para gerar ficheiros SEPA de cobrança.",
   "settings.bankAccounts.creditorIdLabel": "Identificador do credor",
   "settings.bankAccounts.creditorIdPlaceholder": "ES21001G12345678",

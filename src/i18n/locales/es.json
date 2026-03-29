@@ -5042,6 +5042,8 @@
   "members.exportMembers": "Exportar miembros a Excel",
   "members.importInvitations": "Importar invitaciones masivas",
   "members.permissions": "Permisos",
+  "employees.importFromExcel": "Importar desde Excel",
+  "employees.exportToExcel": "Exportar a Excel",
   "settings.archiveError": "No se ha podido eliminar",
   "settings.bankAccounts.creditorIdHint": "Necesario para generar ficheros SEPA de cobro.",
   "settings.bankAccounts.creditorIdLabel": "Identificador acreedor",
