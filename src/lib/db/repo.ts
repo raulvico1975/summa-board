@@ -12,6 +12,7 @@ import type {
   MeetingIngestJobDoc,
   MinutesDoc,
   MinutesJson,
+  OperationErrorDoc,
   OrgDoc,
   OrgSubscriptionStatus,
   PollDoc,
@@ -59,6 +60,34 @@ const meetingIngestJobsCol = adminDb.collection(
 ) as CollectionReference<MeetingIngestJobDoc>;
 const MAX_BATCH_OPERATIONS = 50;
 
+function buildOperationError(code: string, message?: string | null): OperationErrorDoc {
+  return {
+    code,
+    message: message ?? null,
+    at: Date.now(),
+  };
+}
+
+export function normalizeMeetingDoc(meeting: MeetingDoc): MeetingDoc {
+  const provisioningStatus =
+    meeting.provisioningStatus ?? (meeting.meetingUrl ? "usable" : "provisioning_failed");
+
+  return {
+    ...meeting,
+    provisioningStatus,
+    provisioningError: meeting.provisioningError ?? null,
+    provisioningAttemptedAt: meeting.provisioningAttemptedAt ?? null,
+    provisioningReadyAt: meeting.provisioningReadyAt ?? null,
+    recordingStatus: meeting.recordingStatus ?? "none",
+    lastWebhookAt: meeting.lastWebhookAt ?? null,
+  };
+}
+
+export function isMeetingUsable(meeting: Pick<MeetingDoc, "meetingUrl" | "provisioningStatus">): boolean {
+  const normalized = normalizeMeetingDoc(meeting as MeetingDoc);
+  return normalized.provisioningStatus === "usable" && !!normalized.meetingUrl;
+}
+
 function buildMeetingDoc(input: {
   orgId: string;
   title: string;
@@ -76,10 +105,15 @@ function buildMeetingDoc(input: {
     meetingUrl: null,
     dailyRoomName: null,
     dailyRoomUrl: null,
+    provisioningStatus: "provisioning",
+    provisioningError: null,
+    provisioningAttemptedAt: null,
+    provisioningReadyAt: null,
     recordingStatus: "none",
     recordingUrl: null,
     transcript: null,
     minutesDraft: null,
+    lastWebhookAt: null,
     pollId: input.pollId ?? null,
     scheduledAt: input.scheduledAt ?? null,
   };
@@ -87,6 +121,19 @@ function buildMeetingDoc(input: {
 
 function buildMeetingIngestJobId(meetingId: string, recordingId: string): string {
   return `${meetingId}__${recordingId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+}
+
+function normalizeMeetingIngestJobDoc(job: MeetingIngestJobDoc): MeetingIngestJobDoc {
+  return {
+    ...job,
+    attemptCount: job.attemptCount ?? 0,
+    lastAttemptAt: job.lastAttemptAt ?? null,
+    nextAttemptAt: job.nextAttemptAt ?? job.createdAt ?? Date.now(),
+    leaseExpiresAt: job.leaseExpiresAt ?? null,
+    completedAt: job.completedAt ?? null,
+    processorMode: job.processorMode ?? null,
+    processorModel: job.processorModel ?? null,
+  };
 }
 
 function slugifyTitle(value: string): string {
@@ -225,6 +272,55 @@ export async function createPollForOrg(input: {
   return { pollId: pollRef.id, slug };
 }
 
+export async function replacePollOptions(input: {
+  pollId: string;
+  optionsIso: string[];
+}): Promise<void> {
+  const pollRef = pollsCol.doc(input.pollId);
+  const optionsCol = pollRef.collection("options") as CollectionReference<PollOptionDoc>;
+  const [pollSnap, optionsSnap] = await Promise.all([pollRef.get(), optionsCol.get()]);
+
+  if (!pollSnap.exists) {
+    throw new Error("POLL_NOT_FOUND");
+  }
+
+  const poll = pollSnap.data() as PollDoc;
+  if (poll.status !== "open" && poll.status !== "close_failed") {
+    throw new Error("POLL_NOT_EDITABLE");
+  }
+
+  const validDates = input.optionsIso
+    .map((iso) => new Date(iso))
+    .filter((date) => !Number.isNaN(date.getTime()));
+
+  if (validDates.length === 0) {
+    throw new Error("INVALID_OPTION_DATES");
+  }
+
+  const batch = adminDb.batch();
+
+  optionsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+  validDates.forEach((startsAt) => {
+    const optionRef = optionsCol.doc();
+    batch.set(optionRef, {
+      startsAt: Timestamp.fromDate(startsAt),
+    });
+  });
+
+  batch.set(
+    pollRef,
+    {
+      status: "open",
+      winningOptionId: null,
+      closedAt: null,
+      closeError: null,
+    },
+    { merge: true }
+  );
+
+  await batch.commit();
+}
+
 export async function getPollBySlug(slug: string): Promise<PollWithOptions | null> {
   const pollSnap = await pollsCol.where("slug", "==", slug).limit(1).get();
   const pollDoc = pollSnap.docs[0];
@@ -316,49 +412,122 @@ export async function closePollCreateMeeting(input: {
 }): Promise<CreateMeetingWithDailyResult> {
   const pollRef = pollsCol.doc(input.pollId);
   const optionRef = pollRef.collection("options").doc(input.winningOptionId);
+  const preparedMeeting = await adminDb.runTransaction(async (trx) => {
+    const meetingsByPollQuery = meetingsCol.where("pollId", "==", input.pollId).limit(1);
+    const [pollDoc, optionDoc, existingMeetingSnap] = await Promise.all([
+      trx.get(pollRef),
+      trx.get(optionRef),
+      trx.get(meetingsByPollQuery),
+    ]);
 
-  const meeting = await createMeetingWithDaily({
-    createMeeting: async () =>
-      adminDb.runTransaction(async (trx) => {
-        const [pollDoc, optionDoc] = await Promise.all([trx.get(pollRef), trx.get(optionRef)]);
+    if (!pollDoc.exists) {
+      throw new Error("POLL_NOT_FOUND");
+    }
 
-        if (!pollDoc.exists) {
-          throw new Error("POLL_NOT_FOUND");
-        }
+    if (!optionDoc.exists) {
+      throw new Error("OPTION_NOT_FOUND");
+    }
 
-        if (!optionDoc.exists) {
-          throw new Error("OPTION_NOT_FOUND");
-        }
+    const poll = pollDoc.data() as PollDoc;
+    const existingMeetingDoc = existingMeetingSnap.docs[0];
+    const existingMeeting = existingMeetingDoc ? normalizeMeetingDoc(existingMeetingDoc.data() as MeetingDoc) : null;
+    const canRetryLegacyClosed = poll.status === "closed" && (!existingMeeting || !isMeetingUsable(existingMeeting));
 
-        const poll = pollDoc.data() as PollDoc;
-        if (poll.status !== "open") {
-          throw new Error("POLL_ALREADY_CLOSED");
-        }
+    if (poll.status === "closing") {
+      throw new Error("POLL_ALREADY_CLOSING");
+    }
 
-        trx.update(pollRef, {
-          status: "closed",
-          winningOptionId: input.winningOptionId,
-          closedAt: FieldValue.serverTimestamp(),
-        });
+    if (poll.status !== "open" && poll.status !== "close_failed" && !canRetryLegacyClosed) {
+      throw new Error("POLL_ALREADY_CLOSED");
+    }
 
-        const meetingRef = meetingsCol.doc();
-        const option = optionDoc.data() as PollOptionDoc;
+    if (existingMeeting && isMeetingUsable(existingMeeting)) {
+      throw new Error("MEETING_ALREADY_USABLE");
+    }
 
-        trx.set(
-          meetingRef,
-          buildMeetingDoc({
+    const option = optionDoc.data() as PollOptionDoc;
+    const meetingRef = existingMeetingDoc?.ref ?? meetingsCol.doc();
+
+    trx.set(
+      pollRef,
+      {
+        status: "closing",
+        winningOptionId: input.winningOptionId,
+        closedAt: null,
+        closeError: null,
+      },
+      { merge: true }
+    );
+
+    if (!existingMeetingDoc) {
+      trx.set(
+        meetingRef,
+        {
+          ...buildMeetingDoc({
             orgId: poll.orgId,
             title: poll.title,
             description: poll.description,
             createdBy: input.createdBy,
             pollId: pollRef.id,
             scheduledAt: option.startsAt,
-          })
-        );
+          }),
+          provisioningAttemptedAt: Date.now(),
+        }
+      );
+    } else {
+      trx.set(
+        meetingRef,
+        {
+          orgId: poll.orgId,
+          title: poll.title,
+          description: poll.description,
+          createdBy: input.createdBy,
+          pollId: pollRef.id,
+          scheduledAt: option.startsAt,
+          meetingUrl: null,
+          dailyRoomName: null,
+          dailyRoomUrl: null,
+          provisioningStatus: "provisioning",
+          provisioningError: null,
+          provisioningAttemptedAt: Date.now(),
+          provisioningReadyAt: null,
+        },
+        { merge: true }
+      );
+    }
 
-        return meetingRef.id;
-      }),
+    return {
+      meetingId: meetingRef.id,
+    };
   });
+
+  const meeting = await createMeetingWithDaily({
+    createMeeting: async () => preparedMeeting.meetingId,
+  });
+
+  if (meeting.provisioningStatus === "usable") {
+    await pollRef.set(
+      {
+        status: "closed",
+        winningOptionId: input.winningOptionId,
+        closedAt: FieldValue.serverTimestamp(),
+        closeError: null,
+      },
+      { merge: true }
+    );
+    return meeting;
+  }
+
+  await pollRef.set(
+    {
+      status: "close_failed",
+      winningOptionId: input.winningOptionId,
+      closedAt: null,
+      closeError:
+        meeting.provisioningError ?? buildOperationError("MEETING_PROVISIONING_FAILED", "Meeting provisioning failed"),
+    },
+    { merge: true }
+  );
 
   return meeting;
 }
@@ -391,7 +560,7 @@ export async function getMeetingById(meetingId: string): Promise<MeetingWithAsse
   const meetingDoc = await meetingsCol.doc(meetingId).get();
   if (!meetingDoc.exists) return null;
 
-  const meetingData = meetingDoc.data() as MeetingDoc;
+  const meetingData = normalizeMeetingDoc(meetingDoc.data() as MeetingDoc);
   const pollDoc = meetingData.pollId ? await pollsCol.doc(meetingData.pollId).get() : null;
 
   const [recordingsSnap, transcriptsSnap, minutesSnap, ingestJobSnap] = await Promise.all([
@@ -403,9 +572,9 @@ export async function getMeetingById(meetingId: string): Promise<MeetingWithAsse
   const ingestJobDoc = ingestJobSnap.docs
     .slice()
     .sort((left, right) => {
-      const leftCreatedAt = (left.data() as MeetingIngestJobDoc).createdAt ?? 0;
-      const rightCreatedAt = (right.data() as MeetingIngestJobDoc).createdAt ?? 0;
-      return rightCreatedAt - leftCreatedAt;
+      const leftUpdatedAt = (left.data() as MeetingIngestJobDoc).updatedAt ?? 0;
+      const rightUpdatedAt = (right.data() as MeetingIngestJobDoc).updatedAt ?? 0;
+      return rightUpdatedAt - leftUpdatedAt;
     })[0];
 
   return {
@@ -415,7 +584,9 @@ export async function getMeetingById(meetingId: string): Promise<MeetingWithAsse
     recordings: recordingsSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as RecordingDoc) })),
     transcripts: transcriptsSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as TranscriptDoc) })),
     minutes: minutesSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as MinutesDoc) })),
-    latestIngestJob: ingestJobDoc ? { id: ingestJobDoc.id, ...(ingestJobDoc.data() as MeetingIngestJobDoc) } : null,
+    latestIngestJob: ingestJobDoc
+      ? { id: ingestJobDoc.id, ...normalizeMeetingIngestJobDoc(ingestJobDoc.data() as MeetingIngestJobDoc) }
+      : null,
   };
 }
 
@@ -425,10 +596,28 @@ export async function getMeetingIdByPollId(pollId: string): Promise<string | nul
   return doc ? doc.id : null;
 }
 
+export async function getUsableMeetingIdByPollId(pollId: string): Promise<string | null> {
+  const snap = await meetingsCol.where("pollId", "==", pollId).get();
+  const usableMeetingDoc = snap.docs.find((doc) => isMeetingUsable(doc.data() as MeetingDoc));
+  return usableMeetingDoc ? usableMeetingDoc.id : null;
+}
+
 export async function getMeetingByMeetingUrl(meetingUrl: string): Promise<MeetingWithAssets | null> {
   const snap = await meetingsCol.where("meetingUrl", "==", meetingUrl).limit(1).get();
   const doc = snap.docs[0];
   return doc ? getMeetingById(doc.id) : null;
+}
+
+export async function deletePollById(pollId: string): Promise<boolean> {
+  const pollRef = pollsCol.doc(pollId);
+  const pollSnap = await pollRef.get();
+
+  if (!pollSnap.exists) {
+    return false;
+  }
+
+  await adminDb.recursiveDelete(pollRef);
+  return true;
 }
 
 export async function deleteMeetingById(meetingId: string): Promise<boolean> {
@@ -451,6 +640,24 @@ export async function deleteMeetingById(meetingId: string): Promise<boolean> {
 
   await adminDb.recursiveDelete(meetingRef);
   return true;
+}
+
+export async function deleteMeetingCascade(input: {
+  meetingId?: string | null;
+  pollId?: string | null;
+}): Promise<{ deletedMeeting: boolean; deletedPoll: boolean }> {
+  let deletedMeeting = false;
+  let deletedPoll = false;
+
+  if (input.meetingId) {
+    deletedMeeting = await deleteMeetingById(input.meetingId);
+  }
+
+  if (input.pollId) {
+    deletedPoll = await deletePollById(input.pollId);
+  }
+
+  return { deletedMeeting, deletedPoll };
 }
 
 export async function registerMeetingRecording(input: {
@@ -645,6 +852,31 @@ export async function updateMeetingArtifacts(input: {
   await meetingsCol.doc(input.meetingId).set(payload, { merge: true });
 }
 
+export async function getMeetingIngestJobById(
+  jobId: string
+): Promise<(MeetingIngestJobDoc & { id: string }) | null> {
+  const snap = await meetingIngestJobsCol.doc(jobId).get();
+  if (!snap.exists) {
+    return null;
+  }
+
+  return {
+    id: snap.id,
+    ...normalizeMeetingIngestJobDoc(snap.data() as MeetingIngestJobDoc),
+  };
+}
+
+export async function listMeetingIngestJobsByOrg(
+  orgId: string,
+  limit = 30
+): Promise<Array<MeetingIngestJobDoc & { id: string }>> {
+  const snap = await meetingIngestJobsCol.where("orgId", "==", orgId).get();
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...normalizeMeetingIngestJobDoc(doc.data() as MeetingIngestJobDoc) }))
+    .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
+    .slice(0, Math.max(1, limit));
+}
+
 export async function enqueueMeetingIngestJob(input: {
   meetingId: string;
   orgId: string;
@@ -679,9 +911,13 @@ export async function enqueueMeetingIngestJob(input: {
 }
 
 export async function claimMeetingIngestJob(
-  jobId: string
-): Promise<"claimed" | "processing" | "completed" | "error" | "missing"> {
+  jobId: string,
+  input?: { leaseMs?: number; force?: boolean }
+): Promise<"claimed" | "queued" | "processing" | "completed" | "error" | "missing"> {
   const jobRef = meetingIngestJobsCol.doc(jobId) as DocumentReference<MeetingIngestJobDoc>;
+  const leaseMs = input?.leaseMs ?? 10 * 60_000;
+  const force = input?.force ?? false;
+  const now = Date.now();
 
   return adminDb.runTransaction(async (trx) => {
     const snap = await trx.get(jobRef);
@@ -689,8 +925,11 @@ export async function claimMeetingIngestJob(
       return "missing";
     }
 
-    const job = snap.data() as MeetingIngestJobDoc;
-    if (job.status === "processing") {
+    const job = normalizeMeetingIngestJobDoc(snap.data() as MeetingIngestJobDoc);
+    const leaseExpiresAt = job.leaseExpiresAt ?? 0;
+    const nextAttemptAt = job.nextAttemptAt ?? 0;
+
+    if (job.status === "processing" && !force && leaseExpiresAt > now) {
       return "processing";
     }
 
@@ -698,15 +937,22 @@ export async function claimMeetingIngestJob(
       return "completed";
     }
 
-    if (job.status === "error") {
+    if (job.status === "error" && !force && nextAttemptAt > now) {
       return "error";
+    }
+
+    if (job.status === "queued" && !force && nextAttemptAt > now) {
+      return "queued";
     }
 
     trx.set(
       jobRef,
       {
         status: "processing",
-        updatedAt: Date.now(),
+        updatedAt: now,
+        attemptCount: (job.attemptCount ?? 0) + 1,
+        lastAttemptAt: now,
+        leaseExpiresAt: now + leaseMs,
         error: null,
       },
       { merge: true }
@@ -716,30 +962,83 @@ export async function claimMeetingIngestJob(
   });
 }
 
-export async function updateMeetingIngestJobStatus(input: {
+export async function completeMeetingIngestJob(input: {
   jobId: string;
-  status: MeetingIngestJobDoc["status"];
-  error?: string | null;
+  mode: string;
+  model: string;
 }): Promise<void> {
+  const now = Date.now();
+
   await meetingIngestJobsCol.doc(input.jobId).set(
     {
-      status: input.status,
-      updatedAt: Date.now(),
-      error: input.error ?? null,
+      status: "completed",
+      updatedAt: now,
+      error: null,
+      leaseExpiresAt: null,
+      nextAttemptAt: null,
+      completedAt: now,
+      processorMode: input.mode,
+      processorModel: input.model,
     },
     { merge: true }
   );
 }
 
-export async function createOrgForOwner(input: { ownerUid: string; name: string }): Promise<string> {
+export async function failMeetingIngestJob(input: {
+  jobId: string;
+  error: string;
+  retryable: boolean;
+  nextAttemptAt?: number | null;
+}): Promise<void> {
+  await meetingIngestJobsCol.doc(input.jobId).set(
+    {
+      status: input.retryable ? "queued" : "error",
+      updatedAt: Date.now(),
+      error: input.error,
+      leaseExpiresAt: null,
+      nextAttemptAt: input.retryable ? input.nextAttemptAt ?? Date.now() : null,
+      completedAt: null,
+    },
+    { merge: true }
+  );
+}
+
+export async function requeueMeetingIngestJob(input: {
+  jobId: string;
+  error?: string | null;
+}): Promise<void> {
+  await meetingIngestJobsCol.doc(input.jobId).set(
+    {
+      status: "queued",
+      updatedAt: Date.now(),
+      error: input.error ?? null,
+      leaseExpiresAt: null,
+      nextAttemptAt: Date.now(),
+      completedAt: null,
+    },
+    { merge: true }
+  );
+}
+
+export async function createOrgForOwner(input: {
+  ownerUid: string;
+  name: string;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  legalAcceptedVersion?: string | null;
+}): Promise<string> {
   const ref = orgsCol.doc(input.ownerUid);
   await ref.create({
     name: input.name,
     ownerUid: input.ownerUid,
+    contactName: input.contactName ?? null,
+    contactEmail: input.contactEmail ?? null,
     createdAt: FieldValue.serverTimestamp() as Timestamp,
     subscriptionStatus: "none",
     plan: "basic",
     recordingLimitMinutes: 90,
+    legalAcceptedAt: FieldValue.serverTimestamp() as Timestamp,
+    legalAcceptedVersion: input.legalAcceptedVersion ?? "2026-03-26",
   });
   return ref.id;
 }

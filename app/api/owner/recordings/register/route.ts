@@ -6,10 +6,18 @@ import {
   requireActiveSubscription,
   subscriptionRequiredResponse,
 } from "@/src/lib/auth/require-active-subscription";
+import { adminStorage } from "@/src/lib/firebase/admin";
 import { getOwnerFromRequest } from "@/src/lib/firebase/auth";
 import { getRequestI18nFromNextRequest } from "@/src/i18n/request";
 import { reportApiUnexpectedError } from "@/src/lib/monitoring/report";
 import { isTrustedSameOrigin } from "@/src/lib/security/request";
+import { consumeOwnerRateLimit } from "@/src/lib/rate-limit-owner";
+import {
+  MAX_MANUAL_RECORDING_FILE_BYTES,
+  MAX_MANUAL_RECORDING_TEXT_CHARS,
+  OWNER_MUTATION_RATE_WINDOW_MS,
+  OWNER_RECORDING_MUTATION_MAX_HITS,
+} from "@/src/lib/meetings/ingest-policy";
 
 export const runtime = "nodejs";
 
@@ -34,6 +42,18 @@ export async function POST(request: NextRequest) {
     }
     requireActiveSubscription(owner);
 
+    if (
+      !(await consumeOwnerRateLimit({
+        request,
+        owner,
+        scope: "owner-register-recording",
+        maxHits: OWNER_RECORDING_MUTATION_MAX_HITS,
+        windowMs: OWNER_MUTATION_RATE_WINDOW_MS,
+      }))
+    ) {
+      return NextResponse.json({ error: i18n.errors.rateLimited }, { status: 429 });
+    }
+
     const body = bodySchema.parse(await request.json());
     const meeting = await getMeetingById(body.meetingId);
 
@@ -45,6 +65,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: i18n.errors.missingRecordingInput }, { status: 400 });
     }
 
+    if (body.rawText.trim().length > MAX_MANUAL_RECORDING_TEXT_CHARS) {
+      return NextResponse.json({ error: i18n.errors.recordingTextTooLarge }, { status: 400 });
+    }
+
     const normalizedStoragePath = body.storagePath.trim();
     if (normalizedStoragePath) {
       const expectedPrefix = `meetings/${body.meetingId}/recordings/`;
@@ -53,6 +77,12 @@ export async function POST(request: NextRequest) {
       const isReasonableLength = normalizedStoragePath.length <= 300;
       if (!isValidPrefix || hasTraversal || !isReasonableLength) {
         return NextResponse.json({ error: i18n.errors.invalidPayload }, { status: 400 });
+      }
+
+      const [metadata] = await adminStorage.bucket().file(normalizedStoragePath).getMetadata();
+      const sizeBytes = Number.parseInt(String(metadata.size ?? "0"), 10);
+      if (Number.isFinite(sizeBytes) && sizeBytes > MAX_MANUAL_RECORDING_FILE_BYTES) {
+        return NextResponse.json({ error: i18n.errors.recordingTooLarge }, { status: 400 });
       }
     }
 
@@ -76,6 +106,11 @@ export async function POST(request: NextRequest) {
       error,
     });
 
-    return NextResponse.json({ error: i18n.meeting.registerRecordingError }, { status: 400 });
+    const message =
+      error instanceof Error && error.message.includes("No such object")
+        ? i18n.errors.recordingNotFound
+        : i18n.meeting.registerRecordingError;
+
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

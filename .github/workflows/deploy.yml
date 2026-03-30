@@ -50,11 +50,36 @@ jobs:
           echo "$FIREBASE_SERVICE_ACCOUNT_SUMMA_BOARD" > "$RUNNER_TEMP/gcp-sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/gcp-sa.json" >> "$GITHUB_ENV"
 
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Lint
         run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Repository tests
+        run: npm run test:repo
 
       - name: Smoke with emulators
         run: npm run ci:smoke
 
-      - name: Deploy hosting
-        run: firebase deploy --project summa-board --only hosting --non-interactive
+      - name: Deploy production safely
+        env:
+          FIREBASE_PROJECT_ID: summa-board
+          RUNTIME_SERVICE: ssrsummaboard
+          RUNTIME_REGION: europe-west1
+          PRODUCTION_BASE_URL: https://summareu.app
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: summa-board
+          FORCE_CANONICAL_REDIRECT: "true"
+          DAILY_DOMAIN: ${{ secrets.DAILY_DOMAIN }}
+          STRIPE_PRICE_ID: ${{ secrets.STRIPE_PRICE_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DAILY_API_KEY: ${{ secrets.DAILY_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          DAILY_WEBHOOK_BEARER_TOKEN: ${{ secrets.DAILY_WEBHOOK_BEARER_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: npm run deploy:prod:safe

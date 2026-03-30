@@ -31,12 +31,18 @@ const optionIds = ["opt-1", "opt-2", "opt-3"];
 
 async function ensureOwnerUser() {
   try {
-    await auth.getUser(ownerUid);
+    await auth.updateUser(ownerUid, {
+      email: ownerEmail,
+      password: ownerPassword,
+      emailVerified: true,
+      disabled: false,
+    });
   } catch {
     await auth.createUser({
       uid: ownerUid,
       email: ownerEmail,
       password: ownerPassword,
+      emailVerified: true,
     });
   }
 }
@@ -73,7 +79,6 @@ async function seedFirestore() {
   }
 
   await db.collection("meetings").doc(meetingId).set({
-    pollId: openPollId,
     orgId,
     title: "Junta mensual",
     description: "Reunió demo Summa Reu",
@@ -84,6 +89,9 @@ async function seedFirestore() {
     recordingUrl: null,
     transcript: null,
     minutesDraft: null,
+    provisioningStatus: "usable",
+    dailyRoomName: "demo-meeting",
+    dailyRoomUrl: "https://mock.daily.local/demo-meeting",
     scheduledAt: Timestamp.fromDate(optionDates[0]),
   }, { merge: true });
 

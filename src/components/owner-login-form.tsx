@@ -9,14 +9,15 @@ type OwnerLoginFormProps = {
   locale: I18nLocale;
   i18n: ReturnType<typeof getI18n>;
   errorMessage?: string;
+  initialEmail?: string;
 };
 
-export function OwnerLoginForm({ locale, i18n, errorMessage }: OwnerLoginFormProps) {
+export function OwnerLoginForm({ locale, i18n, errorMessage, initialEmail }: OwnerLoginFormProps) {
   return (
     <form className="space-y-4" method="post" action="/api/auth/password-login">
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">{i18n.login.email}</label>
-        <Input type="email" name="email" autoComplete="email" required />
+        <Input type="email" name="email" autoComplete="email" required defaultValue={initialEmail} />
       </div>
 
       <div>

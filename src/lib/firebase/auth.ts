@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { adminAuth, adminDb } from "@/src/lib/firebase/admin";
 import type { OrgDoc, OrgPlan, OrgSubscriptionStatus } from "@/src/lib/db/types";
+import { getLocalizedProductCopy } from "@/src/lib/product/config";
 
 export const SESSION_COOKIE_NAME = "__session";
 
@@ -9,19 +10,24 @@ export type OwnerContext = {
   uid: string;
   orgId: string;
   orgName: string;
+  contactName: string | null;
+  contactEmail: string | null;
   subscriptionStatus: OrgSubscriptionStatus;
   plan: OrgPlan;
   recordingLimitMinutes: number;
 };
 
 async function resolveOwnerContext(uid: string): Promise<OwnerContext | null> {
+  const productCopy = getLocalizedProductCopy("ca");
   const canonicalDoc = await adminDb.collection("orgs").doc(uid).get();
   if (canonicalDoc.exists) {
     const data = canonicalDoc.data() as OrgDoc;
     return {
       uid,
       orgId: canonicalDoc.id,
-      orgName: data.name ?? "Organització",
+      orgName: data.name ?? productCopy.workspaceFallbackName,
+      contactName: data.contactName ?? null,
+      contactEmail: data.contactEmail ?? null,
       subscriptionStatus: data.subscriptionStatus ?? "none",
       plan: data.plan ?? "basic",
       recordingLimitMinutes: data.recordingLimitMinutes ?? 90,
@@ -44,7 +50,9 @@ async function resolveOwnerContext(uid: string): Promise<OwnerContext | null> {
   return {
     uid,
     orgId: orgDoc.id,
-    orgName: data.name ?? "Organització",
+    orgName: data.name ?? productCopy.workspaceFallbackName,
+    contactName: data.contactName ?? null,
+    contactEmail: data.contactEmail ?? null,
     subscriptionStatus: data.subscriptionStatus ?? "none",
     plan: data.plan ?? "basic",
     recordingLimitMinutes: data.recordingLimitMinutes ?? 90,

@@ -1,3 +1,5 @@
+import { getProductConfig } from "@/src/lib/product/config";
+
 function escapeIcs(value: string): string {
   return value
     .replace(/\\/g, "\\\\")
@@ -18,6 +20,7 @@ export function buildMeetingIcs(params: {
   durationMinutes?: number;
   timezone?: string;
 }): string {
+  const product = getProductConfig();
   const now = new Date();
   const duration = params.durationMinutes ?? 60;
   const endsAt = new Date(params.startsAt.getTime() + duration * 60_000);
@@ -26,7 +29,7 @@ export function buildMeetingIcs(params: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Summa Reu//CA",
+    `PRODID:-//${product.brandName}//CA`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
@@ -35,7 +38,7 @@ export function buildMeetingIcs(params: {
     `DTSTART;TZID=${timezone}:${formatUtc(params.startsAt).replace("Z", "")}`,
     `DTEND;TZID=${timezone}:${formatUtc(endsAt).replace("Z", "")}`,
     `SUMMARY:${escapeIcs(params.title)}`,
-    `DESCRIPTION:${escapeIcs(params.description ?? "Reunió creada des de Summa Reu")}`,
+    `DESCRIPTION:${escapeIcs(params.description ?? `Reunió creada des de ${product.brandName}`)}`,
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");

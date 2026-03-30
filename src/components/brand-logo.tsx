@@ -1,10 +1,12 @@
 import type { HTMLAttributes } from "react";
+import { getProductConfig } from "@/src/lib/product/config";
 
 type BrandLogoProps = {
   compact?: boolean;
 } & HTMLAttributes<HTMLSpanElement>;
 
 export function BrandLogo({ compact = false, className = "", ...props }: BrandLogoProps) {
+  const product = getProductConfig();
   return (
     <span className={`inline-flex items-center gap-2 ${className}`.trim()} {...props}>
       <svg
@@ -23,7 +25,7 @@ export function BrandLogo({ compact = false, className = "", ...props }: BrandLo
         <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" />
       </svg>
       {compact ? null : (
-        <span className="block text-base font-semibold tracking-tight text-slate-900">Summa Reu</span>
+        <span className="block text-base font-semibold tracking-tight text-slate-900">{product.brandName}</span>
       )}
     </span>
   );

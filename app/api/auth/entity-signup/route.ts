@@ -14,6 +14,8 @@ const bodySchema = z.object({
   contactName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(200),
   password: z.string().min(8).max(120),
+  acceptPrivacy: z.literal(true),
+  acceptTerms: z.literal(true),
 });
 
 export async function POST(request: NextRequest) {
@@ -42,6 +44,9 @@ export async function POST(request: NextRequest) {
     await createOrgForOwner({
       ownerUid: created.uid,
       name: body.orgName,
+      contactName: body.contactName,
+      contactEmail: body.email.toLowerCase(),
+      legalAcceptedVersion: "2026-03-26",
     });
 
     return NextResponse.json({ ok: true, uid: created.uid });
@@ -66,7 +71,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       await reportApiUnexpectedError({
         route: "/api/auth/entity-signup",
-        action: "intentàvem donar d'alta una entitat",
+        action: "intentàvem donar d'alta un espai nou",
         error,
       });
       return NextResponse.json({ error: i18n.errors.createOrgError }, { status: 400 });
@@ -74,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     await reportApiUnexpectedError({
       route: "/api/auth/entity-signup",
-      action: "intentàvem donar d'alta una entitat",
+      action: "intentàvem donar d'alta un espai nou",
       error,
     });
     return NextResponse.json({ error: i18n.errors.createOrgError }, { status: 400 });

@@ -1,6 +1,7 @@
 import { generateGeminiText } from "@/src/lib/gemini/client";
 import { minutesJsonSchema, type MinutesJsonStrict } from "@/src/lib/minutes/schema";
 import { renderMinutesMarkdown } from "@/src/lib/minutes/markdown";
+import { getLocalizedProductCopy } from "@/src/lib/product/config";
 
 function stripCodeFences(raw: string): string {
   return raw
@@ -17,8 +18,9 @@ function parseMinutesJson(raw: string): MinutesJsonStrict {
 }
 
 function buildPrompt(transcript: string): string {
+  const productCopy = getLocalizedProductCopy("ca");
   return [
-    "Ets assistent de secretaria d'una entitat social.",
+    productCopy.minutesPromptRole,
     "Genera una acta en català a partir de la transcripció.",
     "Retorna NOMÉS JSON vàlid, sense text extra.",
     "Esquema obligatori:",

@@ -14,6 +14,11 @@ export type StripeCheckoutSession = {
   metadata?: Record<string, string> | null;
 };
 
+export type StripeBillingPortalSession = {
+  id: string;
+  url: string | null;
+};
+
 export type StripeWebhookEvent = {
   id: string;
   type: string;
@@ -75,6 +80,18 @@ export async function createStripeCheckoutSession(input: {
   params.set("subscription_data[metadata][orgId]", input.orgId);
 
   return stripeFormRequest<StripeCheckoutSession>("/v1/checkout/sessions", params);
+}
+
+export async function createStripeBillingPortalSession(input: {
+  customerId: string;
+  returnUrl?: string;
+}): Promise<StripeBillingPortalSession> {
+  const env = getStripeEnv();
+  const params = new URLSearchParams();
+  params.set("customer", input.customerId);
+  params.set("return_url", input.returnUrl ?? env.billingReturnUrl);
+
+  return stripeFormRequest<StripeBillingPortalSession>("/v1/billing_portal/sessions", params);
 }
 
 function safeCompare(input: string, expected: string): boolean {

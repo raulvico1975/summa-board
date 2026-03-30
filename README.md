@@ -44,6 +44,8 @@ Variables importants:
 - `STRIPE_PRICE_ID=`
 - `STRIPE_SUCCESS_URL=https://summareu.app/dashboard`
 - `STRIPE_CANCEL_URL=https://summareu.app/signup`
+- `STRIPE_BILLING_RETURN_URL=https://summareu.app/billing`
+- `DAILY_WEBHOOK_BEARER_TOKEN=` (recomanat en producció)
 
 ## Execució local
 
@@ -82,13 +84,22 @@ npm run monitor:login
 El repo inclou dos workflows de GitHub Actions:
 
 - `CI` (`.github/workflows/ci.yml`): `lint` + `smoke` amb emuladors (obligatori per PR i per `main`).
-- `Deploy Manual Emergency` (`.github/workflows/deploy.yml`): torna a executar `lint` + `smoke` i desplega a Firebase Hosting només quan es llança manualment.
+- `Deploy Manual Emergency` (`.github/workflows/deploy.yml`): torna a executar `lint` + `smoke`, desplega amb `.env` sanejat i reaplica el runtime segur de producció només quan es llança manualment.
 
 El deploy automàtic de producció es fa des de Firebase App Hosting (backend connectat al repositori GitHub) quan entra codi a `main`.
 
 ### Secrets necessaris a GitHub
 
 - `FIREBASE_SERVICE_ACCOUNT_SUMMA_BOARD`: JSON complet del service account amb permisos de deploy al projecte `summa-board`.
+- `DAILY_DOMAIN`
+- `STRIPE_PRICE_ID`
+- `TELEGRAM_CHAT_ID`
+- `DAILY_API_KEY`
+- `GEMINI_API_KEY` (opcional si vols mode REAL)
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `DAILY_WEBHOOK_BEARER_TOKEN`
+- `TELEGRAM_BOT_TOKEN`
 
 ### Mirror automàtic de prod (segur i separat)
 
@@ -149,8 +160,16 @@ Configura `main` a GitHub amb:
 La configuració usa framework backend per Next.js (regió `europe-west1`).
 
 ```bash
-firebase deploy --only hosting --project summa-board
+npm run deploy:prod:safe
 ```
+
+Aquest deploy segur:
+
+- crea un `.env` temporal mínim perquè el backend de frameworks no pugi secrets locals com a variables planes;
+- fa el deploy de Hosting/App Hosting;
+- restaura l'entorn local original;
+- reaplica variables i secrets obligatoris al servei `ssrsummaboard`;
+- valida que el runtime i les rutes públiques crítiques responguin correctament.
 
 ## Credencials demo seed
 
@@ -192,9 +211,13 @@ Públiques:
 Owner:
 
 - `/login`
+- `/forgot-password`
+- `/verify-email`
 - `/signup`
 - `/billing`
 - `/dashboard`
+- `/privacy`
+- `/terms`
 - `/polls/new`
 - `/polls/[pollId]`
 - `/owner/meetings/[meetingId]`

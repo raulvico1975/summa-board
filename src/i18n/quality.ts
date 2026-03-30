@@ -18,6 +18,7 @@ export const noFallbackRouteRules: Array<{ pattern: RegExp; sections: I18nSectio
   { pattern: /^\/login\/?$/, sections: ["login", "nav", "errors"] },
   { pattern: /^\/signup\/?$/, sections: ["signup", "nav", "errors"] },
   { pattern: /^\/dashboard\/?$/, sections: ["dashboard", "status", "nav", "session", "errors"] },
+  { pattern: /^\/archive\/?$/, sections: ["archive", "dashboard", "meeting", "status", "nav", "session", "errors"] },
   { pattern: /^\/polls\/new\/?$/, sections: ["poll", "meeting", "nav", "session", "errors"] },
   { pattern: /^\/polls\/[^/]+\/?$/, sections: ["poll", "status", "nav", "session", "errors"] },
   { pattern: /^\/meetings\/[^/]+\/?$/, sections: ["meeting", "status", "nav", "session", "errors"] },

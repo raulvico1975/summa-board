@@ -16,7 +16,7 @@ export function MeetingRecordingControls({
   recordingStatus: MeetingRecordingStatus | null | undefined;
 }) {
   const router = useRouter();
-  const { i18n } = useI18n();
+  const { locale, i18n } = useI18n();
   const [state, setState] = useState<{ loading: boolean; error?: string }>({ loading: false });
 
   async function post(url: string) {
@@ -66,6 +66,17 @@ export function MeetingRecordingControls({
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="font-medium">
+          {locale === "ca" ? "Abans d'iniciar la gravació" : "Antes de iniciar la grabación"}
+        </p>
+        <p className="mt-1 text-amber-800">
+          {locale === "ca"
+            ? "Abans de començar, avisa les persones assistents que la reunió es gravarà per preparar la transcripció i l'esborrany d'acta."
+            : "Antes de empezar, avisa a las personas asistentes de que la reunión se grabará para preparar la transcripción y el borrador de acta."}
+        </p>
+      </div>
+
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button
           type="button"

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  claimMeetingIngestJob,
   enqueueMeetingIngestJob,
   getMeetingByMeetingUrl,
-  updateMeetingIngestJobStatus,
   updateMeetingRecordingState,
 } from "@/src/lib/db/repo";
-import { processMeetingIngestJob } from "@/src/lib/jobs/processMeetingIngestJob";
-import { reportApiUnexpectedError, reportServerUnexpectedError } from "@/src/lib/monitoring/report";
+import { drainMeetingIngestQueue } from "@/src/lib/jobs/drainMeetingIngestQueue";
+import { reportApiUnexpectedError } from "@/src/lib/monitoring/report";
 import {
   buildDailyRoomUrl,
   getDailyRecordingLink,
@@ -133,50 +131,11 @@ export async function POST(request: NextRequest) {
     });
 
     void (async () => {
-      const claim = await claimMeetingIngestJob(enqueued.jobId);
-      if (claim !== "claimed") {
-        return;
-      }
-
-      try {
-        await processMeetingIngestJob({
-          meetingId: meeting.id,
-          recordingId: resolvedRecordingId,
-          recordingUrl: resolvedRecordingUrl,
-        });
-
-        await updateMeetingIngestJobStatus({
-          jobId: enqueued.jobId,
-          status: "completed",
-          error: null,
-        });
-      } catch (error) {
-        await updateMeetingRecordingState({
-          meetingId: meeting.id,
-          recordingStatus: "error",
-          recordingUrl: resolvedRecordingUrl,
-        });
-
-        await updateMeetingIngestJobStatus({
-          jobId: enqueued.jobId,
-          status: "error",
-          error: error instanceof Error ? error.message : "MEETING_INGEST_UNKNOWN_ERROR",
-        });
-
-        console.error("meeting_ingest_job_error", {
-          meetingId: meeting.id,
-          recordingId: resolvedRecordingId,
-          orgId: meeting.orgId,
-          status: "error",
-          reason: error instanceof Error ? error.message : "MEETING_INGEST_UNKNOWN_ERROR",
-        });
-
-        await reportServerUnexpectedError({
-          stage: "daily.recording-complete.processMeetingIngestJob",
-          error,
-          dedupeKey: `daily-recording-complete:${meeting.id}:${resolvedRecordingId}`,
-        });
-      }
+      await drainMeetingIngestQueue({
+        jobIds: [enqueued.jobId],
+        limit: 1,
+        reportStage: "daily.recording-complete.processMeetingIngestJob",
+      });
     })();
 
     return NextResponse.json({ ok: true });

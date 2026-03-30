@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 const baseUrl = process.env.SMOKE_BASE_URL || "http://127.0.0.1:3000";
@@ -10,6 +11,7 @@ process.env.FIRESTORE_EMULATOR_HOST ||= "127.0.0.1:8085";
 
 const adminApp = getApps()[0] || initializeApp({ projectId });
 const db = getFirestore(adminApp);
+const adminAuth = getAuth(adminApp);
 
 async function readSeed() {
   const raw = await fs.readFile("scripts/.seed-output.json", "utf8");
@@ -308,6 +310,8 @@ if (ownerEmail && ownerPassword) {
       contactName: "Owner Smoke",
       email: signupEmail,
       password: signupPassword,
+      acceptPrivacy: true,
+      acceptTerms: true,
     }),
   });
   assert(signupRes.ok, `Alta d'entitat ha fallat (${signupRes.status})`);
@@ -322,6 +326,7 @@ if (ownerEmail && ownerPassword) {
     },
     { merge: true }
   );
+  await adminAuth.updateUser(signupData.uid, { emailVerified: true });
 
   const secondOwnerIdToken = await signInEmulator(signupEmail, signupPassword);
   const secondOwnerCookie = await createSession(secondOwnerIdToken);

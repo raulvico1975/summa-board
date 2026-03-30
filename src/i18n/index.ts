@@ -4,9 +4,11 @@ import { esCore } from "@/src/i18n/es.core";
 import { esExtra } from "@/src/i18n/es.extra";
 export * from "@/src/i18n/config";
 import type { I18nLocale } from "@/src/i18n/config";
+import { applyProductBranding } from "@/src/lib/product/branding";
+import { getCurrentProductId, type ProductId } from "@/src/lib/product/config";
 
 const baseI18n: I18nCa = ca;
-const i18nCache = new Map<I18nLocale, I18nCa>([["ca", ca]]);
+const i18nCache = new Map<string, I18nCa>();
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -45,13 +47,19 @@ export function getLocaleOverlay(locale: I18nLocale): DeepPartial<I18nCa> {
   return localeOverlayByLocale[locale];
 }
 
-export function getI18n(locale: I18nLocale): I18nCa {
-  const cached = i18nCache.get(locale);
+function getCacheKey(locale: I18nLocale, productId: ProductId): string {
+  return `${productId}:${locale}`;
+}
+
+export function getI18n(locale: I18nLocale, productId: ProductId = getCurrentProductId()): I18nCa {
+  const cacheKey = getCacheKey(locale, productId);
+  const cached = i18nCache.get(cacheKey);
   if (cached) return cached;
 
   const merged = mergeI18n(baseI18n, getLocaleOverlay(locale));
-  i18nCache.set(locale, merged);
-  return merged;
+  const branded = applyProductBranding(merged, locale, productId);
+  i18nCache.set(cacheKey, branded);
+  return branded;
 }
 
 export const i18n = {

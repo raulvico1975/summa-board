@@ -6,9 +6,14 @@ import {
   createStripeCheckoutSession,
   createStripeCustomer,
 } from "@/src/lib/billing/stripe";
+import { consumeOwnerRateLimit } from "@/src/lib/rate-limit-owner";
 import { getRequestI18nFromNextRequest } from "@/src/i18n/request";
 import { reportApiUnexpectedError } from "@/src/lib/monitoring/report";
 import { isTrustedSameOrigin } from "@/src/lib/security/request";
+import {
+  OWNER_BILLING_MUTATION_MAX_HITS,
+  OWNER_MUTATION_RATE_WINDOW_MS,
+} from "@/src/lib/meetings/ingest-policy";
 
 export const runtime = "nodejs";
 
@@ -28,6 +33,18 @@ export async function POST(request: NextRequest) {
     const org = await getOrgById(owner.orgId);
     if (!org) {
       return NextResponse.json({ error: i18n.errors.unauthorized }, { status: 403 });
+    }
+
+    if (
+      !(await consumeOwnerRateLimit({
+        request,
+        owner,
+        scope: "billing-checkout",
+        maxHits: OWNER_BILLING_MUTATION_MAX_HITS,
+        windowMs: OWNER_MUTATION_RATE_WINDOW_MS,
+      }))
+    ) {
+      return NextResponse.json({ error: i18n.errors.rateLimited }, { status: 429 });
     }
 
     if (org.subscriptionStatus === "active") {

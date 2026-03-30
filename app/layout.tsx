@@ -10,12 +10,16 @@ import { LogoutButton } from "@/src/components/logout-button";
 import { ErrorMonitor } from "@/src/components/error-monitor";
 import { BrandLogo } from "@/src/components/brand-logo";
 import { SessionIdleManager } from "@/src/components/session/session-idle-manager";
+import { ContextualHelp } from "@/src/components/help/contextual-help";
+import { applyProductBranding } from "@/src/lib/product/branding";
+import { getProductConfig } from "@/src/lib/product/config";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const product = getProductConfig();
 
 export const metadata: Metadata = {
-  title: "Summa Reu",
-  description: "Votacions, convocatòries i actes per a entitats socials",
+  title: product.brandName,
+  description: product.defaultDescription,
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
@@ -26,8 +30,23 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { locale, i18n } = await getRequestI18n();
   const owner = await getOwnerFromServerCookies();
+  const footerCopy = {
+    ca: {
+      billing: "Subscripció",
+      privacy: "Privacitat",
+      terms: "Condicions",
+      copyright: "Convocatòries, reunions i actes automàtiques per a entitats.",
+    },
+    es: {
+      billing: "Suscripción",
+      privacy: "Privacidad",
+      terms: "Condiciones",
+      copyright: "Convocatorias, reuniones y actas automáticas para entidades.",
+    },
+  } as const;
   const navLinkClasses =
     "rounded-md px-3 py-2 text-center text-sm leading-tight transition-colors hover:bg-slate-100";
+  const footerText = applyProductBranding(footerCopy[locale], locale);
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -37,7 +56,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       >
         <I18nProvider locale={locale} i18n={i18n}>
           <SessionIdleManager enabled={Boolean(owner)} />
-          <header className="border-b border-slate-200 bg-white">
+          <header className="border-b border-slate-200/80 bg-white/85 backdrop-blur">
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-4">
               <Link
                 href={withLocalePath(locale, "/")}
@@ -66,6 +85,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     >
                       {i18n.nav.newPoll}
                     </Link>
+                    <Link
+                      className={`${navLinkClasses} flex-1 sm:flex-none`}
+                      href={withLocalePath(locale, "/billing")}
+                    >
+                      {footerText.billing}
+                    </Link>
                     <LogoutButton className="w-full sm:w-auto" label={i18n.nav.logout} />
                   </>
                 ) : (
@@ -88,6 +113,20 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </div>
           </header>
           <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:py-8">{children}</main>
+          {product.features.contextualHelp ? <ContextualHelp /> : null}
+          <footer className="border-t border-slate-200/80 bg-white/85 backdrop-blur">
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 py-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+              <p>{footerText.copyright}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link href={withLocalePath(locale, "/privacy")} className="hover:text-slate-900 hover:underline">
+                  {footerText.privacy}
+                </Link>
+                <Link href={withLocalePath(locale, "/terms")} className="hover:text-slate-900 hover:underline">
+                  {footerText.terms}
+                </Link>
+              </div>
+            </div>
+          </footer>
           <ErrorMonitor />
         </I18nProvider>
       </body>

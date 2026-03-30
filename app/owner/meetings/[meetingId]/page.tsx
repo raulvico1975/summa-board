@@ -2,9 +2,11 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { MeetingLiveRefresh } from "@/src/components/meetings/meeting-live-refresh";
 import { MeetingControlPanel } from "@/src/components/meetings/meeting-control-panel";
+import { MeetingShareActions } from "@/src/components/meetings/meeting-share-actions";
 import { MinutesEditor } from "@/src/components/meetings/minutes-editor";
 import { DeleteMeetingButton } from "@/src/components/meetings/delete-meeting-button";
-import { getMeetingById } from "@/src/lib/db/repo";
+import { MeetingIngestActionButton } from "@/src/components/ops/meeting-ingest-action-button";
+import { getMeetingById, isMeetingUsable } from "@/src/lib/db/repo";
 import { formatDateTime } from "@/src/lib/dates";
 import { requireOwnerPage } from "@/src/lib/ui/owner-page";
 import { getRequestI18n } from "@/src/i18n/server";
@@ -20,7 +22,7 @@ export default async function OwnerMeetingPage({
   const { meetingId } = await params;
 
   const meeting = await getMeetingById(meetingId);
-  if (!meeting || meeting.orgId !== owner.orgId) {
+  if (!meeting || meeting.orgId !== owner.orgId || !isMeetingUsable(meeting)) {
     notFound();
   }
 
@@ -32,9 +34,40 @@ export default async function OwnerMeetingPage({
   const latestIngestJob = meeting.latestIngestJob;
   const showProcessingError = recordingStatus === "error" || latestIngestJob?.status === "error";
   const dailyRoomUrl = meeting.dailyRoomUrl ?? meeting.meetingUrl ?? null;
-  const deleteRedirectHref = meeting.poll
-    ? withLocalePath(locale, `/polls/${meeting.poll.id}`)
-    : withLocalePath(locale, "/dashboard");
+  const deleteRedirectHref = withLocalePath(locale, "/dashboard");
+  const joinPath = withLocalePath(locale, `/join/${meeting.id}`);
+  const ownerMeetingPath = withLocalePath(locale, `/owner/meetings/${meeting.id}`);
+  const meetingEntryHref = `${joinPath}?autojoin=1&returnTo=${encodeURIComponent(ownerMeetingPath)}`;
+  const hasGeneratedMinutes =
+    (minutesDraft && minutesDraft.trim().length > 0) || meeting.minutes.length > 0;
+  const formattedScheduledAt = meeting.scheduledAt ? formatDateTime(meeting.scheduledAt, locale) : null;
+  const opsCopy = {
+    ca: {
+      jobTitle: "Estat del processament",
+      convocationTitle: "Convocatòria final",
+      attempts: "Intents",
+      updatedAt: "Actualitzat",
+      nextAttempt: "Proper intent",
+      retry: "Reintentar ara",
+      retryLoading: "Reintentant...",
+      retrySuccess: "Job relançat.",
+      retryError: "No s'ha pogut reintentar.",
+      ics: "Descarregar ICS",
+    },
+    es: {
+      jobTitle: "Estado del procesamiento",
+      convocationTitle: "Convocatoria final",
+      attempts: "Intentos",
+      updatedAt: "Actualizado",
+      nextAttempt: "Próximo intento",
+      retry: "Reintentar ahora",
+      retryLoading: "Reintentando...",
+      retrySuccess: "Job relanzado.",
+      retryError: "No se ha podido reintentar.",
+      ics: "Descargar ICS",
+    },
+  } as const;
+  const opsText = opsCopy[locale];
 
   return (
     <div className="space-y-6">
@@ -65,6 +98,7 @@ export default async function OwnerMeetingPage({
           <MeetingControlPanel
             meetingId={meeting.id}
             meetingUrl={dailyRoomUrl}
+            meetingEntryHref={meetingEntryHref}
             recordingStatus={recordingStatus}
           />
           {showProcessingError ? (
@@ -79,6 +113,65 @@ export default async function OwnerMeetingPage({
           <MeetingLiveRefresh enabled={showRefresh} />
         </CardContent>
       </Card>
+
+      {dailyRoomUrl && formattedScheduledAt ? (
+        <Card className="border-slate-300 shadow-sm">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-base font-semibold">{opsText.convocationTitle}</h2>
+            <a
+              href={`/api/public/ics?meetingId=${meeting.id}`}
+              className="rounded-md border border-slate-300 px-3 py-2 text-center text-sm font-medium transition-colors hover:bg-slate-50"
+            >
+              {opsText.ics}
+            </a>
+          </CardHeader>
+          <CardContent>
+            <MeetingShareActions
+              locale={locale}
+              meetingHref={joinPath}
+              meetingTitle={meeting.title}
+              scheduledLabel={formattedScheduledAt}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {latestIngestJob ? (
+        <Card className="border-slate-300 shadow-sm">
+          <CardHeader>
+            <h2 className="text-base font-semibold">{opsText.jobTitle}</h2>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-slate-700">
+            <p>
+              <span className="font-medium">Status:</span> {latestIngestJob.status}
+            </p>
+            <p>
+              <span className="font-medium">{opsText.attempts}:</span> {latestIngestJob.attemptCount ?? 0}
+            </p>
+            <p>
+              <span className="font-medium">{opsText.updatedAt}:</span>{" "}
+              {formatDateTime(latestIngestJob.updatedAt, locale)}
+            </p>
+            {typeof latestIngestJob.nextAttemptAt === "number" ? (
+              <p>
+                <span className="font-medium">{opsText.nextAttempt}:</span>{" "}
+                {formatDateTime(latestIngestJob.nextAttemptAt, locale)}
+              </p>
+            ) : null}
+            {latestIngestJob.error ? <p className="text-red-600">{latestIngestJob.error}</p> : null}
+            {latestIngestJob.status !== "completed" ? (
+              <MeetingIngestActionButton
+                action="requeue"
+                jobId={latestIngestJob.id}
+                label={opsText.retry}
+                loadingLabel={opsText.retryLoading}
+                successLabel={opsText.retrySuccess}
+                errorLabel={opsText.retryError}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="border-slate-300 shadow-sm">
         <CardHeader>
@@ -109,7 +202,7 @@ export default async function OwnerMeetingPage({
         </CardContent>
       </Card>
 
-      <Card className="border-slate-300 shadow-sm">
+      <Card id="minutes" className="border-slate-300 shadow-sm">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold">{i18n.meeting.sectionMinutes}</h2>
           <a
@@ -140,8 +233,15 @@ export default async function OwnerMeetingPage({
           <h2 className="text-base font-semibold text-red-700">{i18n.meeting.deleteTitle}</h2>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-slate-600">{i18n.meeting.deleteDescription}</p>
-          <DeleteMeetingButton meetingId={meeting.id} redirectHref={deleteRedirectHref} />
+          <p className="text-sm text-slate-600">
+            {meeting.poll ? i18n.meeting.deleteDescriptionWithPoll : i18n.meeting.deleteDescription}
+          </p>
+          <DeleteMeetingButton
+            meetingId={meeting.id}
+            pollId={meeting.poll?.id ?? null}
+            hasGeneratedMinutes={hasGeneratedMinutes}
+            redirectHref={deleteRedirectHref}
+          />
         </CardContent>
       </Card>
     </div>

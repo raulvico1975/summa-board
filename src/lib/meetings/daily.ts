@@ -11,6 +11,10 @@ type DailyStartRecordingResponse = {
   status?: string;
 };
 
+type DailyMeetingTokenResponse = {
+  token?: string;
+};
+
 function requireDailyConfig(): { apiKey: string; apiBaseUrl: string; domain: string } {
   if (serverEnv.dailyMockMode) {
     return {
@@ -104,6 +108,12 @@ export function getDailyRoomNameFromUrl(meetingUrl: string): string {
   }
 }
 
+export function buildDailyJoinUrl(meetingUrl: string, token: string): string {
+  const url = new URL(meetingUrl);
+  url.searchParams.set("t", token);
+  return url.toString();
+}
+
 export async function createDailyRoom(input: { title: string }): Promise<{ roomName: string; meetingUrl: string }> {
   const roomName = buildDailyRoomName(input.title);
   if (serverEnv.dailyMockMode) {
@@ -129,6 +139,45 @@ export async function createDailyRoom(input: { title: string }): Promise<{ roomN
     roomName: response.name ?? roomName,
     meetingUrl: response.url ?? buildDailyRoomUrl(response.name ?? roomName),
   };
+}
+
+export async function createDailyMeetingToken(input: {
+  meetingUrl: string;
+  userName: string;
+  isOwner?: boolean;
+  locale?: "ca" | "es";
+  closeTabOnExit?: boolean;
+}): Promise<string> {
+  const roomName = getDailyRoomNameFromUrl(input.meetingUrl);
+  // Daily does not currently offer Catalan UI, so we fall back to Spanish.
+  const dailyLocale = "es";
+
+  if (serverEnv.dailyMockMode) {
+    return `mock-token-${roomName}`;
+  }
+
+  const response = await dailyFetch<DailyMeetingTokenResponse>("/meeting-tokens", {
+    method: "POST",
+    body: JSON.stringify({
+      properties: {
+        room_name: roomName,
+        is_owner: input.isOwner ?? false,
+        user_name: input.userName,
+        lang: dailyLocale,
+        enable_prejoin_ui: false,
+        start_audio_off: true,
+        start_video_off: true,
+        close_tab_on_exit: input.closeTabOnExit ?? false,
+        exp: Math.floor(Date.now() / 1000) + 2 * 60 * 60,
+      },
+    }),
+  });
+
+  if (!response.token) {
+    throw new Error("DAILY_TOKEN_MISSING");
+  }
+
+  return response.token;
 }
 
 export async function startDailyRecording(meetingUrl: string): Promise<{ recordingId: string | null }> {
@@ -177,7 +226,7 @@ export async function getDailyRecordingLink(recordingId: string): Promise<string
 export function isAuthorizedDailyWebhook(authHeader: string | null): boolean {
   const expected = serverEnv.dailyWebhookBearerToken;
   if (!expected) {
-    return true;
+    return process.env.NODE_ENV !== "production" || serverEnv.dailyMockMode;
   }
 
   return authHeader === `Bearer ${expected}`;

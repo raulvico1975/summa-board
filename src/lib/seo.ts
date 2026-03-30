@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import type { I18nLocale } from "@/src/i18n/config";
 import { withLocalePath } from "@/src/i18n/routing";
+import { getProductConfig } from "@/src/lib/product/config";
 
 function absoluteBaseUrl(): string {
+  const product = getProductConfig();
   const configured =
     process.env.NEXT_PUBLIC_APP_URL ??
     process.env.NEXT_PUBLIC_CANONICAL_URL ??
     process.env.CANONICAL_URL ??
-    `https://${process.env.CANONICAL_HOST ?? "summareu.app"}`;
+    `https://${process.env.CANONICAL_HOST ?? product.canonicalHost}`;
 
   return configured.replace(/\/+$/, "");
 }

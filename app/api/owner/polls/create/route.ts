@@ -10,6 +10,11 @@ import { getOwnerFromRequest } from "@/src/lib/firebase/auth";
 import { getRequestI18nFromNextRequest } from "@/src/i18n/request";
 import { reportApiUnexpectedError } from "@/src/lib/monitoring/report";
 import { isTrustedSameOrigin } from "@/src/lib/security/request";
+import { consumeOwnerRateLimit } from "@/src/lib/rate-limit-owner";
+import {
+  OWNER_MUTATION_RATE_WINDOW_MS,
+  OWNER_POLL_MUTATION_MAX_HITS,
+} from "@/src/lib/meetings/ingest-policy";
 
 export const runtime = "nodejs";
 
@@ -32,6 +37,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: i18n.errors.unauthorized }, { status: 401 });
     }
     requireActiveSubscription(owner);
+
+    if (
+      !(await consumeOwnerRateLimit({
+        request,
+        owner,
+        scope: "owner-create-poll",
+        maxHits: OWNER_POLL_MUTATION_MAX_HITS,
+        windowMs: OWNER_MUTATION_RATE_WINDOW_MS,
+      }))
+    ) {
+      return NextResponse.json({ error: i18n.errors.rateLimited }, { status: 429 });
+    }
 
     const body = bodySchema.parse(await request.json());
     const validDates = body.optionsIso.filter((value) => !Number.isNaN(new Date(value).getTime()));
