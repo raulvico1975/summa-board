@@ -12,7 +12,13 @@ function getRequestHost(request: NextRequest): string {
 }
 
 export function getClientIp(request: NextRequest): string {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const candidates = [
+    request.headers.get("cf-connecting-ip"),
+    request.headers.get("x-real-ip"),
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+  ];
+
+  return candidates.find((candidate): candidate is string => !!candidate) ?? "unknown";
 }
 
 export function isTrustedSameOrigin(request: NextRequest): boolean {

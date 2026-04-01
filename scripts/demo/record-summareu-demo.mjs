@@ -142,7 +142,6 @@ async function main() {
     });
 
     await page.getByRole("button", { name: /Entrar a la reunió/i }).click();
-    await page.getByText(/s'ha obert en una nova pestanya/i).waitFor();
     await page.waitForTimeout(2200);
   } finally {
     await context.close();
