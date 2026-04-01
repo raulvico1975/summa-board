@@ -171,11 +171,7 @@ if (ownerEmail && ownerPassword) {
       winningOptionId: optionIds[0],
     }),
   });
-  if (!closePollRes.ok) {
-    const errorBody = await closePollRes.text();
-    console.error("close-poll error body:", errorBody);
-    assert(false, `Tancar votació ha fallat (${closePollRes.status}): ${errorBody}`);
-  }
+  assert(closePollRes.ok, `Tancar votació ha fallat (${closePollRes.status})`);
   const closePollData = await closePollRes.json();
   assert(Boolean(closePollData.meetingId), "Tancar votació no ha retornat meetingId");
 

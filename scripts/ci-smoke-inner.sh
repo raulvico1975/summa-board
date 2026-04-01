@@ -36,10 +36,4 @@ if ! curl -fs "http://127.0.0.1:3000/login" >/dev/null; then
 fi
 
 npm run seed
-set +e
 npm run test:smoke
-SMOKE_EXIT=$?
-set -e
-echo "=== Next.js server logs (last 60 lines) ==="
-tail -n 60 /tmp/summa-next-dev.log || true
-exit $SMOKE_EXIT

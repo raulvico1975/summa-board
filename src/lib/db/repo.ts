@@ -372,12 +372,14 @@ export async function closePollCreateMeeting(input: {
   const pollRef = pollsCol.doc(input.pollId);
   const optionRef = pollRef.collection("options").doc(input.winningOptionId);
   const attemptAt = Date.now();
+  // Query existing meetings outside the transaction to avoid Firestore emulator
+  // bug where trx.get(Query) ignores where-clause filters.
+  const existingMeetingSnap = await meetingsCol.where("pollId", "==", input.pollId).limit(1).get();
+  const existingMeetingDoc = existingMeetingSnap.docs[0] ?? null;
   const preparedMeeting = await adminDb.runTransaction(async (trx) => {
-    const meetingsByPollQuery = meetingsCol.where("pollId", "==", input.pollId).limit(1);
-    const [pollDoc, optionDoc, existingMeetingSnap] = await Promise.all([
+    const [pollDoc, optionDoc] = await Promise.all([
       trx.get(pollRef),
       trx.get(optionRef),
-      trx.get(meetingsByPollQuery),
     ]);
 
     if (!pollDoc.exists) {
@@ -389,7 +391,6 @@ export async function closePollCreateMeeting(input: {
     }
 
     const poll = pollDoc.data() as PollDoc;
-    const existingMeetingDoc = existingMeetingSnap.docs[0];
     const existingMeeting = existingMeetingDoc ? normalizeMeetingDoc(existingMeetingDoc.data() as MeetingDoc) : null;
     const canRetryLegacyClosed = poll.status === "closed" && (!existingMeeting || !isMeetingUsable(existingMeeting));
 
