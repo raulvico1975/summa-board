@@ -100,6 +100,7 @@ export const esCore: I18nEsCore = {
     invalidOptionDates: "No hay opciones válidas.",
     pollClosed: "Esta votación está cerrada.",
     pollNotFound: "No se ha encontrado la votación.",
+    voteNotFound: "No se ha encontrado el voto.",
     optionInvalid: "Opciones de voto no válidas.",
     rateLimited: "Demasiados intentos, vuelve a probar en unos minutos.",
     generic: "Se ha producido un error inesperado.",

@@ -146,6 +146,31 @@ test("poll page links meetings only when a usable meeting exists", async () => {
   assert.equal(source.includes("const canClosePoll = effectivePollStatus === \"open\" || effectivePollStatus === \"close_failed\";"), true);
 });
 
+test("manage poll page keeps admin actions separate from the public vote matrix", async () => {
+  const source = await fs.readFile("app/polls/[pollId]/page.tsx", "utf8");
+
+  assert.equal(source.includes("ResultsTable"), false);
+  assert.equal(source.includes("DeleteVoteButton"), true);
+  assert.equal(source.includes("voteManagementTitle"), true);
+  assert.equal(source.includes("i18n.poll.openPublicResults"), true);
+  assert.equal(source.includes("ClosePollForm"), true);
+});
+
+test("public results page renders the detailed vote matrix", async () => {
+  const source = await fs.readFile("app/p/[slug]/results/page.tsx", "utf8");
+
+  assert.equal(source.includes("ResultsTable"), true);
+  assert.equal(source.includes("i18n.poll.votesTable"), true);
+});
+
+test("owner vote delete route exists and validates the poll ownership", async () => {
+  const source = await fs.readFile("app/api/owner/polls/votes/delete/route.ts", "utf8");
+
+  assert.equal(source.includes("deleteVoteByVoterId"), true);
+  assert.equal(source.includes("i18n.errors.voteNotFound"), true);
+  assert.equal(source.includes("requireActiveSubscription"), true);
+});
+
 test("owner meeting page rejects meetings that are not usable", async () => {
   const source = await fs.readFile("app/owner/meetings/[meetingId]/page.tsx", "utf8");
 

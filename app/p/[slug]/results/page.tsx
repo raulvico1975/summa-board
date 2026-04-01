@@ -129,7 +129,7 @@ export default async function PublicPollResultsPage({ params }: { params: Promis
       {hasVotes ? (
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold">{i18n.poll.results}</h2>
+            <h2 className="text-base font-semibold">{i18n.poll.votesTable}</h2>
           </CardHeader>
           <CardContent>
             <ResultsTable options={options} rows={rows} i18n={i18n} />

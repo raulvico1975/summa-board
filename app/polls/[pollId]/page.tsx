@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { StatusBadge } from "@/src/components/ui/status-badge";
-import { ResultsTable } from "@/src/components/polls/results-table";
+import { DeleteVoteButton } from "@/src/components/polls/delete-vote-button";
 import { ClosePollForm } from "@/src/components/polls/close-poll-form";
 import { CopyVoteLinkButton } from "@/src/components/polls/copy-vote-link-button";
 import { getPollById, getPollVoteRows, getUsableMeetingIdByPollId } from "@/src/lib/db/repo";
@@ -46,6 +46,10 @@ export default async function PollManagePage({
   const options = poll.options.map((option) => ({
     id: option.id,
     label: formatDateTime(option.startsAt, locale),
+  }));
+  const voteRows = rows.map((row) => ({
+    ...row,
+    selectedCount: Object.values(row.availabilityByOptionId).filter(Boolean).length,
   }));
 
   return (
@@ -100,19 +104,28 @@ export default async function PollManagePage({
 
       <Card>
         <CardHeader>
-          <h2 className="text-base font-semibold">{i18n.poll.results}</h2>
+          <h2 className="text-base font-semibold">{i18n.poll.voteManagementTitle}</h2>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <ResultsTable options={options} rows={rows} i18n={i18n} />
-          <div className="grid gap-2 text-sm sm:flex sm:flex-wrap">
-            <CopyVoteLinkButton slug={poll.slug} />
-            <Link
-              className="rounded-md border border-slate-300 px-3 py-2 text-center font-medium transition-colors hover:bg-slate-100"
-              href={withLocalePath(locale, `/p/${poll.slug}/results`)}
-            >
-              {i18n.poll.openPublicResults}
-            </Link>
-          </div>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-600">{i18n.poll.voteManagementHint}</p>
+          {voteRows.length === 0 ? (
+            <p className="text-sm text-slate-600">{i18n.poll.noVotesYet}</p>
+          ) : (
+            voteRows.map((row) => (
+              <div
+                key={row.voterId}
+                className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-semibold text-slate-900">{row.voterName}</p>
+                  <p className="text-xs text-slate-500">
+                    {i18n.poll.selectedOptions}: {row.selectedCount}/{options.length}
+                  </p>
+                </div>
+                <DeleteVoteButton pollId={poll.id} voterId={row.voterId} voterName={row.voterName} />
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 

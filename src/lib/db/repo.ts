@@ -364,6 +364,26 @@ export async function upsertVoteByVoterId(input: {
   });
 }
 
+export async function deleteVoteByVoterId(input: {
+  pollId: string;
+  voterId: string;
+}): Promise<boolean> {
+  const pollRef = pollsCol.doc(input.pollId);
+  const voteRef = pollRef.collection("votes").doc(input.voterId) as DocumentReference<PollVoteDoc>;
+  const voterRef = pollRef.collection("voters").doc(input.voterId) as DocumentReference<PollVoterDoc>;
+
+  return adminDb.runTransaction(async (trx) => {
+    const voteSnap = await trx.get(voteRef);
+    if (!voteSnap.exists) {
+      return false;
+    }
+
+    trx.delete(voteRef);
+    trx.delete(voterRef);
+    return true;
+  });
+}
+
 export async function closePollCreateMeeting(input: {
   pollId: string;
   winningOptionId: string;
