@@ -83,7 +83,10 @@ const homeRes = await fetch(`${baseUrl}/`);
 assert(homeRes.ok, "La pàgina pública / no respon OK");
 const homeHtml = await homeRes.text();
 assert(homeHtml.includes("Accés entitat"), "A / no es veu el CTA d'accés");
-assert(homeHtml.includes("Donar d'alta entitat"), "A / no es veu el CTA d'alta");
+assert(
+  homeHtml.includes("Activa l'espai") || homeHtml.includes("Donar d'alta entitat"),
+  "A / no es veu el CTA d'alta"
+);
 
 const pollRes = await fetch(`${baseUrl}/p/${pollSlug}`);
 assert(pollRes.ok, "La pàgina pública de votació no respon OK");
