@@ -15,6 +15,18 @@ export function getBillingGraceDeadline(subscriptionPastDueAt: number | null | u
   return subscriptionPastDueAt + BILLING_GRACE_PERIOD_MS;
 }
 
+export function getBillingGraceDaysRemaining(
+  subscriptionPastDueAt: number | null | undefined,
+  now = Date.now()
+): number {
+  const deadline = getBillingGraceDeadline(subscriptionPastDueAt);
+  if (deadline === null) {
+    return 0;
+  }
+
+  return Math.max(0, Math.ceil((deadline - now) / (24 * 60 * 60 * 1000)));
+}
+
 export function isBillingGraceActive(
   state: BillingSubscriptionState,
   now = Date.now()

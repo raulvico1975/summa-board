@@ -243,7 +243,7 @@ export const esExtra: DeepPartial<I18nCa> = {
     pollClosedCta: "Ver reunión",
     billingPastDueSubject: "Recordatorio de pago de la suscripción de {orgName}",
     billingPastDueBody:
-      "No hemos podido cobrar la cuota de {orgName}. Tienes {days} días para actualizar el método de pago antes de que se bloquee el acceso.",
+      "Dentro de {days} días cargaremos la cuota mensual acordada al método de pago seleccionado. Para cualquier duda, pueden ponerse en contacto en hola@summareu.app.",
     billingPastDueCta: "Ir a facturación",
   },
   billing: {
@@ -260,7 +260,8 @@ export const esExtra: DeepPartial<I18nCa> = {
     subscriptionPastDue: "pago pendiente",
     subscriptionCanceled: "cancelada",
     subscriptionRequired: "La suscripción no está activa. Actívala para continuar.",
-    pastDueGrace: "Tienes 3 días para actualizar el método de pago antes de que se bloquee el acceso.",
+    pastDueGrace:
+      "Dentro de {days} días cargaremos la cuota mensual acordada al método de pago seleccionado. Para cualquier duda, pueden ponerse en contacto en hola@summareu.app.",
     pastDueExpired: "El periodo de gracia ha terminado. Reactiva la suscripción para recuperar el acceso.",
   },
   help: helpEs,

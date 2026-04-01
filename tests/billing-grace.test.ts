@@ -53,9 +53,12 @@ test("expired grace period blocks owner features", () => {
 });
 
 test("stripe webhook updates support the grace period and reminder email", async () => {
-  const [webhookSource, emailSource] = await Promise.all([
+  const [webhookSource, emailSource, caSource, esSource, billingPageSource] = await Promise.all([
     fs.readFile("app/api/webhooks/stripe/route.ts", "utf8"),
     fs.readFile("src/lib/notifications/billing-email.ts", "utf8"),
+    fs.readFile("src/i18n/ca.ts", "utf8"),
+    fs.readFile("src/i18n/es.extra.ts", "utf8"),
+    fs.readFile("app/billing/page.tsx", "utf8"),
   ]);
 
   assert.equal(webhookSource.includes("invoice.payment_failed"), true);
@@ -64,4 +67,17 @@ test("stripe webhook updates support the grace period and reminder email", async
   assert.equal(webhookSource.includes("notifyOwnerBillingPastDue"), true);
   assert.equal(emailSource.includes("billingPastDueSubject"), true);
   assert.equal(emailSource.includes("billingPastDueCta"), true);
+  assert.equal(
+    caSource.includes(
+      "D'aquí a {days} dies carregarem la quota mensual acordada al mètode de pagament seleccionat."
+    ),
+    true
+  );
+  assert.equal(
+    esSource.includes(
+      "Dentro de {days} días cargaremos la cuota mensual acordada al método de pago seleccionado."
+    ),
+    true
+  );
+  assert.equal(billingPageSource.includes("graceDaysRemaining"), true);
 });

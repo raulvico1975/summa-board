@@ -4,7 +4,10 @@ import { getOwnerFromServerCookies } from "@/src/lib/firebase/auth";
 import { getRequestI18n } from "@/src/i18n/server";
 import { withLocalePath } from "@/src/i18n/routing";
 import { ActivateSubscriptionButton } from "@/src/components/billing/activate-subscription-button";
-import { isBillingGraceActive } from "@/src/lib/billing/subscription";
+import {
+  getBillingGraceDaysRemaining,
+  isBillingGraceActive,
+} from "@/src/lib/billing/subscription";
 
 const statusKeys = {
   none: "subscriptionNone",
@@ -28,12 +31,14 @@ export default async function BillingPage() {
   const statusLabel =
     billing[statusKeys[owner.subscriptionStatus as keyof typeof statusKeys] ?? "subscriptionNone"];
   const graceActive = isBillingGraceActive(owner);
+  const graceDaysRemaining = getBillingGraceDaysRemaining(owner.subscriptionPastDueAt);
   const billingHint =
     owner.subscriptionStatus === "past_due"
       ? graceActive
-        ? billing.pastDueGrace
+        ? billing.pastDueGrace.replaceAll("{days}", String(graceDaysRemaining || 3))
         : billing.pastDueExpired
       : billing.hint;
+  const isPastDue = owner.subscriptionStatus === "past_due";
 
   return (
     <div className="mx-auto max-w-md">
@@ -48,7 +53,15 @@ export default async function BillingPage() {
             <p className="mt-1 text-sm text-slate-600">
               {billing.status}: {statusLabel}
             </p>
-            <p className="mt-2 text-xs text-slate-500">{billingHint}</p>
+            <div
+              className={`mt-3 rounded-md border p-3 ${
+                isPastDue
+                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                  : "border-slate-200 bg-white text-slate-600"
+              }`}
+            >
+              <p className="text-sm leading-6">{billingHint}</p>
+            </div>
           </div>
           <ActivateSubscriptionButton
             label={billing.cta}

@@ -345,7 +345,7 @@ export const ca = {
     pollClosedCta: "Veure reunió",
     billingPastDueSubject: "Recordatori de pagament de la subscripció de {orgName}",
     billingPastDueBody:
-      "No hem pogut cobrar la quota de {orgName}. Tens {days} dies per actualitzar el mètode de pagament abans que es bloquegi l'accés.",
+      "D'aquí a {days} dies carregarem la quota mensual acordada al mètode de pagament seleccionat. Per qualsevol dubte, podeu entrar en contacte hola@summareu.app.",
     billingPastDueCta: "Anar a facturació",
   },
   billing: {
@@ -362,7 +362,8 @@ export const ca = {
     subscriptionPastDue: "pagament pendent",
     subscriptionCanceled: "cancel·lada",
     subscriptionRequired: "La subscripció no està activa. Activa-la per continuar.",
-    pastDueGrace: "Tens 3 dies per actualitzar el mètode de pagament abans que es bloquegi l'accés.",
+    pastDueGrace:
+      "D'aquí a {days} dies carregarem la quota mensual acordada al mètode de pagament seleccionat. Per qualsevol dubte, podeu entrar en contacte hola@summareu.app.",
     pastDueExpired: "El període de gràcia ha acabat. Reactiva la subscripció per recuperar l'accés.",
   },
   help: helpCa,
