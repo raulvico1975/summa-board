@@ -119,13 +119,20 @@ async function main() {
     await page.waitForURL(/\/polls\/[^/]+/);
     await page.waitForTimeout(1000);
 
-    const select = page.locator("select").first();
-    if (await select.count()) {
-      await select.selectOption({ index: 0 });
+    const openMeetingLink = page.getByRole("link", { name: /Obrir reunió/i }).first();
+    if (await openMeetingLink.count()) {
+      await openMeetingLink.click();
+      await page.waitForURL(/\/owner\/meetings\/[^/]+/);
+      await page.waitForTimeout(1200);
+    } else {
+      const select = page.locator("select").first();
+      if (await select.count()) {
+        await select.selectOption({ index: 0 });
+      }
+      await page.getByRole("button", { name: /Tancar votació/i }).click();
+      await page.waitForURL(/\/owner\/meetings\/[^/]+/);
+      await page.waitForTimeout(1200);
     }
-    await page.getByRole("button", { name: /Tancar votació/i }).click();
-    await page.waitForURL(/\/owner\/meetings\/[^/]+/);
-    await page.waitForTimeout(1200);
 
     await page.evaluate(() => {
       window.open = (...args) => {
