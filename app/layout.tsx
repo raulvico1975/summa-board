@@ -73,6 +73,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     >
                       {i18n.nav.settings}
                     </Link>
+                    <Link
+                      className={`${navLinkClasses} flex-1 sm:flex-none`}
+                      href={withLocalePath(locale, "/help")}
+                    >
+                      {i18n.nav.help}
+                    </Link>
                     <LogoutButton className="w-full sm:w-auto" label={i18n.nav.logout} />
                   </>
                 ) : (

@@ -26,6 +26,7 @@ export type OrgDoc = {
   language?: OrgLanguage;
   createdAt: Timestamp;
   subscriptionStatus?: OrgSubscriptionStatus;
+  subscriptionPastDueAt?: number | null;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   plan?: OrgPlan;

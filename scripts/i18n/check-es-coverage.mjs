@@ -75,8 +75,10 @@ function extractObjectLiteral(source, marker) {
   throw new Error(`Object end not found for marker: ${marker}`);
 }
 
-function parseObjectLiteral(literal) {
-  return Function(`"use strict"; return (${literal});`)();
+function parseObjectLiteral(literal, context = {}) {
+  const keys = Object.keys(context);
+  const values = Object.values(context);
+  return Function(...keys, `"use strict"; return (${literal});`)(...values);
 }
 
 function isPlainObject(value) {
@@ -166,14 +168,32 @@ function validatePlaceholders(base, candidate, pathPrefix, errors) {
   }
 }
 
+function loadHelpContext() {
+  const helpCaPath = path.join(root, "src/i18n/help.ca.ts");
+  const helpEsPath = path.join(root, "src/i18n/help.es.ts");
+  const context = {};
+
+  if (fs.existsSync(helpCaPath)) {
+    const src = read(helpCaPath);
+    context.helpCa = parseObjectLiteral(extractObjectLiteral(src, "export const helpCa"));
+  }
+  if (fs.existsSync(helpEsPath)) {
+    const src = read(helpEsPath);
+    context.helpEs = parseObjectLiteral(extractObjectLiteral(src, "export const helpEs"));
+  }
+  return context;
+}
+
 function run() {
+  const helpCtx = loadHelpContext();
+
   const caSource = read(files.ca);
   const esCoreSource = read(files.esCore);
   const esExtraSource = read(files.esExtra);
 
-  const ca = parseObjectLiteral(extractObjectLiteral(caSource, "export const ca ="));
-  const esCore = parseObjectLiteral(extractObjectLiteral(esCoreSource, "export const esCore"));
-  const esExtra = parseObjectLiteral(extractObjectLiteral(esExtraSource, "export const esExtra"));
+  const ca = parseObjectLiteral(extractObjectLiteral(caSource, "export const ca ="), helpCtx);
+  const esCore = parseObjectLiteral(extractObjectLiteral(esCoreSource, "export const esCore"), helpCtx);
+  const esExtra = parseObjectLiteral(extractObjectLiteral(esExtraSource, "export const esExtra"), helpCtx);
   const esMerged = deepMerge(esCore, esExtra);
 
   const errors = [];

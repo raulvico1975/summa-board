@@ -1047,6 +1047,7 @@ export async function createOrgForOwner(input: { ownerUid: string; name: string;
     language: input.language ?? "ca",
     createdAt: FieldValue.serverTimestamp() as Timestamp,
     subscriptionStatus: "none",
+    subscriptionPastDueAt: null,
     plan: "basic",
     recordingLimitMinutes: 90,
   });
@@ -1056,18 +1057,22 @@ export async function createOrgForOwner(input: { ownerUid: string; name: string;
 export async function updateOrgSubscription(input: {
   orgId: string;
   subscriptionStatus?: OrgSubscriptionStatus;
+  subscriptionPastDueAt?: number | null;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
 }): Promise<void> {
   const patch: Partial<OrgDoc> = {};
 
-  if (input.subscriptionStatus) {
+  if (input.subscriptionStatus !== undefined) {
     patch.subscriptionStatus = input.subscriptionStatus;
   }
-  if (input.stripeCustomerId) {
+  if (input.subscriptionPastDueAt !== undefined) {
+    patch.subscriptionPastDueAt = input.subscriptionPastDueAt;
+  }
+  if (input.stripeCustomerId !== undefined) {
     patch.stripeCustomerId = input.stripeCustomerId;
   }
-  if (input.stripeSubscriptionId) {
+  if (input.stripeSubscriptionId !== undefined) {
     patch.stripeSubscriptionId = input.stripeSubscriptionId;
   }
 

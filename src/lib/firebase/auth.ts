@@ -10,6 +10,7 @@ export type OwnerContext = {
   orgId: string;
   orgName: string;
   subscriptionStatus: OrgSubscriptionStatus;
+  subscriptionPastDueAt: number | null;
   plan: OrgPlan;
   recordingLimitMinutes: number;
 };
@@ -23,6 +24,7 @@ async function resolveOwnerContext(uid: string): Promise<OwnerContext | null> {
       orgId: canonicalDoc.id,
       orgName: data.name ?? "Organització",
       subscriptionStatus: data.subscriptionStatus ?? "none",
+      subscriptionPastDueAt: data.subscriptionPastDueAt ?? null,
       plan: data.plan ?? "basic",
       recordingLimitMinutes: data.recordingLimitMinutes ?? 90,
     };
@@ -46,6 +48,7 @@ async function resolveOwnerContext(uid: string): Promise<OwnerContext | null> {
     orgId: orgDoc.id,
     orgName: data.name ?? "Organització",
     subscriptionStatus: data.subscriptionStatus ?? "none",
+    subscriptionPastDueAt: data.subscriptionPastDueAt ?? null,
     plan: data.plan ?? "basic",
     recordingLimitMinutes: data.recordingLimitMinutes ?? 90,
   };

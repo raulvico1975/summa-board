@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { OwnerContext } from "@/src/lib/firebase/auth";
+import { canAccessOwnerFeatures } from "@/src/lib/billing/subscription";
 
 const SUBSCRIPTION_REQUIRED_CODE = "subscription_required";
 
@@ -15,7 +16,7 @@ export class SubscriptionRequiredError extends Error {
 export function requireActiveSubscription(
   owner: Pick<OwnerContext, "subscriptionStatus">
 ): void {
-  if (owner.subscriptionStatus !== "active") {
+  if (!canAccessOwnerFeatures(owner)) {
     throw new SubscriptionRequiredError();
   }
 }

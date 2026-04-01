@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { adminAuth } from "@/src/lib/firebase/admin";
 import { getOrgById } from "@/src/lib/db/repo";
+import { getI18n } from "@/src/i18n";
+import type { I18nLocale } from "@/src/i18n/config";
 
 const resendApiKey = process.env.RESEND_API_KEY;
 
@@ -8,20 +10,13 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-const voteEmailStrings = {
-  ca: {
-    subject: (title: string) => `Nou vot a "${title}"`,
-    body: (voterName: string, title: string) =>
-      `<p><strong>${escapeHtml(voterName)}</strong> ha votat a la teva enquesta <strong>${escapeHtml(title)}</strong>.</p>`,
-    cta: "Veure resultats",
-  },
-  es: {
-    subject: (title: string) => `Nuevo voto en "${title}"`,
-    body: (voterName: string, title: string) =>
-      `<p><strong>${escapeHtml(voterName)}</strong> ha votado en tu encuesta <strong>${escapeHtml(title)}</strong>.</p>`,
-    cta: "Ver resultados",
-  },
-} as const;
+function replaceTokens(template: string, tokens: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(tokens)) {
+    result = result.replaceAll(`{${key}}`, value);
+  }
+  return result;
+}
 
 export async function notifyOwnerNewVote(input: {
   orgId: string;
@@ -42,19 +37,22 @@ export async function notifyOwnerNewVote(input: {
   if (!ownerEmail) return;
 
   const org = await getOrgById(input.orgId);
-  const lang = org?.language ?? "ca";
-  const strings = voteEmailStrings[lang];
+  const lang: I18nLocale = org?.language ?? "ca";
+  const { email: strings } = getI18n(lang);
   const resultsUrl = `https://summareu.app/p/${input.pollSlug}/results`;
+
+  const escapedTitle = escapeHtml(input.pollTitle);
+  const escapedVoter = escapeHtml(input.voterName);
 
   try {
     const resend = new Resend(resendApiKey);
     await resend.emails.send({
       from: "Summa Reu <your-meeting@summareu.app>",
       to: ownerEmail,
-      subject: strings.subject(input.pollTitle),
+      subject: replaceTokens(strings.voteSubject, { title: input.pollTitle }),
       html: [
-        strings.body(input.voterName, input.pollTitle),
-        `<p><a href="${resultsUrl}">${strings.cta}</a></p>`,
+        `<p>${replaceTokens(strings.voteBody, { voterName: `<strong>${escapedVoter}</strong>`, title: `<strong>${escapedTitle}</strong>` })}</p>`,
+        `<p><a href="${resultsUrl}">${strings.voteCta}</a></p>`,
       ].join("\n"),
     });
   } catch (error) {

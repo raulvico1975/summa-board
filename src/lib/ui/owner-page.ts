@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { OwnerContext } from "@/src/lib/firebase/auth";
 import { getOwnerFromServerCookies } from "@/src/lib/firebase/auth";
+import { canAccessOwnerFeatures } from "@/src/lib/billing/subscription";
 import { getRequestLocale } from "@/src/i18n/server";
 import { withLocalePath } from "@/src/i18n/routing";
 
@@ -10,7 +11,7 @@ export async function requireOwnerPage(): Promise<OwnerContext> {
   if (!owner) {
     redirect(withLocalePath(locale, "/login"));
   }
-  if (owner.subscriptionStatus !== "active") {
+  if (!canAccessOwnerFeatures(owner)) {
     redirect(withLocalePath(locale, "/billing"));
   }
 

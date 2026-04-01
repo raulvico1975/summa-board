@@ -1,11 +1,21 @@
 import { Resend } from "resend";
 import { adminAuth } from "@/src/lib/firebase/admin";
 import { getOrgById } from "@/src/lib/db/repo";
+import { getI18n } from "@/src/i18n";
+import type { I18nLocale } from "@/src/i18n/config";
 
 const resendApiKey = process.env.RESEND_API_KEY;
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function replaceTokens(template: string, tokens: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(tokens)) {
+    result = result.replaceAll(`{${key}}`, value);
+  }
+  return result;
 }
 
 async function getOwnerEmail(orgId: string): Promise<string | null> {
@@ -17,33 +27,10 @@ async function getOwnerEmail(orgId: string): Promise<string | null> {
   }
 }
 
-async function getOrgLanguage(orgId: string): Promise<"ca" | "es"> {
+async function getOrgLanguage(orgId: string): Promise<I18nLocale> {
   const org = await getOrgById(orgId);
   return org?.language ?? "ca";
 }
-
-const emailStrings = {
-  ca: {
-    pollCreatedSubject: (title: string) => `Votació creada: "${title}"`,
-    pollCreatedBody: (title: string) =>
-      `<p>La votació <strong>${escapeHtml(title)}</strong> s'ha creat correctament.</p>`,
-    pollCreatedShareCta: "Comparteix aquest enllaç amb els participants:",
-    pollClosedSubject: (title: string) => `Votació tancada: "${title}"`,
-    pollClosedBody: (title: string) =>
-      `<p>La votació <strong>${escapeHtml(title)}</strong> s'ha tancat i s'ha convocat la reunió.</p>`,
-    pollClosedCta: "Veure reunió",
-  },
-  es: {
-    pollCreatedSubject: (title: string) => `Votación creada: "${title}"`,
-    pollCreatedBody: (title: string) =>
-      `<p>La votación <strong>${escapeHtml(title)}</strong> se ha creado correctamente.</p>`,
-    pollCreatedShareCta: "Comparte este enlace con los participantes:",
-    pollClosedSubject: (title: string) => `Votación cerrada: "${title}"`,
-    pollClosedBody: (title: string) =>
-      `<p>La votación <strong>${escapeHtml(title)}</strong> se ha cerrado y se ha convocado la reunión.</p>`,
-    pollClosedCta: "Ver reunión",
-  },
-} as const;
 
 export async function notifyOwnerPollCreated(input: {
   orgId: string;
@@ -56,17 +43,18 @@ export async function notifyOwnerPollCreated(input: {
   if (!ownerEmail) return;
 
   const lang = await getOrgLanguage(input.orgId);
-  const strings = emailStrings[lang];
+  const { email: strings } = getI18n(lang);
   const voteUrl = `https://summareu.app/p/${input.pollSlug}`;
+  const escapedTitle = escapeHtml(input.pollTitle);
 
   try {
     const resend = new Resend(resendApiKey);
     await resend.emails.send({
       from: "Summa Reu <your-meeting@summareu.app>",
       to: ownerEmail,
-      subject: strings.pollCreatedSubject(input.pollTitle),
+      subject: replaceTokens(strings.pollCreatedSubject, { title: input.pollTitle }),
       html: [
-        strings.pollCreatedBody(input.pollTitle),
+        `<p>${replaceTokens(strings.pollCreatedBody, { title: `<strong>${escapedTitle}</strong>` })}</p>`,
         `<p>${strings.pollCreatedShareCta}</p>`,
         `<p><a href="${voteUrl}">${voteUrl}</a></p>`,
       ].join("\n"),
@@ -87,17 +75,18 @@ export async function notifyOwnerPollClosed(input: {
   if (!ownerEmail) return;
 
   const lang = await getOrgLanguage(input.orgId);
-  const strings = emailStrings[lang];
+  const { email: strings } = getI18n(lang);
   const meetingUrl = `https://summareu.app/owner/meetings/${input.meetingId}`;
+  const escapedTitle = escapeHtml(input.pollTitle);
 
   try {
     const resend = new Resend(resendApiKey);
     await resend.emails.send({
       from: "Summa Reu <your-meeting@summareu.app>",
       to: ownerEmail,
-      subject: strings.pollClosedSubject(input.pollTitle),
+      subject: replaceTokens(strings.pollClosedSubject, { title: input.pollTitle }),
       html: [
-        strings.pollClosedBody(input.pollTitle),
+        `<p>${replaceTokens(strings.pollClosedBody, { title: `<strong>${escapedTitle}</strong>` })}</p>`,
         `<p><a href="${meetingUrl}">${strings.pollClosedCta}</a></p>`,
       ].join("\n"),
     });

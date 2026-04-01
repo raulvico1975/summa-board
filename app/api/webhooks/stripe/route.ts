@@ -9,6 +9,7 @@ import {
 import {
   verifyStripeWebhookSignature,
 } from "@/src/lib/billing/stripe";
+import { notifyOwnerBillingPastDue } from "@/src/lib/notifications/billing-email";
 import { notifyTelegramIncident } from "@/src/lib/monitoring/telegram";
 
 export const runtime = "nodejs";
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
     const orgId = await resolveOrgForEvent(object);
     const subscriptionId = object.subscription ?? getObjectString(object, "id");
     const customerId = object.customer ?? null;
+    const org = orgId ? await getOrgById(orgId) : null;
 
     try {
       await recordStripeEvent({
@@ -119,25 +121,49 @@ export async function POST(request: NextRequest) {
       await updateOrgSubscription({
         orgId,
         subscriptionStatus: "active",
+        subscriptionPastDueAt: null,
         stripeCustomerId: customerId,
         stripeSubscriptionId: object.subscription ?? null,
       });
     }
 
     if (event.type === "invoice.payment_failed" && orgId) {
+      const pastDueAt = org?.subscriptionPastDueAt ?? Date.now();
+      const shouldSendReminder = org?.subscriptionStatus !== "past_due" || org?.subscriptionPastDueAt == null;
+
       await updateOrgSubscription({
         orgId,
         subscriptionStatus: "past_due",
+        subscriptionPastDueAt: pastDueAt,
         stripeCustomerId: customerId,
         stripeSubscriptionId: object.subscription ?? null,
       });
+
+      if (shouldSendReminder && org) {
+        await notifyOwnerBillingPastDue({
+          orgId,
+          orgName: org.name,
+        });
+      }
+
       await notifySubscriptionIncident("past_due", orgId, object.subscription ?? null);
+    }
+
+    if ((event.type === "invoice.payment_succeeded" || event.type === "invoice.paid") && orgId) {
+      await updateOrgSubscription({
+        orgId,
+        subscriptionStatus: "active",
+        subscriptionPastDueAt: null,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: object.subscription ?? null,
+      });
     }
 
     if (event.type === "customer.subscription.deleted" && orgId) {
       await updateOrgSubscription({
         orgId,
         subscriptionStatus: "canceled",
+        subscriptionPastDueAt: null,
         stripeCustomerId: customerId,
         stripeSubscriptionId: getObjectString(event.data.object, "id"),
       });
