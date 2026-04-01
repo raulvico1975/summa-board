@@ -31,6 +31,8 @@ export async function generateMetadata({ params }: MarketingLandingPageProps): P
     path: `/${slug}`,
     title: landing.metaTitle,
     description: landing.metaDescription,
+    keywords: landing.keywords,
+    imagePath: "/media/hero/summareu-hero-poster.png",
   });
 }
 
@@ -60,13 +62,36 @@ export default async function MarketingLandingPage({ params }: MarketingLandingP
       name: "Summa Reu",
       url: absoluteBaseUrl(),
     },
+    featureList: [...landing.bullets, ...landing.proofItems],
+  };
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Summa Reu",
+        item: `${absoluteBaseUrl()}${withLocalePath(locale, "/")}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: landing.navLabel,
+        item: `${absoluteBaseUrl()}${withLocalePath(locale, `/${landing.slug}`)}`,
+      },
+    ],
   };
 
   return (
-    <div className="space-y-0 bg-[#f4f6f8]">
+    <div className="marketing-shell space-y-0 bg-[#f4f6f8]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
       <section className="relative overflow-hidden bg-[#07111d] text-white">
@@ -105,7 +130,7 @@ export default async function MarketingLandingPage({ params }: MarketingLandingP
             </div>
           </div>
 
-          <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-7 shadow-[0_30px_110px_rgba(2,8,23,0.24)] lg:p-8">
+          <div className="marketing-panel rounded-[34px] p-7 shadow-[0_30px_110px_rgba(2,8,23,0.24)] lg:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">{landing.introTitle}</p>
             <p className="mt-5 text-base leading-8 text-slate-300">{landing.introBody}</p>
             <ul className="mt-6 space-y-4 text-sm leading-7 text-slate-200 sm:text-base">
@@ -132,16 +157,33 @@ export default async function MarketingLandingPage({ params }: MarketingLandingP
       </section>
 
       <section className="relative bg-[#f4f6f8]">
-        <div className="mx-auto grid max-w-[1280px] gap-4 px-4 py-14 sm:px-6 lg:grid-cols-3 lg:px-8 lg:py-18">
-          {landing.sections.map((section) => (
-            <article
-              key={section.title}
-              className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)]"
-            >
-              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">{section.title}</h2>
-              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{section.body}</p>
-            </article>
-          ))}
+        <div className="mx-auto max-w-[1280px] px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+          <div className="max-w-3xl space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{landing.navLabel}</p>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-[2.8rem] sm:leading-[1.02]">
+              {landing.introTitle}
+            </h2>
+            <p className="text-base leading-8 text-slate-600 sm:text-lg">{landing.introBody}</p>
+          </div>
+
+          <div className="mt-10 space-y-4">
+            {landing.sections.map((section, index) => (
+              <article
+                key={section.title}
+                className="grid gap-5 rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] lg:grid-cols-[120px_minmax(0,1fr)] lg:items-start lg:p-8"
+              >
+                <div className="border-b border-slate-200 pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-700">
+                    {(index + 1).toString().padStart(2, "0")}
+                  </p>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)] lg:gap-8">
+                  <h3 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">{section.title}</h3>
+                  <p className="text-sm leading-7 text-slate-600 sm:text-base">{section.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -189,7 +231,7 @@ export default async function MarketingLandingPage({ params }: MarketingLandingP
               {marketing.landingSectionTitle}
             </h2>
           </div>
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className={`mt-8 grid gap-4 ${relatedPages.length === 2 ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
             {relatedPages.map((item) => (
               <Link
                 key={item.slug}

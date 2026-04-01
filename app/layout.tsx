@@ -95,15 +95,18 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   </>
                 ) : (
                   <>
-                    {marketing.headerLinks.map((link) => (
-                      <Link
-                        key={link.href}
-                        className={`${navLinkClasses} hidden md:inline-flex`}
-                        href={withLocalePath(locale, link.href)}
-                      >
-                        {link.label}
-                      </Link>
-                    ))}
+                    <div className="hidden items-center gap-1 md:flex">
+                      {marketing.headerLinks.map((link) => (
+                        <Link
+                          key={link.href}
+                          className={navLinkClasses}
+                          href={withLocalePath(locale, link.href)}
+                        >
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="hidden h-6 w-px bg-slate-200 lg:block" />
                     <Link
                       className="flex-1 rounded-full px-4 py-2 text-center text-sm font-medium leading-tight text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 sm:flex-none"
                       href={withLocalePath(locale, "/login")}

@@ -18,6 +18,10 @@ export async function generateMetadata(): Promise<Metadata> {
     path: "/help",
     title,
     description,
+    robots: {
+      index: false,
+      follow: true,
+    },
   });
 }
 

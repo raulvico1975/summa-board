@@ -21,6 +21,9 @@ export function localizedPublicMetadata(input: {
   path: string;
   title?: string;
   description?: string;
+  keywords?: string[];
+  imagePath?: string;
+  openGraphType?: "website" | "article";
   robots?: Metadata["robots"];
 }): Metadata {
   const base = absoluteBaseUrl();
@@ -30,10 +33,14 @@ export function localizedPublicMetadata(input: {
   const esPath = withLocalePath("es", input.path);
   const title = input.title ?? "Summa Reu";
   const description = input.description ?? "";
+  const imageUrl = input.imagePath
+    ? `${base}${input.imagePath.startsWith("/") ? input.imagePath : `/${input.imagePath}`}`
+    : undefined;
 
   return {
     title,
     description,
+    keywords: input.keywords,
     alternates: {
       canonical: canonicalUrl,
       languages: {
@@ -48,12 +55,14 @@ export function localizedPublicMetadata(input: {
       url: canonicalUrl,
       siteName: "Summa Reu",
       locale: input.locale === "es" ? "es_ES" : "ca_ES",
-      type: "website",
+      type: input.openGraphType ?? "website",
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: imageUrl ? [imageUrl] : undefined,
     },
     robots: input.robots,
   };

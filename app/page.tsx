@@ -13,12 +13,53 @@ export async function generateMetadata(): Promise<Metadata> {
     path: "/",
     title: `${i18n.home.title} | Summa Reu`,
     description: i18n.home.description,
+    keywords:
+      locale === "es"
+        ? [
+            "convocatorias y votaciones",
+            "disponibilidad reuniones",
+            "grabación de reuniones",
+            "software reuniones entidades",
+            "juntas directivas",
+            "actas con IA",
+          ]
+        : [
+            "convocatòries i votacions",
+            "disponibilitat reunions",
+            "gravació de reunions",
+            "software reunions entitats",
+            "juntes directives",
+            "actes amb IA",
+          ],
+    imagePath: "/media/hero/summareu-hero-poster.png",
   });
 }
 
 export default async function HomePage() {
   const { locale, i18n } = await getRequestI18n();
   const marketing = getMarketingContent(locale);
+  const coreLandingOrder = ["calls-voting", "boards", "actes-ai"] as const;
+  const coreLandingKeys = new Set<string>(coreLandingOrder);
+  const coreLandings = coreLandingOrder.flatMap((key) => marketing.landings.filter((item) => item.key === key));
+  const sectorLandings = marketing.landings.filter((item) => !coreLandingKeys.has(item.key));
+  const productHighlights = [
+    {
+      title: i18n.home.featurePollsTitle,
+      body: i18n.home.featurePollsBody,
+    },
+    {
+      title: i18n.home.featureMeetingTitle,
+      body: i18n.home.featureMeetingBody,
+    },
+    {
+      title: i18n.home.featureMinutesTitle,
+      body: i18n.home.featureMinutesBody,
+    },
+    {
+      title: i18n.home.featureArchiveTitle,
+      body: i18n.home.featureArchiveBody,
+    },
+  ];
   const workflow = [
     {
       step: "01",
@@ -73,7 +114,7 @@ export default async function HomePage() {
   };
 
   return (
-    <div className="space-y-0 bg-[#f4f6f8]">
+    <div className="marketing-shell space-y-0 bg-[#f4f6f8]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema) }}
@@ -99,7 +140,7 @@ export default async function HomePage() {
                 {i18n.home.badge}
               </p>
               <div className="space-y-4">
-                <h1 className="max-w-2xl text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl lg:text-[4.35rem] lg:leading-[0.94]">
+                <h1 className="max-w-2xl text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl lg:text-[3.95rem] lg:leading-[0.96]">
                   {i18n.home.title}
                 </h1>
                 <p className="max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">{i18n.home.subtitle}</p>
@@ -112,20 +153,19 @@ export default async function HomePage() {
                   {i18n.home.ctaSignup}
                 </Button>
               </Link>
-              <Link href={withLocalePath(locale, `/${marketing.landings[0].slug}`)}>
+              <Link href={withLocalePath(locale, `/${coreLandings[0].slug}`)}>
                 <Button
                   variant="outline"
                   className="w-full rounded-full border-white/16 bg-white/5 px-6 py-6 text-sm font-medium text-white hover:bg-white/10 hover:text-white sm:w-auto"
                 >
-                  {marketing.landings[0].navLabel}
+                  {coreLandings[0].navLabel}
                 </Button>
               </Link>
             </div>
-
-            <p className="text-sm leading-6 text-slate-400">{i18n.home.heroNote}</p>
+            <p className="max-w-xl text-xs leading-6 text-slate-400 sm:text-sm">{i18n.home.description}</p>
           </div>
 
-          <div className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/65 p-2 shadow-[0_40px_140px_rgba(2,8,23,0.5)]">
+          <div className="overflow-hidden rounded-[30px] border border-white/8 bg-slate-950/45 p-1.5 shadow-[0_34px_120px_rgba(2,8,23,0.42)]">
             <video
               className="block h-auto w-full rounded-[24px]"
               autoPlay
@@ -169,25 +209,45 @@ export default async function HomePage() {
 
       <section className="relative bg-[#f4f6f8]">
         <div className="mx-auto max-w-[1280px] px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{marketing.sectorsIntro}</p>
-              <h2 className="max-w-4xl text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-[3rem] sm:leading-[1.02]">
-                {marketing.sectorsTitle}
-              </h2>
-              <p className="max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">{marketing.sectorsBody}</p>
-            </div>
+          <div className="max-w-4xl space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{i18n.home.pillarsEyebrow}</p>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-[3rem] sm:leading-[1.02]">
+              {i18n.home.sectionTitle}
+            </h2>
+            <p className="max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">{i18n.home.sectionSubtitle}</p>
+          </div>
+
+          <div className="mt-10 grid gap-4 lg:grid-cols-4">
+            {productHighlights.map((item) => (
+              <article
+                key={item.title}
+                className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+              >
+                <h3 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-16 max-w-4xl space-y-4 border-t border-slate-200 pt-12">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+              {marketing.landingSectionEyebrow}
+            </p>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-[2.8rem] sm:leading-[1.02]">
+              {marketing.landingSectionTitle}
+            </h2>
+            <p className="max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">{marketing.landingSectionBody}</p>
           </div>
 
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
-            {marketing.landings.slice(0, 3).map((item) => (
+            {coreLandings.map((item) => (
               <Link
                 key={item.slug}
                 href={withLocalePath(locale, `/${item.slug}`)}
                 className="group rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.05)] transition-transform hover:-translate-y-0.5"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{item.eyebrow}</p>
-                <h3 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{item.heroTitle}</h3>
+                <h3 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{item.navLabel}</h3>
                 <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{item.metaDescription}</p>
                 <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-slate-950">
                   <span>{item.navLabel}</span>
@@ -195,54 +255,6 @@ export default async function HomePage() {
                 </div>
               </Link>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="relative bg-white">
-        <div className="mx-auto grid max-w-[1280px] gap-6 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:px-8 lg:py-18">
-          <div className="rounded-[34px] border border-slate-200 bg-white p-7 shadow-[0_26px_80px_rgba(15,23,42,0.08)] lg:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{marketing.editorialEyebrow}</p>
-            <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-[3rem] sm:leading-[1.02]">
-              {marketing.editorialTitle}
-            </h2>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">{marketing.editorialBody}</p>
-            <ul className="mt-8 space-y-4">
-              {marketing.editorialBullets.map((item) => (
-                <li key={item} className="flex gap-4 text-sm leading-7 text-slate-700 sm:text-base">
-                  <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="grid gap-4">
-            <div className="rounded-[34px] bg-[#07111d] p-7 text-white shadow-[0_30px_110px_rgba(2,8,23,0.22)] lg:p-10">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">{i18n.home.pillarsEyebrow}</p>
-              <h3 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-white sm:text-[2.2rem] sm:leading-[1.04]">
-                {i18n.home.pillarsTitle}
-              </h3>
-              <p className="mt-5 text-base leading-8 text-slate-300">{i18n.home.pillarsSubtitle}</p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <article className="rounded-[28px] border border-slate-200 bg-[#f8fafc] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{i18n.home.featurePollsTitle}</p>
-                <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-slate-950">{i18n.home.workflowStepOneTitle}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{i18n.home.featurePollsBody}</p>
-              </article>
-              <article className="rounded-[28px] border border-slate-200 bg-[#f8fafc] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{i18n.home.featureMinutesTitle}</p>
-                <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-slate-950">{i18n.home.workflowStepThreeTitle}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{i18n.home.featureMinutesBody}</p>
-              </article>
-              <article className="rounded-[28px] border border-slate-200 bg-[#f8fafc] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">{i18n.home.featurePrivacyTitle}</p>
-                <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-slate-950">{i18n.home.workflowStepFourTitle}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{i18n.home.featurePrivacyBody}</p>
-              </article>
-            </div>
           </div>
         </div>
       </section>
@@ -262,7 +274,7 @@ export default async function HomePage() {
           </div>
 
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
-            {marketing.landings.slice(3).map((item) => (
+            {sectorLandings.map((item) => (
               <Link
                 key={item.slug}
                 href={withLocalePath(locale, `/${item.slug}`)}
@@ -291,29 +303,35 @@ export default async function HomePage() {
           }}
         />
         <div className="relative mx-auto max-w-[1280px] px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <div className="space-y-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">
-              {i18n.home.workflowEyebrow}
-            </p>
-            <h2 className="mx-auto max-w-4xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-[2.9rem] sm:leading-[1.02]">
-              {i18n.home.workflowTitle}
-            </h2>
-            <p className="mx-auto max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
-              {i18n.home.workflowSubtitle}
-            </p>
-          </div>
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.84fr)_minmax(0,1.16fr)] lg:items-start lg:gap-12">
+            <div className="marketing-panel rounded-[32px] p-7 shadow-[0_30px_110px_rgba(2,8,23,0.22)] lg:sticky lg:top-24 lg:p-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">
+                {i18n.home.workflowEyebrow}
+              </p>
+              <h2 className="mt-4 max-w-xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-[2.9rem] sm:leading-[1.02]">
+                {i18n.home.workflowTitle}
+              </h2>
+              <p className="mt-5 max-w-xl text-base leading-8 text-slate-300 sm:text-lg">
+                {i18n.home.workflowSubtitle}
+              </p>
+            </div>
 
-          <div className="mt-10 grid gap-4 lg:grid-cols-4">
-            {workflow.map((step) => (
-              <div
-                key={step.step}
-                className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_70px_rgba(2,8,23,0.28)]"
-              >
-                <p className="text-sm font-semibold tracking-[0.26em] text-sky-200">{step.step}</p>
-                <h3 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-white">{step.title}</h3>
-                <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">{step.body}</p>
-              </div>
-            ))}
+            <div className="space-y-4">
+              {workflow.map((step) => (
+                <article
+                  key={step.step}
+                  className="grid gap-5 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_70px_rgba(2,8,23,0.22)] lg:grid-cols-[104px_minmax(0,1fr)] lg:items-start"
+                >
+                  <div className="border-b border-white/10 pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-5">
+                    <p className="text-sm font-semibold tracking-[0.28em] text-sky-200">{step.step}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-semibold tracking-[-0.03em] text-white">{step.title}</h3>
+                    <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{step.body}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>

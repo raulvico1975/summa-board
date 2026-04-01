@@ -17,18 +17,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 1,
     },
-    {
-      url: buildAbsolutePublicUrl("ca", "/help"),
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: buildAbsolutePublicUrl("es", "/help"),
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
   ];
 
   for (const { locale, slug } of getAllMarketingPaths()) {
