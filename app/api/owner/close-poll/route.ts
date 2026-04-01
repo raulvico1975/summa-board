@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       return subscriptionRequiredResponse();
     }
 
+    console.error("[close-poll] unexpected error:", error);
     await reportApiUnexpectedError({
       route: "/api/owner/close-poll",
       action: "intentàvem tancar una votació i convocar la reunió",
