@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Badge } from "@/src/components/ui/badge";
 import { DeleteMeetingButton } from "@/src/components/meetings/delete-meeting-button";
 import { StatusBadge } from "@/src/components/ui/status-badge";
 import { listPollsByOrg } from "@/src/lib/db/repo";
@@ -29,14 +30,37 @@ export default async function DashboardPage() {
     getOwnerMeetings(owner.orgId),
   ]);
   const dashboardHref = withLocalePath(locale, "/dashboard");
+  const activePolls = polls.filter((poll) => poll.status !== "closed");
+  const closedPolls = polls.filter((poll) => poll.status === "closed");
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-8">
+      <div className="space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
           {i18n.dashboard.title}
         </h1>
-        <p className="mt-1 break-words text-sm text-slate-600">{owner.orgName}</p>
+        <p className="break-words text-sm text-slate-600">{owner.orgName}</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Card className="border-sky-200 bg-sky-50/60">
+          <CardContent className="space-y-2 py-5">
+            <p className="text-sm font-medium text-sky-900">{i18n.dashboard.activePolls}</p>
+            <p className="text-3xl font-semibold tracking-tight text-slate-900">{activePolls.length}</p>
+            {activePolls.length === 0 ? (
+              <p className="text-sm text-slate-600">{i18n.dashboard.noActivePolls}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-2 py-5">
+            <p className="text-sm font-medium text-slate-700">{i18n.dashboard.closedPolls}</p>
+            <p className="text-3xl font-semibold tracking-tight text-slate-900">{closedPolls.length}</p>
+            {closedPolls.length === 0 ? (
+              <p className="text-sm text-slate-600">{i18n.dashboard.noClosedPolls}</p>
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
 
       {polls.length === 0 ? (
@@ -44,36 +68,103 @@ export default async function DashboardPage() {
           <CardContent className="py-6 text-sm text-slate-600">{i18n.dashboard.empty}</CardContent>
         </Card>
       ) : (
-        polls.map((poll) => (
-          <Card key={poll.id}>
-            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="break-words text-base font-semibold leading-tight text-slate-900">{poll.title}</h2>
-                <p className="mt-1 break-all text-xs text-slate-500">/{poll.slug}</p>
+        <div className="space-y-8">
+          {activePolls.length > 0 ? (
+            <section className="space-y-4">
+              <div className="flex items-end justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {i18n.dashboard.activePolls}
+                </h2>
+                <Badge>{activePolls.length}</Badge>
               </div>
-              <StatusBadge status={getPollDisplayStatus(poll.status)} labels={i18n.status} />
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">
-                {i18n.dashboard.createdLabel}: {formatDateTime(poll.createdAt, locale)}
-              </p>
-              <div className="grid w-full grid-cols-2 gap-2 text-sm sm:flex sm:w-auto">
-                <Link
-                  href={withLocalePath(locale, `/p/${poll.slug}/results`)}
-                  className="rounded-md bg-sky-500 px-3 py-2 text-center font-medium text-white transition-colors hover:bg-sky-600"
-                >
-                  {i18n.dashboard.results}
-                </Link>
-                <Link
-                  href={withLocalePath(locale, `/polls/${poll.id}`)}
-                  className="rounded-md border border-slate-300 px-3 py-2 text-center font-medium transition-colors hover:bg-slate-50"
-                >
-                  {i18n.dashboard.manage}
-                </Link>
+              <div className="space-y-3">
+                {activePolls.map((poll) => (
+                  <Card key={poll.id} className="shadow-sm transition-shadow hover:shadow-md">
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="break-words text-base font-semibold leading-tight text-slate-900">
+                            {poll.title}
+                          </h3>
+                          <Badge className="border-slate-200 bg-slate-50 text-slate-600">/{poll.slug}</Badge>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {i18n.dashboard.createdLabel}: {formatDateTime(poll.createdAt, locale)}
+                        </p>
+                      </div>
+                      <StatusBadge status={getPollDisplayStatus(poll.status)} labels={i18n.status} />
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-slate-600">{owner.orgName}</p>
+                      <div className="grid w-full grid-cols-2 gap-2 text-sm sm:flex sm:w-auto">
+                        <Link
+                          href={withLocalePath(locale, `/p/${poll.slug}/results`)}
+                          className="rounded-md bg-sky-500 px-3 py-2 text-center font-medium text-white transition-colors hover:bg-sky-600"
+                        >
+                          {i18n.dashboard.results}
+                        </Link>
+                        <Link
+                          href={withLocalePath(locale, `/polls/${poll.id}`)}
+                          className="rounded-md border border-slate-300 px-3 py-2 text-center font-medium transition-colors hover:bg-slate-50"
+                        >
+                          {i18n.dashboard.manage}
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-        ))
+            </section>
+          ) : null}
+
+          {closedPolls.length > 0 ? (
+            <section className="space-y-4">
+              <div className="flex items-end justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {i18n.dashboard.closedPolls}
+                </h2>
+                <Badge>{closedPolls.length}</Badge>
+              </div>
+              <div className="space-y-3">
+                {closedPolls.map((poll) => (
+                  <Card key={poll.id} className="shadow-sm transition-shadow hover:shadow-md">
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="break-words text-base font-semibold leading-tight text-slate-900">
+                            {poll.title}
+                          </h3>
+                          <Badge className="border-slate-200 bg-slate-50 text-slate-600">/{poll.slug}</Badge>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {i18n.dashboard.createdLabel}: {formatDateTime(poll.createdAt, locale)}
+                        </p>
+                      </div>
+                      <StatusBadge status={getPollDisplayStatus(poll.status)} labels={i18n.status} />
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-slate-600">{owner.orgName}</p>
+                      <div className="grid w-full grid-cols-2 gap-2 text-sm sm:flex sm:w-auto">
+                        <Link
+                          href={withLocalePath(locale, `/p/${poll.slug}/results`)}
+                          className="rounded-md bg-sky-500 px-3 py-2 text-center font-medium text-white transition-colors hover:bg-sky-600"
+                        >
+                          {i18n.dashboard.results}
+                        </Link>
+                        <Link
+                          href={withLocalePath(locale, `/polls/${poll.id}`)}
+                          className="rounded-md border border-slate-300 px-3 py-2 text-center font-medium transition-colors hover:bg-slate-50"
+                        >
+                          {i18n.dashboard.manage}
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
       )}
 
       <section className="space-y-4">

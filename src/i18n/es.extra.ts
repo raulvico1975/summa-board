@@ -2,6 +2,9 @@ import type { DeepPartial, I18nCa } from "@/src/i18n/ca";
 import { helpEs } from "@/src/i18n/help.es";
 
 export const esExtra: DeepPartial<I18nCa> = {
+  common: {
+    cancel: "Cancelar",
+  },
   dashboard: {
     title: "Votaciones",
     empty: "Todavía no tienes votaciones creadas. Haz clic en \"Crear votación\" para empezar.",
@@ -11,6 +14,10 @@ export const esExtra: DeepPartial<I18nCa> = {
     createdLabel: "Creada",
     pastMeetings: "Reuniones pasadas",
     noPastMeetings: "No hay reuniones pasadas.",
+    activePolls: "Votaciones activas",
+    closedPolls: "Votaciones cerradas",
+    noActivePolls: "Todavía no hay votaciones activas.",
+    noClosedPolls: "Todavía no hay votaciones cerradas.",
   },
   poll: {
     sectionVoting: "Votación",
@@ -54,8 +61,14 @@ export const esExtra: DeepPartial<I18nCa> = {
     openMeeting: "Abrir reunión",
     rankedOptions: "Opciones ordenadas",
     votesTable: "Tabla de votos",
+    resultsSummaryTitle: "Resumen de resultados",
+    resultsSummaryHint: "La mejor opción, el estado actual y el detalle de votos de un vistazo.",
+    summaryVotes: "Votos recibidos",
+    summaryLeader: "Opción líder",
+    summaryStatus: "Estado",
     voteManagementTitle: "Gestión de respuestas",
     voteManagementHint: "Puedes borrar una respuesta individual si hace falta corregir un voto.",
+    voteManagementGuardrail: "Las acciones destructivas se confirman antes de ejecutarse.",
     selectedOptions: "Franjas seleccionadas",
     deleteVote: "Borrar voto",
     deleteVoteDeleting: "Borrando...",

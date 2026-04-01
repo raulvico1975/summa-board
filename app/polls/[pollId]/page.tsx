@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Badge } from "@/src/components/ui/badge";
 import { StatusBadge } from "@/src/components/ui/status-badge";
 import { DeleteVoteButton } from "@/src/components/polls/delete-vote-button";
 import { ClosePollForm } from "@/src/components/polls/close-poll-form";
@@ -108,19 +109,22 @@ export default async function PollManagePage({
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-slate-600">{i18n.poll.voteManagementHint}</p>
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {i18n.poll.voteManagementGuardrail}
+          </p>
           {voteRows.length === 0 ? (
             <p className="text-sm text-slate-600">{i18n.poll.noVotesYet}</p>
           ) : (
             voteRows.map((row) => (
               <div
                 key={row.voterId}
-                className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <p className="break-words text-sm font-semibold text-slate-900">{row.voterName}</p>
-                  <p className="text-xs text-slate-500">
+                  <Badge className="mt-1 border-slate-200 bg-white text-slate-600">
                     {i18n.poll.selectedOptions}: {row.selectedCount}/{options.length}
-                  </p>
+                  </Badge>
                 </div>
                 <DeleteVoteButton pollId={poll.id} voterId={row.voterId} voterName={row.voterName} />
               </div>

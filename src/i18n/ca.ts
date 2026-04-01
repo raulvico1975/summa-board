@@ -11,6 +11,9 @@ export const ca = {
     logout: "Sortir",
     help: "Ajuda",
   },
+  common: {
+    cancel: "Cancel·lar",
+  },
   session: {
     idleWarningTitle: "Sessió a punt de tancar-se",
     idleWarningDescription:
@@ -90,6 +93,10 @@ export const ca = {
     createdLabel: "Creada",
     pastMeetings: "Reunions passades",
     noPastMeetings: "No hi ha reunions passades.",
+    activePolls: "Votacions actives",
+    closedPolls: "Votacions tancades",
+    noActivePolls: "Encara no hi ha votacions actives.",
+    noClosedPolls: "Encara no hi ha votacions tancades.",
   },
   poll: {
     sectionVoting: "Votació",
@@ -133,8 +140,14 @@ export const ca = {
     openMeeting: "Obrir reunió",
     rankedOptions: "Opcions ordenades",
     votesTable: "Taula de vots",
+    resultsSummaryTitle: "Resum de resultats",
+    resultsSummaryHint: "La millor opció, l'estat actual i el detall de vots d'un cop d'ull.",
+    summaryVotes: "Vots rebuts",
+    summaryLeader: "Opció líder",
+    summaryStatus: "Estat",
     voteManagementTitle: "Gestió de respostes",
     voteManagementHint: "Pots esborrar una resposta individual si cal corregir un vot.",
+    voteManagementGuardrail: "Les accions destructives es confirmen abans d'executar-se.",
     selectedOptions: "Franges seleccionades",
     deleteVote: "Esborrar vot",
     deleteVoteDeleting: "Esborrant...",
