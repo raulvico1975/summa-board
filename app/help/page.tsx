@@ -1,6 +1,8 @@
 import { getRequestI18n } from "@/src/i18n/server";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 
+export const dynamic = "force-dynamic";
+
 export default async function HelpPage() {
   const { i18n } = await getRequestI18n();
   const { help } = i18n;
