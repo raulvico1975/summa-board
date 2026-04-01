@@ -9,6 +9,11 @@ env:
     availability:
       - RUNTIME
 
+  - variable: DAILY_WEBHOOK_BEARER_TOKEN
+    secret: DAILY_WEBHOOK_BEARER_TOKEN
+    availability:
+      - RUNTIME
+
   - variable: GEMINI_MODEL
     value: gemini-2.5-flash-lite
     availability:
@@ -16,5 +21,20 @@ env:
 
   - variable: GEMINI_API_KEY
     secret: GEMINI_API_KEY
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
+
+  - variable: TELEGRAM_BOT_TOKEN
+    secret: TELEGRAM_BOT_TOKEN
     availability:
       - RUNTIME
