@@ -73,7 +73,7 @@ async function seedFirestore() {
   }
 
   await db.collection("meetings").doc(meetingId).set({
-    pollId: openPollId,
+    pollId: "demo-existing-poll",
     orgId,
     title: "Junta mensual",
     description: "Reunió demo Summa Reu",
