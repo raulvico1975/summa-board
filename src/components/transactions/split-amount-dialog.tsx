@@ -279,21 +279,21 @@ export function SplitAmountDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-0.75rem)] max-w-[1320px] flex-col overflow-hidden p-0 sm:w-[min(calc(100vw-2rem),1320px)]">
+        <DialogHeader className="shrink-0 border-b bg-background px-4 py-4 pr-10 sm:px-6">
           <DialogTitle>{tr('movements.split.title')}</DialogTitle>
           <DialogDescription>{tr('movements.split.subtitle')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto pr-1">
+        <div className="space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
           {lines.map((line, index) => {
             const parsedLine = parsedLines.find((item) => item.id === line.id);
             const isDonationLine = line.kind === 'donation';
 
             return (
-              <div key={line.id} className="rounded-md border p-3 space-y-3">
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-                  <div className="space-y-1 lg:col-span-1">
+              <div key={line.id} className="space-y-4 rounded-lg border bg-background p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="space-y-1 xl:col-span-1">
                     <Label>{tr('movements.split.amount')}</Label>
                     <Input
                       type="number"
@@ -307,7 +307,7 @@ export function SplitAmountDialog({
                     />
                   </div>
 
-                  <div className="space-y-1 lg:col-span-2">
+                  <div className="space-y-1 xl:col-span-2">
                     <Label>{tr('movements.split.kind')}</Label>
                     <Select
                       value={line.kind}
@@ -328,7 +328,7 @@ export function SplitAmountDialog({
                     </Select>
                   </div>
 
-                  <div className="space-y-1 lg:col-span-2">
+                  <div className="space-y-1 xl:col-span-2">
                     <Label>{tr('movements.split.category')}</Label>
                     <Select
                       value={line.categoryId ?? '__none__'}
@@ -351,8 +351,8 @@ export function SplitAmountDialog({
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-                  <div className="space-y-1 lg:col-span-2">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="space-y-1 xl:col-span-2">
                     <Label>{tr('movements.split.contact')}</Label>
                     <Select
                       value={line.contactId ?? '__none__'}
@@ -374,7 +374,7 @@ export function SplitAmountDialog({
                     </Select>
                   </div>
 
-                  <div className="space-y-1 lg:col-span-2">
+                  <div className="space-y-1 xl:col-span-2">
                     <Label>{tr('movements.split.note')}</Label>
                     <Input
                       value={line.note}
@@ -384,7 +384,7 @@ export function SplitAmountDialog({
                     />
                   </div>
 
-                  <div className="flex items-end justify-end lg:col-span-1">
+                  <div className="flex items-end justify-end xl:col-span-1">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -422,12 +422,13 @@ export function SplitAmountDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t bg-background px-4 py-4 sm:px-6">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {tr('movements.split.cancel')}
           </Button>
           <Button onClick={handleApply} disabled={!canApply}>
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : tr('movements.split.apply')}
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {tr('movements.split.apply')}
           </Button>
         </DialogFooter>
       </DialogContent>

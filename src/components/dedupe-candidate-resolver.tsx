@@ -165,7 +165,7 @@ export function DedupeCandidateResolver({
         onCancel();
       }
     }}>
-      <DialogContent className="grid max-h-[calc(100dvh-2rem)] w-[min(96vw,84rem)] max-w-7xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-0.75rem)] max-w-[1420px] flex-col overflow-hidden p-0 sm:w-[min(calc(100vw-2rem),1420px)]">
         <DialogHeader className="border-b px-4 pb-4 pt-5 pr-10 sm:px-6 sm:pt-6">
           <DialogTitle>
             {tr('importers.transaction.preImportSummaryTitle', 'Resum pre-importació')}
@@ -175,104 +175,128 @@ export function DedupeCandidateResolver({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-4 sm:px-6">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div className="rounded-md border p-3">
-              <p className="text-xs text-muted-foreground">{tr('importers.transaction.preview.movementsToImport', 'Moviments a importar')}</p>
-              <p className="text-xl font-semibold">{movementCounts.toImport}</p>
-            </div>
-            <div className="rounded-md border p-3">
-              <p className="text-xs text-muted-foreground">{tr('importers.transaction.preview.movementsDiscarded', 'Moviments descartats')}</p>
-              <p className="text-xl font-semibold">{movementCounts.discarded}</p>
-              {movementCounts.discarded > 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {tr('importers.transaction.preview.discardedReason', 'Capçalera/totals/valors buits')}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {parseSummary && (
-            <div className={`grid grid-cols-1 gap-2 ${hasMappedBalance ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
-              <div className="rounded-md border p-3 text-sm">
-                <p className="font-medium">{tr('importers.transaction.preview.dateRange', 'Rang de dates de l’extracte importat')}</p>
-                {parseSummary.dateRange ? (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center justify-between gap-3 text-muted-foreground">
-                      <span className="text-xs uppercase tracking-wide">
-                        {tr('importers.transaction.preview.fromDate', 'Des de')}
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {formatDate(parseSummary.dateRange.from)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-muted-foreground">
-                      <span className="text-xs uppercase tracking-wide">
-                        {tr('importers.transaction.preview.toDate', 'Fins a')}
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {formatDate(parseSummary.dateRange.to)}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">—</p>
-                )}
-              </div>
-              <div className="rounded-md border p-3 text-sm">
-                <p className="font-medium">{tr('importers.transaction.preview.totals', 'Totals de l’extracte importat')}</p>
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">
-                      {tr('importers.transaction.preview.income', 'Ingressos')}
-                    </span>
-                    <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
-                      {formatAmount(parseSummary.totals.income)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">
-                      {tr('importers.transaction.preview.expense', 'Despeses')}
-                    </span>
-                    <span className="font-medium tabular-nums text-rose-700 dark:text-rose-300">
-                      {formatAmount(-Math.abs(parseSummary.totals.expense))}
-                    </span>
-                  </div>
+        <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4 pt-4 sm:px-6">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
+            <div className="space-y-3 rounded-lg border border-border/80 bg-card p-4">
+              <p className="text-sm font-medium">
+                {tr('importers.transaction.preImportSummaryTitle', 'Resum pre-importació')}
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">{tr('importers.transaction.preview.movementsToImport', 'Moviments a importar')}</p>
+                  <p className="text-2xl font-semibold">{movementCounts.toImport}</p>
                 </div>
-              </div>
-              {hasMappedBalance && parseSummary.balances && (
-                <div className="rounded-md border p-3 text-sm">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <p className="font-medium">
-                      {tr('importers.transaction.preview.balanceFirstInExtract', 'Saldo del primer moviment de l’extracte importat')}
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">{tr('importers.transaction.preview.movementsDiscarded', 'Moviments descartats')}</p>
+                  <p className="text-2xl font-semibold">{movementCounts.discarded}</p>
+                  {movementCounts.discarded > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {tr('importers.transaction.preview.discardedReason', 'Capçalera/totals/valors buits')}
                     </p>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-                          aria-label={tr('importers.transaction.preview.balanceTooltipAria', 'Informació sobre saldos de l’extracte importat')}
-                        >
-                          <Info className="h-3.5 w-3.5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs text-xs">
-                        {tr(
-                          'importers.transaction.preview.balanceExtractTooltip',
-                          'Aquests valors corresponen al saldo que apareix al primer i a l’últim moviment inclòs a l’extracte que has importat. No necessàriament coincideixen amb el saldo actual del compte.'
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <p className="text-muted-foreground">{formatAmount(parseSummary.balances.initial)}</p>
-                  <p className="mt-3 font-medium">
-                    {tr('importers.transaction.preview.balanceLastInExtract', 'Saldo de l’últim moviment de l’extracte importat')}
-                  </p>
-                  <p className="text-muted-foreground">{formatAmount(parseSummary.balances.final)}</p>
+                  )}
                 </div>
-              )}
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    {tr('importers.transaction.preview.existingMovements', 'Moviments ja existents')}
+                  </p>
+                  <p className="text-2xl font-semibold">{safeDuplicates.length}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    {tr('importers.transaction.preview.conflictsToReview', 'Conflictes a revisar')}
+                  </p>
+                  <p className="text-2xl font-semibold">{candidateCount}</p>
+                </div>
+              </div>
             </div>
-          )}
+
+            {parseSummary && (
+              <div className="space-y-3 rounded-lg border border-border/80 bg-muted/20 p-4">
+                <p className="text-sm font-medium">
+                  {tr('importers.transaction.preview.statementOverview', 'Vista general de l’extracte')}
+                </p>
+                <div className={`grid grid-cols-1 gap-3 ${hasMappedBalance ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                  <div className="rounded-md border bg-background p-3 text-sm">
+                    <p className="font-medium">{tr('importers.transaction.preview.dateRange', 'Rang de dates de l’extracte importat')}</p>
+                    {parseSummary.dateRange ? (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between gap-3 text-muted-foreground">
+                          <span className="text-xs uppercase tracking-wide">
+                            {tr('importers.transaction.preview.fromDate', 'Des de')}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {formatDate(parseSummary.dateRange.from)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-muted-foreground">
+                          <span className="text-xs uppercase tracking-wide">
+                            {tr('importers.transaction.preview.toDate', 'Fins a')}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {formatDate(parseSummary.dateRange.to)}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">—</p>
+                    )}
+                  </div>
+                  <div className="rounded-md border bg-background p-3 text-sm">
+                    <p className="font-medium">{tr('importers.transaction.preview.totals', 'Totals de l’extracte importat')}</p>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          {tr('importers.transaction.preview.income', 'Ingressos')}
+                        </span>
+                        <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+                          {formatAmount(parseSummary.totals.income)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          {tr('importers.transaction.preview.expense', 'Despeses')}
+                        </span>
+                        <span className="font-medium tabular-nums text-rose-700 dark:text-rose-300">
+                          {formatAmount(-Math.abs(parseSummary.totals.expense))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {hasMappedBalance && parseSummary.balances && (
+                    <div className="rounded-md border bg-background p-3 text-sm">
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <p className="font-medium">
+                          {tr('importers.transaction.preview.balanceFirstInExtract', 'Saldo del primer moviment de l’extracte importat')}
+                        </p>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                              aria-label={tr('importers.transaction.preview.balanceTooltipAria', 'Informació sobre saldos de l’extracte importat')}
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs">
+                            {tr(
+                              'importers.transaction.preview.balanceExtractTooltip',
+                              'Aquests valors corresponen al saldo que apareix al primer i a l’últim moviment inclòs a l’extracte que has importat. No necessàriament coincideixen amb el saldo actual del compte.'
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <p className="text-muted-foreground">{formatAmount(parseSummary.balances.initial)}</p>
+                      <p className="mt-3 font-medium">
+                        {tr('importers.transaction.preview.balanceLastInExtract', 'Saldo de l’últim moviment de l’extracte importat')}
+                      </p>
+                      <p className="text-muted-foreground">{formatAmount(parseSummary.balances.final)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {hasMappedBalance && (parseSummary?.warnings.balanceMismatchCount ?? 0) > 0 && (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -285,35 +309,52 @@ export function DedupeCandidateResolver({
 
           {sampleRows.length > 0 && (
             <TooltipProvider>
-              <ScrollArea className="max-h-[260px] rounded-md border">
-                <div className="min-w-[640px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[120px]">{tr('importers.transaction.preview.date', 'Data')}</TableHead>
-                      <TableHead>{tr('importers.transaction.preview.description', 'Descripció')}</TableHead>
-                      <TableHead className="w-[120px] text-right">{tr('importers.transaction.preview.amount', 'Import')}</TableHead>
-                      {hasMappedBalance && (
-                        <TableHead className="w-[120px] text-right">{tr('importers.transaction.preview.balanceColumn', 'Saldo')}</TableHead>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sampleRows.map((row) => {
-                      const warningText = row.warnings.map((warning) => warningsLabelByCode[warning] ?? warning).join(' · ');
+              <div className="space-y-3 rounded-lg border border-border/80 bg-card p-4">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {tr('importers.transaction.preview.sampleTitle', 'Previsualització de l’extracte')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tr('importers.transaction.preview.sampleSubtitle', 'Primeres files detectades per validar que el fitxer s’ha interpretat bé.')}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {tr('importers.transaction.preview.sampleCount', '{count} files de mostra').replace('{count}', String(sampleRows.length))}
+                  </p>
+                </div>
 
-                      return (
-                        <TableRow key={`preview-${row.rowIndex}`} className={row.warnings.length > 0 ? 'bg-amber-50/40 dark:bg-amber-950/20' : undefined}>
-                          <TableCell className="text-xs">{formatDate(row.operationDate)}</TableCell>
-                          <TableCell className="text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="break-words">{row.description}</span>
+                <div className="space-y-3 lg:hidden">
+                  {sampleRows.map((row) => {
+                    const warningText = row.warnings.map((warning) => warningsLabelByCode[warning] ?? warning).join(' · ');
+
+                    return (
+                      <div
+                        key={`preview-card-${row.rowIndex}`}
+                        className={`rounded-lg border p-4 ${row.warnings.length > 0 ? 'border-amber-200 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/20' : 'bg-background'}`}
+                      >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {tr('importers.transaction.preview.date', 'Data')}
+                            </p>
+                            <p className="text-sm font-medium">{formatDate(row.operationDate)}</p>
+                          </div>
+                          <p className="text-sm font-semibold tabular-nums">{formatAmount(row.amount)}</p>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {tr('importers.transaction.preview.description', 'Descripció')}
+                            </p>
+                            <div className="mt-1 flex items-start gap-2">
+                              <span className="break-words text-sm">{row.description}</span>
                               {row.warnings.length > 0 && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <button
                                       type="button"
-                                      className="inline-flex h-4 w-4 items-center justify-center rounded text-amber-600 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"
+                                      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-amber-600 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"
                                       aria-label={tr('importers.transaction.preview.sampleWarnings', 'Veure incidències de la fila')}
                                     >
                                       <AlertTriangle className="h-3.5 w-3.5" />
@@ -325,18 +366,76 @@ export function DedupeCandidateResolver({
                                 </Tooltip>
                               )}
                             </div>
-                          </TableCell>
-                          <TableCell className="text-right text-xs">{formatAmount(row.amount)}</TableCell>
+                          </div>
                           {hasMappedBalance && (
-                            <TableCell className="text-right text-xs">{formatAmount(row.balanceAfter)}</TableCell>
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                {tr('importers.transaction.preview.balanceColumn', 'Saldo')}
+                              </p>
+                              <p className="text-sm tabular-nums">{formatAmount(row.balanceAfter)}</p>
+                            </div>
                           )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </ScrollArea>
+
+                <div className="hidden lg:block">
+                  <ScrollArea className="max-h-[340px] rounded-md border">
+                    <div className="min-w-[760px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[140px]">{tr('importers.transaction.preview.date', 'Data')}</TableHead>
+                            <TableHead>{tr('importers.transaction.preview.description', 'Descripció')}</TableHead>
+                            <TableHead className="w-[140px] text-right">{tr('importers.transaction.preview.amount', 'Import')}</TableHead>
+                            {hasMappedBalance && (
+                              <TableHead className="w-[140px] text-right">{tr('importers.transaction.preview.balanceColumn', 'Saldo')}</TableHead>
+                            )}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sampleRows.map((row) => {
+                            const warningText = row.warnings.map((warning) => warningsLabelByCode[warning] ?? warning).join(' · ');
+
+                            return (
+                              <TableRow key={`preview-${row.rowIndex}`} className={row.warnings.length > 0 ? 'bg-amber-50/40 dark:bg-amber-950/20' : ''}>
+                                <TableCell className="text-xs">{formatDate(row.operationDate)}</TableCell>
+                                <TableCell className="text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="break-words">{row.description}</span>
+                                    {row.warnings.length > 0 && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            type="button"
+                                            className="inline-flex h-4 w-4 items-center justify-center rounded text-amber-600 hover:text-amber-700 dark:text-amber-300 dark:hover:text-amber-200"
+                                            aria-label={tr('importers.transaction.preview.sampleWarnings', 'Veure incidències de la fila')}
+                                          >
+                                            <AlertTriangle className="h-3.5 w-3.5" />
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {warningText}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right text-xs">{formatAmount(row.amount)}</TableCell>
+                                {hasMappedBalance && (
+                                  <TableCell className="text-right text-xs">{formatAmount(row.balanceAfter)}</TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
             </TooltipProvider>
           )}
 

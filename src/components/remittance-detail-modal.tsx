@@ -534,17 +534,18 @@ export function RemittanceDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-0.75rem)] max-w-[1280px] flex-col overflow-hidden p-0 sm:w-[min(calc(100vw-2rem),1280px)]">
+        <DialogHeader className="shrink-0 border-b bg-background px-4 py-4 pr-10 sm:px-6">
           <DialogTitle>{t.movements.table.remittanceDetail}</DialogTitle>
           <DialogDescription className="sr-only">
             Mostra el detall de la remesa i els seus moviments associats.
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6">
         {/* Banner d'inconsistència (només per remeses IN, no OUT/devolucions) */}
         {consistencyCheck && !consistencyCheck.consistent && !consistencyCheck.skipped && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
@@ -593,12 +594,12 @@ export function RemittanceDetailModal({
         )}
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'quotes' | 'pending')} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="quotes" className="flex items-center gap-2">
+          <TabsList className="grid h-auto w-full grid-cols-2">
+            <TabsTrigger value="quotes" className="flex min-w-0 items-center gap-2 whitespace-normal text-center">
               <CheckCircle2 className="h-4 w-4" />
               {t.movements?.splitter?.quotesTab ?? 'Quotes'} ({filteredItems.length})
             </TabsTrigger>
-            <TabsTrigger value="pending" className="flex items-center gap-2">
+            <TabsTrigger value="pending" className="flex min-w-0 items-center gap-2 whitespace-normal text-center">
               <AlertCircle className="h-4 w-4" />
               {t.movements?.splitter?.pendingTab ?? 'Pendents'}
               {hasPending && (
@@ -632,14 +633,57 @@ export function RemittanceDetailModal({
             </div>
 
             {/* Taula de quotes */}
-            <div className="border rounded-lg overflow-auto flex-1 min-h-0">
-              <Table>
+            <div className="space-y-3 lg:hidden">
+              {filteredItems.length === 0 ? (
+                <div className="flex h-24 items-center justify-center rounded-lg border text-center text-muted-foreground">
+                  {t.movements.table.noResults}
+                </div>
+              ) : (
+                filteredItems.map((item) => {
+                  const contact = item.contactId ? contactMap[item.contactId] : null;
+                  const isDonor = contact?.type === 'donor';
+
+                  return (
+                    <div key={item.id} className="rounded-lg border bg-background p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          {contact && isDonor ? (
+                            <button
+                              type="button"
+                              onClick={() => item.contactId && handleDonorClick(item.contactId)}
+                              className="flex items-center gap-1 text-left font-medium hover:text-primary hover:underline"
+                            >
+                              <span className="break-words">{contact.name}</span>
+                              <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+                            </button>
+                          ) : (
+                            <div className="font-medium">{contact?.name || '-'}</div>
+                          )}
+                          {contact?.taxId && (
+                            <div className="mt-1 text-xs text-muted-foreground">{contact.taxId}</div>
+                          )}
+                        </div>
+                        <div className="whitespace-nowrap text-right font-medium text-green-600">
+                          {formatCurrencyEU(item.amount)}
+                        </div>
+                      </div>
+                      <div className="mt-3 text-sm text-muted-foreground">
+                        {item.category ? (categoryTranslations[item.category] || item.category) : '-'}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="hidden min-h-0 flex-1 rounded-lg border lg:block">
+              <Table className="w-full min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t.movements.table.contact}</TableHead>
-                    <TableHead className="hidden sm:table-cell">DNI/CIF</TableHead>
-                    <TableHead className="text-right">{t.movements.table.amount}</TableHead>
-                    <TableHead className="hidden md:table-cell">{t.movements.table.category}</TableHead>
+                    <TableHead className="w-[160px]">DNI/CIF</TableHead>
+                    <TableHead className="w-[140px] text-right">{t.movements.table.amount}</TableHead>
+                    <TableHead>{t.movements.table.category}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -656,10 +700,10 @@ export function RemittanceDetailModal({
                                 <button
                                   type="button"
                                   onClick={() => item.contactId && handleDonorClick(item.contactId)}
-                                  className="text-left hover:text-primary hover:underline flex items-center gap-1 group"
+                                  className="group flex items-center gap-1 text-left hover:text-primary hover:underline"
                                 >
-                                  <span>{contact.name}</span>
-                                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                                  <span className="break-words">{contact.name}</span>
+                                  <ExternalLink className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-50" />
                                 </button>
                               </HoverCardTrigger>
                               <HoverCardContent className="w-72" side="right" align="start">
@@ -673,19 +717,14 @@ export function RemittanceDetailModal({
                           ) : (
                             <span>{contact?.name || '-'}</span>
                           )}
-                          {contact?.taxId && (
-                            <span className="block sm:hidden text-xs text-muted-foreground mt-0.5">
-                              {contact.taxId}
-                            </span>
-                          )}
                         </TableCell>
-                        <TableCell className="text-muted-foreground hidden sm:table-cell">
+                        <TableCell className="text-muted-foreground">
                           {contact?.taxId || '-'}
                         </TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatCurrencyEU(item.amount)}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell>
                           {item.category ? (categoryTranslations[item.category] || item.category) : '-'}
                         </TableCell>
                       </TableRow>
@@ -726,13 +765,42 @@ export function RemittanceDetailModal({
                 </div>
 
                 {/* Taula de pendents */}
-                <div className="border rounded-lg overflow-auto flex-1 min-h-0">
-                  <Table>
+                <div className="space-y-3 lg:hidden">
+                  {pendingItems.map((item) => (
+                    <div key={item.id} className="rounded-lg border bg-orange-50/50 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium">{item.nameRaw || '-'}</div>
+                          {item.taxId && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              ID: {item.taxId} <span className="text-orange-500">(no fiscal)</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="whitespace-nowrap text-right font-medium text-orange-600">
+                          {formatCurrencyEU(item.amountCents / 100)}
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        {item.iban ? (
+                          <code className="rounded bg-slate-100 px-2 py-1 font-mono text-xs">
+                            {formatIBANDisplay(item.iban)}
+                          </code>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden min-h-0 flex-1 rounded-lg border lg:block">
+                  <Table className="w-full min-w-[820px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>{t.movements?.splitter?.name ?? 'Nom'}</TableHead>
                         <TableHead>{t.movements?.splitter?.pendingIbanLabel ?? 'IBAN detectat'}</TableHead>
-                        <TableHead className="text-right">{t.movements.table.amount}</TableHead>
+                        <TableHead className="w-[140px] text-right">{t.movements.table.amount}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -741,18 +809,18 @@ export function RemittanceDetailModal({
                           <TableCell>
                             <div className="font-medium">{item.nameRaw || '-'}</div>
                             {item.taxId && (
-                              <div className="text-xs text-muted-foreground mt-0.5">
+                              <div className="mt-0.5 text-xs text-muted-foreground">
                                 ID: {item.taxId} <span className="text-orange-500">(no fiscal)</span>
                               </div>
                             )}
                           </TableCell>
                           <TableCell>
                             {item.iban ? (
-                              <code className="text-xs bg-slate-100 px-2 py-1 rounded font-mono">
+                              <code className="rounded bg-slate-100 px-2 py-1 font-mono text-xs">
                                 {formatIBANDisplay(item.iban)}
                               </code>
                             ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
+                              <span className="text-sm text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right font-medium text-orange-600">
@@ -809,6 +877,7 @@ export function RemittanceDetailModal({
             )}
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

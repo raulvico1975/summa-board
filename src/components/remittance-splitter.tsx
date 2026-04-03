@@ -516,8 +516,8 @@ export function RemittanceSplitter({
 
   const remittanceDialogContentClassName =
     step === 'mapping' || step === 'preview'
-      ? 'max-h-[85vh] w-full max-w-5xl flex flex-col overflow-hidden p-0'
-      : 'w-full max-w-md';
+      ? 'max-h-[calc(100dvh-1rem)] w-[calc(100vw-0.75rem)] max-w-[1460px] flex flex-col overflow-hidden p-0 sm:w-[min(calc(100vw-2rem),1460px)]'
+      : 'w-[calc(100vw-0.75rem)] max-w-[40rem] sm:w-[min(calc(100vw-2rem),40rem)]';
 
   const mappingHasIdentifier = nameColumn !== null || taxIdColumn !== null || ibanColumn !== null;
 
@@ -1079,7 +1079,8 @@ export function RemittanceSplitter({
       if (foundSupplier) return { contact: foundSupplier as unknown as Donor, contactType: 'supplier' };
     }
 
-    return { contact: null, contactType: undefined };
+    const emptyContactType: 'supplier' | 'employee' | undefined = undefined;
+    return { contact: null, contactType: emptyContactType };
   };
 
   const handleContinueToPreview = () => {
@@ -1187,7 +1188,9 @@ export function RemittanceSplitter({
           const result = matchDonorForRemittance(iban, allDonorsForMatching);
 
           matchedDonor = result.donor;
-          matchedContactType = result.donor ? 'donor' : undefined;
+          if (result.donor) {
+            matchedContactType = 'donor';
+          }
           matchMethod = result.method;
           status = result.status;
 
@@ -1363,7 +1366,10 @@ export function RemittanceSplitter({
           return {
             ...d,
             status: 'found',
-            matchedDonor: { ...d.matchedDonor, status: 'active', inactiveSince: undefined },
+            matchedDonor: (({ inactiveSince: _inactiveSince, ...matchedDonor }) => ({
+              ...matchedDonor,
+              status: 'active',
+            }))(d.matchedDonor),
           };
         }
         return d;
@@ -1418,7 +1424,10 @@ export function RemittanceSplitter({
           return {
             ...d,
             status: 'found',
-            matchedDonor: { ...d.matchedDonor, status: 'active', inactiveSince: undefined },
+            matchedDonor: (({ inactiveSince: _inactiveSince, ...matchedDonor }) => ({
+              ...matchedDonor,
+              status: 'active',
+            }))(d.matchedDonor),
           };
         }
         return d;
@@ -1536,7 +1545,7 @@ export function RemittanceSplitter({
           orgId: organizationId,
           parentTxId,
           items,
-          pendingItems: pendingItems.length > 0 ? pendingItems : undefined,
+          ...(pendingItems.length > 0 ? { pendingItems } : {}),
           category: transaction.category || null,
           bankAccountId: transaction.bankAccountId || null,
         }),
@@ -1752,7 +1761,7 @@ export function RemittanceSplitter({
             bankAccountId: transaction.bankAccountId ?? null,
             isRemittanceItem: true,
             remittanceId,
-            contactType: contactId ? 'supplier' : undefined,
+            ...(contactId ? { contactType: 'supplier' as const } : {}),
           };
 
           batch.set(newTxRef, newTxData);
@@ -1840,7 +1849,7 @@ export function RemittanceSplitter({
         remittancePendingTotalCents: pendingTotalCents,
         category: transaction.category || 'supplierPayments',
         contactId: null,
-        contactType: undefined,
+        contactType: null,
       });
       await updateBatch.commit();
 
@@ -1904,7 +1913,7 @@ export function RemittanceSplitter({
               </DialogDescription>
             </DialogHeader>
 
-            <Alert variant={isPaymentRemittance ? 'default' : undefined}>
+            <Alert>
               <Info className="h-4 w-4" />
               <AlertTitle>{t.movements.splitter.compatibleBanks}</AlertTitle>
               <AlertDescription>
@@ -1955,7 +1964,7 @@ export function RemittanceSplitter({
             ═══════════════════════════════════════════════════════════════════ */}
         {step === 'mapping' && (
           <>
-            <div className="shrink-0 border-b px-6 py-4">
+            <div className="shrink-0 border-b px-4 py-4 sm:px-6">
               <DialogHeader className="pr-8">
                 <DialogTitle className="flex items-center gap-2">
                   <Settings2 className="h-5 w-5" />
@@ -1967,7 +1976,7 @@ export function RemittanceSplitter({
               </DialogHeader>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
               <div className="space-y-6">
                 {savedMappings && savedMappings.length > 0 && (
                   <div className="rounded-lg border bg-muted/50 p-4">
@@ -1996,140 +2005,104 @@ export function RemittanceSplitter({
                   </div>
                 )}
 
-                <div className="rounded-lg border p-4">
-                  <Label className="font-medium">{tr('movements.splitter.basicConfigTitle', 'Configuracio basica')}</Label>
-                  <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-4">
-                    {rawText && (
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
+                  <div className="rounded-lg border p-4">
+                    <Label className="font-medium">{tr('movements.splitter.basicConfigTitle', 'Configuracio basica')}</Label>
+                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {rawText && (
+                        <div className="space-y-1">
+                          <Label className="text-xs">{t.movements.splitter.delimiter}</Label>
+                          <Select value={delimiter} onValueChange={(v) => {
+                            setDelimiter(v);
+                            const lines = rawText.split('\n').filter(line => line.trim());
+                            const rows = lines.map(line => line.split(v).map(cell => cell.trim()));
+                            setAllRows(rows);
+                          }}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value=";">{t.movements.splitter.semicolon}</SelectItem>
+                              <SelectItem value=",">{t.movements.splitter.comma}</SelectItem>
+                              <SelectItem value={"\t"}>{t.movements.splitter.tab}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       <div className="space-y-1">
-                        <Label className="text-xs">{t.movements.splitter.delimiter}</Label>
-                        <Select value={delimiter} onValueChange={(v) => {
-                          setDelimiter(v);
-                          const lines = rawText.split('\n').filter(line => line.trim());
-                          const rows = lines.map(line => line.split(v).map(cell => cell.trim()));
-                          setAllRows(rows);
-                        }}>
+                        <Label className="text-xs">{t.movements.splitter.startRow}</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={allRows.length - 1}
+                          value={startRow}
+                          onChange={(e) => setStartRow(parseInt(e.target.value) || 0)}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs">{t.movements.splitter.totalRows}</Label>
+                        <div className="flex h-8 items-center text-sm text-muted-foreground">
+                          {t.movements.splitter.totalRowsCount(allRows.length, allRows.length - startRow)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-border/80 bg-muted/20 p-4">
+                    <Label className="font-medium">{t.movements.splitter.fieldMapping}</Label>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <span className="w-3 h-3 rounded bg-green-500"></span>
+                          {t.movements.splitter.amountMandatory}
+                        </Label>
+                        <Select
+                          value={String(amountColumn)}
+                          onValueChange={(v) => setAmountColumn(parseInt(v))}
+                        >
                           <SelectTrigger className="h-8">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value=";">{t.movements.splitter.semicolon}</SelectItem>
-                            <SelectItem value=",">{t.movements.splitter.comma}</SelectItem>
-                            <SelectItem value={"\t"}>{t.movements.splitter.tab}</SelectItem>
+                            {Array.from({ length: numColumns }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>
+                                Columna {i}: {previewRows[0]?.[i]?.substring(0, 20) || '-'}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
-                    <div className="space-y-1">
-                      <Label className="text-xs">{t.movements.splitter.startRow}</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={allRows.length - 1}
-                        value={startRow}
-                        onChange={(e) => setStartRow(parseInt(e.target.value) || 0)}
-                        className="h-8"
-                      />
-                    </div>
-                    <div className="space-y-1 md:col-span-2">
-                      <Label className="text-xs">{t.movements.splitter.totalRows}</Label>
-                      <div className="flex h-8 items-center text-sm text-muted-foreground">
-                        {t.movements.splitter.totalRowsCount(allRows.length, allRows.length - startRow)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3 rounded-lg border border-border/80 bg-muted/20 p-4">
-                  <Label className="font-medium">{t.movements.splitter.fieldMapping}</Label>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <span className="w-3 h-3 rounded bg-green-500"></span>
-                        {t.movements.splitter.amountMandatory}
-                      </Label>
-                      <Select
-                        value={String(amountColumn)}
-                        onValueChange={(v) => setAmountColumn(parseInt(v))}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: numColumns }, (_, i) => (
-                            <SelectItem key={i} value={String(i)}>
-                              Columna {i}: {previewRows[0]?.[i]?.substring(0, 20) || '-'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <span className="w-3 h-3 rounded bg-cyan-500"></span>
-                        {t.movements.splitter.iban}
-                      </Label>
-                      <Select
-                        value={ibanColumn !== null ? String(ibanColumn) : 'none'}
-                        onValueChange={(v) => setIbanColumn(v === 'none' ? null : parseInt(v))}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">{t.movements.splitter.notAvailable}</SelectItem>
-                          {Array.from({ length: numColumns }, (_, i) => (
-                            <SelectItem key={i} value={String(i)}>
-                              Columna {i}: {previewRows[0]?.[i]?.substring(0, 20) || '-'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <span className="w-3 h-3 rounded bg-blue-500"></span>
-                        {t.movements.splitter.name}
-                      </Label>
-                      <Select
-                        value={nameColumn !== null ? String(nameColumn) : 'none'}
-                        onValueChange={(v) => setNameColumn(v === 'none' ? null : parseInt(v))}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">{t.movements.splitter.notAvailable}</SelectItem>
-                          {Array.from({ length: numColumns }, (_, i) => (
-                            <SelectItem key={i} value={String(i)}>
-                              Columna {i}: {previewRows[0]?.[i]?.substring(0, 20) || '-'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                <Collapsible open={isAdvancedMappingOpen} onOpenChange={setIsAdvancedMappingOpen} className="rounded-lg border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <Label className="font-medium">{tr('movements.splitter.optionalFieldsTitle', 'Mes camps')}</Label>
-                    <CollapsibleTrigger asChild>
-                      <Button type="button" variant="ghost" size="sm" className="gap-2 px-2">
-                        {tr('movements.splitter.showOptionalFields', 'Mostrar opcionals')}
-                        <ChevronDown className={`h-4 w-4 transition-transform ${isAdvancedMappingOpen ? 'rotate-180' : ''}`} />
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent className="pt-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-1">
                         <Label className="text-xs flex items-center gap-1">
-                          <span className="w-3 h-3 rounded bg-purple-500"></span>
-                          {t.movements.splitter.taxId}
+                          <span className="w-3 h-3 rounded bg-cyan-500"></span>
+                          {t.movements.splitter.iban}
                         </Label>
                         <Select
-                          value={taxIdColumn !== null ? String(taxIdColumn) : 'none'}
-                          onValueChange={(v) => setTaxIdColumn(v === 'none' ? null : parseInt(v))}
+                          value={ibanColumn !== null ? String(ibanColumn) : 'none'}
+                          onValueChange={(v) => setIbanColumn(v === 'none' ? null : parseInt(v))}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">{t.movements.splitter.notAvailable}</SelectItem>
+                            {Array.from({ length: numColumns }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>
+                                Columna {i}: {previewRows[0]?.[i]?.substring(0, 20) || '-'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1 sm:col-span-2 2xl:col-span-1">
+                        <Label className="text-xs flex items-center gap-1">
+                          <span className="w-3 h-3 rounded bg-blue-500"></span>
+                          {t.movements.splitter.name}
+                        </Label>
+                        <Select
+                          value={nameColumn !== null ? String(nameColumn) : 'none'}
+                          onValueChange={(v) => setNameColumn(v === 'none' ? null : parseInt(v))}
                         >
                           <SelectTrigger className="h-8">
                             <SelectValue />
@@ -2145,21 +2118,49 @@ export function RemittanceSplitter({
                         </Select>
                       </div>
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                  </div>
+                </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 rounded-lg border border-border/80 bg-card p-4">
                   <Label className="flex items-center gap-2">
                     <Eye className="h-4 w-4" />
                     {t.movements.splitter.preview(previewRows.length)}
                   </Label>
-                  <div className="max-h-[240px] overflow-auto rounded-md border border-border/80 bg-card">
-                    <Table>
+                  <div className="space-y-3 xl:hidden">
+                    {previewRows.map((row, rowIdx) => (
+                      <div key={rowIdx} className="rounded-lg border border-border/80 bg-card p-4">
+                        <div className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Fila {startRow + rowIdx + 1}
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {Array.from({ length: numColumns }, (_, colIdx) => (
+                            <div
+                              key={colIdx}
+                              className={`rounded-md border p-2 text-sm ${
+                                colIdx === amountColumn ? 'bg-green-50 border-green-200' :
+                                colIdx === nameColumn ? 'bg-blue-50 border-blue-200' :
+                                colIdx === taxIdColumn ? 'bg-purple-50 border-purple-200' :
+                                colIdx === ibanColumn ? 'bg-cyan-50 border-cyan-200' :
+                                'bg-background'
+                              }`}
+                            >
+                              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                {t.movements.splitter.columnPrefix(colIdx)}
+                              </div>
+                              <div className="break-words text-xs">{row[colIdx] || '-'}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hidden max-h-[340px] overflow-auto rounded-md border border-border/80 bg-card xl:block">
+                    <Table className="w-full min-w-[960px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-12 text-xs">#</TableHead>
                           {Array.from({ length: numColumns }, (_, i) => (
-                            <TableHead key={i} className="text-xs min-w-[100px]">
+                            <TableHead key={i} className="min-w-[120px] text-xs">
                               {t.movements.splitter.columnPrefix(i)}
                             </TableHead>
                           ))}
@@ -2174,7 +2175,7 @@ export function RemittanceSplitter({
                             {Array.from({ length: numColumns }, (_, colIdx) => (
                               <TableCell
                                 key={colIdx}
-                                className={`text-xs truncate max-w-[150px] ${
+                                className={`max-w-[220px] whitespace-normal break-words text-xs ${
                                   colIdx === amountColumn ? 'bg-green-100 dark:bg-green-900/30' :
                                   colIdx === nameColumn ? 'bg-blue-100 dark:bg-blue-900/30' :
                                   colIdx === taxIdColumn ? 'bg-purple-100 dark:bg-purple-900/30' :
@@ -2192,27 +2193,71 @@ export function RemittanceSplitter({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-lg border p-4">
-                  <Input
-                    placeholder={t.movements.splitter.configName}
-                    value={newMappingName}
-                    onChange={(e) => setNewMappingName(e.target.value)}
-                    className="h-8 flex-1"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSaveMapping}
-                    disabled={!newMappingName.trim()}
-                  >
-                    <Save className="mr-1 h-3 w-3" />
-                    {t.movements.splitter.save}
-                  </Button>
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] xl:items-start">
+                  <Collapsible open={isAdvancedMappingOpen} onOpenChange={setIsAdvancedMappingOpen} className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="font-medium">{tr('movements.splitter.optionalFieldsTitle', 'Mes camps')}</Label>
+                      <CollapsibleTrigger asChild>
+                        <Button type="button" variant="ghost" size="sm" className="gap-2 px-2">
+                          {tr('movements.splitter.showOptionalFields', 'Mostrar opcionals')}
+                          <ChevronDown className={`h-4 w-4 transition-transform ${isAdvancedMappingOpen ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent className="pt-4">
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs flex items-center gap-1">
+                            <span className="w-3 h-3 rounded bg-purple-500"></span>
+                            {t.movements.splitter.taxId}
+                          </Label>
+                          <Select
+                            value={taxIdColumn !== null ? String(taxIdColumn) : 'none'}
+                            onValueChange={(v) => setTaxIdColumn(v === 'none' ? null : parseInt(v))}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">{t.movements.splitter.notAvailable}</SelectItem>
+                              {Array.from({ length: numColumns }, (_, i) => (
+                                <SelectItem key={i} value={String(i)}>
+                                  Columna {i}: {previewRows[0]?.[i]?.substring(0, 20) || '-'}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  <div className="rounded-lg border p-4">
+                    <Label className="font-medium">{tr('movements.splitter.saveConfigTitle', 'Guardar configuracio')}</Label>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row xl:flex-col">
+                      <Input
+                        placeholder={t.movements.splitter.configName}
+                        value={newMappingName}
+                        onChange={(e) => setNewMappingName(e.target.value)}
+                        className="h-8 flex-1"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveMapping}
+                        disabled={!newMappingName.trim()}
+                        className="xl:w-full"
+                      >
+                        <Save className="mr-1 h-3 w-3" />
+                        {t.movements.splitter.save}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="shrink-0 border-t px-6 py-4">
+            <div className="shrink-0 border-t px-4 py-4 sm:px-6">
               {mappingMissingMessage ? (
                 <p className="mb-3 text-sm text-muted-foreground">{mappingMissingMessage}</p>
               ) : null}
