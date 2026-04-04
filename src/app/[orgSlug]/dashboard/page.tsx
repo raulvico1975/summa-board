@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { DollarSign, TrendingUp, TrendingDown, Rocket, Heart, AlertTriangle, FolderKanban, CalendarClock, Share2, Copy, Mail, PartyPopper, Info, FileSpreadsheet, Pencil, Settings, Loader2, FileText, Files, Undo2 } from 'lucide-react';
-import type { Transaction, Contact, Project, Donor, Category, OrganizationMember } from '@/lib/data';
+import type { Transaction, Contact, Project as LegacyProject, Donor, Category, OrganizationMember } from '@/lib/data';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { useTranslations } from '@/i18n';
@@ -24,12 +24,15 @@ import { canViewFinancialDashboard } from '@/lib/can-view-financial-dashboard';
 import {
   aggregateIncomeByCategory,
   aggregateMissionTransfersByContact,
+  aggregateOperationalExpensesByAxis,
+  aggregateOperationalExpensesByCategory,
   aggregateOperationalExpensesByProject,
   buildNarrativesFromAggregates,
   type AggregateResult,
   type NarrativeDraft,
 } from '@/lib/exports/economic-report';
 import { buildDashboardShareWorkbook } from '@/lib/exports/dashboard-share-workbook';
+import type { ExpenseLink, OffBankExpense, Project as ProjectModuleProject } from '@/lib/project-module-types';
 import { writeFile as writeWorkbookFile } from 'xlsx';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -95,6 +98,49 @@ const NARRATIVE_CARD_META = {
   }
 >;
 const EMPTY_AGGREGATE: AggregateResult = { aggregated: [], complete: [], total: 0 };
+
+function matchesDateFilter(dateValue: string | null | undefined, filter: DateFilterValue): boolean {
+  if (!dateValue) return false;
+
+  const txDate = new Date(dateValue);
+  if (Number.isNaN(txDate.getTime())) return false;
+  if (filter.type === 'all') return true;
+
+  if (filter.type === 'year' && filter.year) {
+    return txDate.getFullYear() === filter.year;
+  }
+
+  if (filter.type === 'quarter' && filter.year && filter.quarter) {
+    const txYear = txDate.getFullYear();
+    const txMonth = txDate.getMonth() + 1;
+    const quarterStart = (filter.quarter - 1) * 3 + 1;
+    const quarterEnd = filter.quarter * 3;
+    return txYear === filter.year && txMonth >= quarterStart && txMonth <= quarterEnd;
+  }
+
+  if (filter.type === 'month' && filter.year && filter.month) {
+    return txDate.getFullYear() === filter.year && txDate.getMonth() + 1 === filter.month;
+  }
+
+  if (filter.type === 'custom' && filter.customRange) {
+    const { from, to } = filter.customRange;
+    if (!from && !to) return true;
+    if (from && !to) return txDate >= from;
+    if (!from && to) return txDate <= to;
+    if (from && to) return txDate >= from && txDate <= to;
+  }
+
+  return true;
+}
+
+function toWorkbookLabel(value: string | null | undefined, fallbackLabel: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return fallbackLabel;
+  if (/^[a-zA-Z0-9]{20}$/.test(trimmed)) return fallbackLabel;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) return fallbackLabel;
+  if (/^[a-zA-Z0-9]{24,}$/.test(trimmed)) return fallbackLabel;
+  return trimmed;
+}
 
 interface Celebration {
   id: string;
@@ -411,15 +457,12 @@ export default function DashboardPage() {
   const { firestore, user } = useFirebase();
   const { organizationId, organization, userRole, member, isLoading: isOrganizationLoading } = useCurrentOrganization();
   const { permissions, canAccessProjectsArea } = usePermissions();
+  const hasProjectModule = organization?.features?.projectModule === true;
   // SECURITY GUARD: users without moviments permissions must never see economic data
   // (amounts, totals, balances or derived financial metrics).
   const canViewFinancial = canViewFinancialDashboard(permissions);
   const { t, tr, language } = useTranslations();
-  const locale =
-    language === 'es' ? 'es-ES' :
-    language === 'fr' ? 'fr-FR' :
-    language === 'pt' ? 'pt-PT' :
-    'ca-ES';
+  const locale = language === 'es' ? 'es-ES' : 'ca-ES';
   // Helper local per interpolació de placeholders {key} en claus JSON
   const tri = React.useCallback(
     (key: string, params: Record<string, string | number>) =>
@@ -510,25 +553,24 @@ export default function DashboardPage() {
             balance: 'Balance operativo',
           },
           detailSheets: {
-            incomeTop: 'Ingresos destacados',
-            expensesTop: 'Proyectos destacados',
-            transfersTop: 'Contrapartes destacadas',
-            incomeComplete: 'Ingresos detalle',
-            expensesComplete: 'Proyectos detalle',
-            transfersComplete: 'Contrapartes detalle',
+            income: 'Ingresos',
+            expenses: 'Gastos',
+            expensesByAxis: 'Gastos por eje de actuación',
+            projects: 'Proyectos',
           },
           detailColumns: {
             incomeLabel: 'Categoría de ingreso',
-            expenseLabel: 'Proyecto',
-            transferLabel: 'Contraparte',
+            expenseCategoryLabel: 'Categoría de gasto',
+            axisLabel: 'Eje de actuación',
             amount: 'Importe',
             percentage: '% sobre el total',
             operations: 'Movimientos',
+            projectName: 'Nombre del proyecto',
+            budget: 'Presupuesto',
+            imputedExpenses: 'Gastos imputados',
           },
           fallbacks: {
             uncategorized: shareModalTexts.labels.uncategorized,
-            generalProject: shareModalTexts.labels.generalProject,
-            noCounterpart: shareModalTexts.labels.noCounterpart,
           },
         };
       case 'fr':
@@ -550,25 +592,24 @@ export default function DashboardPage() {
             balance: 'Solde operationnel',
           },
           detailSheets: {
-            incomeTop: 'Revenus cles',
-            expensesTop: 'Projets cles',
-            transfersTop: 'Partenaires cles',
-            incomeComplete: 'Revenus detail',
-            expensesComplete: 'Projets detail',
-            transfersComplete: 'Partenaires detail',
+            income: 'Revenus',
+            expenses: 'Depenses',
+            expensesByAxis: "Depenses par axe d'action",
+            projects: 'Projets',
           },
           detailColumns: {
             incomeLabel: 'Categorie de revenu',
-            expenseLabel: 'Projet',
-            transferLabel: 'Partenaire',
+            expenseCategoryLabel: 'Categorie de depense',
+            axisLabel: "Axe d'action",
             amount: 'Montant',
             percentage: '% du total',
             operations: 'Mouvements',
+            projectName: 'Nom du projet',
+            budget: 'Budget',
+            imputedExpenses: 'Depenses imputees',
           },
           fallbacks: {
             uncategorized: shareModalTexts.labels.uncategorized,
-            generalProject: shareModalTexts.labels.generalProject,
-            noCounterpart: shareModalTexts.labels.noCounterpart,
           },
         };
       case 'pt':
@@ -590,25 +631,24 @@ export default function DashboardPage() {
             balance: 'Saldo operacional',
           },
           detailSheets: {
-            incomeTop: 'Receitas em destaque',
-            expensesTop: 'Projetos em destaque',
-            transfersTop: 'Contrapartes em destaque',
-            incomeComplete: 'Receitas detalhe',
-            expensesComplete: 'Projetos detalhe',
-            transfersComplete: 'Contrapartes detalhe',
+            income: 'Receitas',
+            expenses: 'Despesas',
+            expensesByAxis: 'Despesas por eixo de atuação',
+            projects: 'Projetos',
           },
           detailColumns: {
             incomeLabel: 'Categoria de receita',
-            expenseLabel: 'Projeto',
-            transferLabel: 'Contraparte',
+            expenseCategoryLabel: 'Categoria de despesa',
+            axisLabel: 'Eixo de atuação',
             amount: 'Montante',
             percentage: '% do total',
             operations: 'Movimentos',
+            projectName: 'Nome do projeto',
+            budget: 'Orçamento',
+            imputedExpenses: 'Despesas imputadas',
           },
           fallbacks: {
             uncategorized: shareModalTexts.labels.uncategorized,
-            generalProject: shareModalTexts.labels.generalProject,
-            noCounterpart: shareModalTexts.labels.noCounterpart,
           },
         };
       case 'ca':
@@ -631,29 +671,28 @@ export default function DashboardPage() {
             balance: 'Balanc operatiu',
           },
           detailSheets: {
-            incomeTop: 'Ingressos destacats',
-            expensesTop: 'Projectes destacats',
-            transfersTop: 'Contraparts destacades',
-            incomeComplete: 'Ingressos detall',
-            expensesComplete: 'Projectes detall',
-            transfersComplete: 'Contraparts detall',
+            income: 'Ingressos',
+            expenses: 'Despeses',
+            expensesByAxis: "Despeses per Eix d'actuació",
+            projects: 'Projectes',
           },
           detailColumns: {
             incomeLabel: 'Categoria d ingres',
-            expenseLabel: 'Projecte',
-            transferLabel: 'Contrapart',
+            expenseCategoryLabel: 'Categoria de despesa',
+            axisLabel: "Eix d'actuacio",
             amount: 'Import',
             percentage: '% sobre el total',
             operations: 'Moviments',
+            projectName: 'Nom del projecte',
+            budget: 'Pressupost',
+            imputedExpenses: 'Despeses imputades',
           },
           fallbacks: {
             uncategorized: shareModalTexts.labels.uncategorized,
-            generalProject: shareModalTexts.labels.generalProject,
-            noCounterpart: shareModalTexts.labels.noCounterpart,
           },
         };
     }
-  }, [language, shareModalTexts.labels.generalProject, shareModalTexts.labels.noCounterpart, shareModalTexts.labels.uncategorized]);
+  }, [language, shareModalTexts.labels.uncategorized]);
   const shareWorkbookFileName = React.useCallback(
     (p: { organizationSlug: string; date: string }) => tri("dashboard.shareModal.exports.excelFileName", p),
     [tri]
@@ -748,7 +787,45 @@ export default function DashboardPage() {
     () => canViewFinancial && organizationId ? collection(firestore, 'organizations', organizationId, 'projects') : null,
     [canViewFinancial, firestore, organizationId]
   );
-  const { data: projects } = useCollection<Project>(projectsQuery);
+  const { data: projects } = useCollection<LegacyProject>(projectsQuery);
+
+  const canExportProjectModuleData = canViewFinancial && canAccessProjectsArea && hasProjectModule;
+
+  const projectModuleProjectsQuery = useMemoFirebase(
+    () => canExportProjectModuleData && organizationId
+      ? collection(firestore, 'organizations', organizationId, 'projectModule', '_', 'projects')
+      : null,
+    [canExportProjectModuleData, firestore, organizationId]
+  );
+  const { data: projectModuleProjects } = useCollection<ProjectModuleProject>(
+    projectModuleProjectsQuery,
+    [],
+    { ignorePermissionDenied: true }
+  );
+
+  const projectExpenseLinksQuery = useMemoFirebase(
+    () => canExportProjectModuleData && organizationId
+      ? collection(firestore, 'organizations', organizationId, 'projectModule', '_', 'expenseLinks')
+      : null,
+    [canExportProjectModuleData, firestore, organizationId]
+  );
+  const { data: projectExpenseLinks } = useCollection<ExpenseLink>(
+    projectExpenseLinksQuery,
+    [],
+    { ignorePermissionDenied: true }
+  );
+
+  const offBankExpensesQuery = useMemoFirebase(
+    () => canExportProjectModuleData && organizationId
+      ? collection(firestore, 'organizations', organizationId, 'projectModule', '_', 'offBankExpenses')
+      : null,
+    [canExportProjectModuleData, firestore, organizationId]
+  );
+  const { data: offBankExpenses } = useCollection<OffBankExpense>(
+    offBankExpensesQuery,
+    [],
+    { ignorePermissionDenied: true }
+  );
 
   const categoriesQuery = useMemoFirebase(
     () => canViewFinancial && organizationId ? collection(firestore, 'organizations', organizationId, 'categories') : null,
@@ -946,6 +1023,19 @@ export default function DashboardPage() {
     },
     [canViewFinancial, filteredTransactions, projects, shareModalTexts, missionTransferCategoryId]
   );
+  const expenseCategoryAggregates = React.useMemo(
+    () => {
+      if (!canViewFinancial) return EMPTY_AGGREGATE;
+      return aggregateOperationalExpensesByCategory({
+        transactions: filteredTransactions,
+        categories,
+        topN: 0,
+        missionKey: missionTransferCategoryId ?? '',
+        labels: shareModalTexts.labels,
+      });
+    },
+    [canViewFinancial, filteredTransactions, categories, shareModalTexts, missionTransferCategoryId]
+  );
   const transferAggregates = React.useMemo(
     () => {
       if (!canViewFinancial) return EMPTY_AGGREGATE;
@@ -961,6 +1051,72 @@ export default function DashboardPage() {
     },
     [canViewFinancial, filteredTransactions, contacts, shareModalTexts, missionTransferCategoryId]
   );
+  const expenseAxisAggregates = React.useMemo(() => {
+    if (!canViewFinancial || !projects?.length) return EMPTY_AGGREGATE;
+
+    const base = aggregateOperationalExpensesByAxis({
+      transactions: filteredTransactions,
+      projects,
+      missionKey: missionTransferCategoryId ?? '',
+    });
+
+    const complete = base.complete.map((row) => ({
+      ...row,
+      name: toWorkbookLabel(row.name, row.id),
+    }));
+
+    return {
+      aggregated: complete,
+      complete,
+      total: base.total,
+    };
+  }, [canViewFinancial, filteredTransactions, missionTransferCategoryId, projects]);
+  const projectExpenseIdsInPeriod = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (!canExportProjectModuleData) return ids;
+
+    filteredTransactions?.forEach((tx) => {
+      if (tx.amount < 0 && tx.category !== missionTransferCategoryId) {
+        ids.add(tx.id);
+      }
+    });
+
+    offBankExpenses?.forEach((expense) => {
+      if (matchesDateFilter(expense.date, dateFilter)) {
+        ids.add(`off_${expense.id}`);
+      }
+    });
+
+    return ids;
+  }, [canExportProjectModuleData, dateFilter, filteredTransactions, missionTransferCategoryId, offBankExpenses]);
+  const projectWorkbookRows = React.useMemo(() => {
+    if (!canExportProjectModuleData || !projectModuleProjects?.length) return [];
+
+    const imputedByProject = new Map<string, number>();
+    projectExpenseLinks?.forEach((link) => {
+      if (!projectExpenseIdsInPeriod.has(link.id)) return;
+
+      link.assignments?.forEach((assignment) => {
+        const current = imputedByProject.get(assignment.projectId) ?? 0;
+        const amount = assignment.amountEUR != null ? Math.abs(assignment.amountEUR) : 0;
+        imputedByProject.set(assignment.projectId, current + amount);
+      });
+    });
+
+    return [...projectModuleProjects]
+      .map((project) => ({
+        name: toWorkbookLabel(project.name?.trim() || project.code?.trim(), project.id),
+        budget: project.budgetEUR ?? 0,
+        imputedExpenses: imputedByProject.get(project.id) ?? 0,
+      }))
+      .sort((a, b) => b.imputedExpenses - a.imputedExpenses || a.name.localeCompare(b.name, locale, { sensitivity: 'base' }));
+  }, [
+    canExportProjectModuleData,
+    locale,
+    projectExpenseIdsInPeriod,
+    projectExpenseLinks,
+    projectModuleProjects,
+  ]);
   const totalIncome = canViewFinancial ? dashboardSummary?.income ?? 0 : 0;
   const totalExpenses = canViewFinancial ? dashboardSummary?.expense ?? 0 : 0;
   const totalMissionTransfers = canViewFinancial ? dashboardSummary?.missionTransfers ?? 0 : 0;
@@ -1339,8 +1495,10 @@ ${shareSummarySections.bullet} ${tr("dashboard.memberFees")}: ${formatCurrencyEU
       generatedAt: new Date(),
       locale,
       incomeAggregates,
-      expenseAggregates,
+      expenseCategoryAggregates,
       transferAggregates,
+      expenseAxisAggregates,
+      projectRows: projectWorkbookRows,
       netBalance,
       categories,
       categoryTranslations: t.categories as Record<string, string>,
@@ -1579,7 +1737,6 @@ ${shareSummarySections.bullet} ${tr("dashboard.memberFees")}: ${formatCurrencyEU
   }, [canViewFinancial, expensesByProject, totalAssignedProjectExpenses, tr]);
 
   // Condicions per mostrar el bloc de "Despesa per Eix"
-  const hasProjectModule = organization?.features?.projectModule === true;
   const hasActiveProjects = (projects?.length ?? 0) > 0;
   const totalExpensesAbs = Math.abs(totalExpenses);
   const assignedExpensesRatio = totalExpensesAbs > 0 ? totalAssignedProjectExpenses / totalExpensesAbs : 0;

@@ -23,25 +23,24 @@ export interface DashboardShareWorkbookTexts {
     balance: string;
   };
   detailSheets: {
-    incomeTop: string;
-    expensesTop: string;
-    transfersTop: string;
-    incomeComplete: string;
-    expensesComplete: string;
-    transfersComplete: string;
+    income: string;
+    expenses: string;
+    expensesByAxis: string;
+    projects: string;
   };
   detailColumns: {
     incomeLabel: string;
-    expenseLabel: string;
-    transferLabel: string;
+    expenseCategoryLabel: string;
+    axisLabel: string;
     amount: string;
     percentage: string;
     operations: string;
+    projectName: string;
+    budget: string;
+    imputedExpenses: string;
   };
   fallbacks: {
     uncategorized: string;
-    generalProject: string;
-    noCounterpart: string;
   };
 }
 
@@ -51,8 +50,10 @@ interface BuildDashboardShareWorkbookParams {
   generatedAt: Date;
   locale: string;
   incomeAggregates: AggregateResult;
-  expenseAggregates: AggregateResult;
+  expenseCategoryAggregates: AggregateResult;
   transferAggregates: AggregateResult;
+  expenseAxisAggregates: AggregateResult;
+  projectRows: DashboardProjectWorkbookRow[];
   netBalance: number;
   categories?: Category[] | null;
   categoryTranslations?: Record<string, string>;
@@ -66,14 +67,22 @@ interface MaterializedRow {
   count: number;
 }
 
+export interface DashboardProjectWorkbookRow {
+  name: string;
+  budget: number;
+  imputedExpenses: number;
+}
+
 export function buildDashboardShareWorkbook({
   organizationName,
   periodLabel,
   generatedAt,
   locale,
   incomeAggregates,
-  expenseAggregates,
+  expenseCategoryAggregates,
   transferAggregates,
+  expenseAxisAggregates,
+  projectRows,
   netBalance,
   categories,
   categoryTranslations,
@@ -89,7 +98,7 @@ export function buildDashboardShareWorkbook({
       generatedAt,
       locale,
       incomeTotal: incomeAggregates.total,
-      expenseTotal: expenseAggregates.total,
+      expenseTotal: expenseCategoryAggregates.total,
       transferTotal: transferAggregates.total,
       netBalance,
       texts,
@@ -101,51 +110,7 @@ export function buildDashboardShareWorkbook({
     workbook,
     buildDetailSheet({
       labelColumnTitle: texts.detailColumns.incomeLabel,
-      rows: materializeIncomeRows({
-        rows: incomeAggregates.aggregated,
-        total: incomeAggregates.total,
-        categories,
-        categoryTranslations,
-        fallbackLabel: texts.fallbacks.uncategorized,
-      }),
-      texts,
-    }),
-    texts.detailSheets.incomeTop,
-  );
-
-  appendSheet(
-    workbook,
-    buildDetailSheet({
-      labelColumnTitle: texts.detailColumns.expenseLabel,
-      rows: materializeGenericRows({
-        rows: expenseAggregates.aggregated,
-        total: expenseAggregates.total,
-        fallbackLabel: texts.fallbacks.generalProject,
-      }),
-      texts,
-    }),
-    texts.detailSheets.expensesTop,
-  );
-
-  appendSheet(
-    workbook,
-    buildDetailSheet({
-      labelColumnTitle: texts.detailColumns.transferLabel,
-      rows: materializeGenericRows({
-        rows: transferAggregates.aggregated,
-        total: transferAggregates.total,
-        fallbackLabel: texts.fallbacks.noCounterpart,
-      }),
-      texts,
-    }),
-    texts.detailSheets.transfersTop,
-  );
-
-  appendSheet(
-    workbook,
-    buildDetailSheet({
-      labelColumnTitle: texts.detailColumns.incomeLabel,
-      rows: materializeIncomeRows({
+      rows: materializeCategoryRows({
         rows: incomeAggregates.complete,
         total: incomeAggregates.total,
         categories,
@@ -154,35 +119,42 @@ export function buildDashboardShareWorkbook({
       }),
       texts,
     }),
-    texts.detailSheets.incomeComplete,
+    texts.detailSheets.income,
   );
 
   appendSheet(
     workbook,
     buildDetailSheet({
-      labelColumnTitle: texts.detailColumns.expenseLabel,
-      rows: materializeGenericRows({
-        rows: expenseAggregates.complete,
-        total: expenseAggregates.total,
-        fallbackLabel: texts.fallbacks.generalProject,
+      labelColumnTitle: texts.detailColumns.expenseCategoryLabel,
+      rows: materializeCategoryRows({
+        rows: expenseCategoryAggregates.complete,
+        total: expenseCategoryAggregates.total,
+        categories,
+        categoryTranslations,
+        fallbackLabel: texts.fallbacks.uncategorized,
       }),
       texts,
     }),
-    texts.detailSheets.expensesComplete,
+    texts.detailSheets.expenses,
   );
 
   appendSheet(
     workbook,
     buildDetailSheet({
-      labelColumnTitle: texts.detailColumns.transferLabel,
+      labelColumnTitle: texts.detailColumns.axisLabel,
       rows: materializeGenericRows({
-        rows: transferAggregates.complete,
-        total: transferAggregates.total,
-        fallbackLabel: texts.fallbacks.noCounterpart,
+        rows: expenseAxisAggregates.complete,
+        total: expenseAxisAggregates.total,
       }),
       texts,
     }),
-    texts.detailSheets.transfersComplete,
+    texts.detailSheets.expensesByAxis,
+  );
+
+  appendSheet(
+    workbook,
+    buildProjectSheet({ rows: projectRows, texts }),
+    texts.detailSheets.projects,
   );
 
   return workbook;
@@ -272,7 +244,39 @@ function buildDetailSheet({
   return sheet;
 }
 
-function materializeIncomeRows({
+function buildProjectSheet({
+  rows,
+  texts,
+}: {
+  rows: DashboardProjectWorkbookRow[];
+  texts: DashboardShareWorkbookTexts;
+}): XLSX.WorkSheet {
+  const data = [
+    [
+      texts.detailColumns.projectName,
+      texts.detailColumns.budget,
+      texts.detailColumns.imputedExpenses,
+    ],
+    ...rows.map((row) => [
+      row.name,
+      formatCurrencyEU(row.budget),
+      formatCurrencyEU(row.imputedExpenses),
+    ]),
+  ];
+
+  const sheet = XLSX.utils.aoa_to_sheet(data);
+  sheet['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 20 }];
+  sheet['!autofilter'] = {
+    ref: XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: Math.max(data.length - 1, 0), c: data[0].length - 1 },
+    }),
+  };
+
+  return sheet;
+}
+
+function materializeCategoryRows({
   rows,
   total,
   categories,
@@ -316,32 +320,16 @@ function materializeIncomeRows({
 function materializeGenericRows({
   rows,
   total,
-  fallbackLabel,
 }: {
   rows: AggregateRow[];
   total: number;
-  fallbackLabel: string;
 }): MaterializedRow[] {
   return rows.map((row) => ({
-    label: toReadableLabel(row.name, fallbackLabel),
+    label: row.name,
     amount: row.amount,
     percentage: total > 0 ? (row.amount / total) * 100 : 0,
     count: row.count,
   }));
-}
-
-function toReadableLabel(value: string | null | undefined, fallbackLabel: string): string {
-  const trimmed = value?.trim();
-  if (!trimmed) return fallbackLabel;
-  if (looksLikeTechnicalId(trimmed)) return fallbackLabel;
-  return trimmed;
-}
-
-function looksLikeTechnicalId(value: string): boolean {
-  if (/^[a-zA-Z0-9]{20}$/.test(value)) return true;
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return true;
-  if (/^[a-zA-Z0-9]{24,}$/.test(value)) return true;
-  return false;
 }
 
 function formatExportDateTime(date: Date, locale: string): string {
