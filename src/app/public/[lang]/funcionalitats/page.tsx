@@ -63,7 +63,7 @@ type PageCopy = {
 };
 
 const pageShellClass =
-  'min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#ffffff_24%,#ffffff_100%)]';
+  'min-h-screen bg-[linear-gradient(180deg,#f7f8fa_0%,#fcfcfd_26%,#ffffff_100%)]';
 
 const FEATURES_LAYOUT_COPY: Record<
   PublicLocale,
@@ -901,7 +901,7 @@ export default async function FeaturesPage({ params }: PageProps) {
     <main className={pageShellClass}>
       <PublicSiteHeader locale={locale} currentSection="features" />
 
-      <section className="px-6 pb-8 pt-8 lg:pt-12">
+      <section className="px-6 pb-8 pt-8 lg:px-20 lg:pt-12 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl">
           <Button
             asChild
@@ -929,21 +929,21 @@ export default async function FeaturesPage({ params }: PageProps) {
         </div>
       </section>
 
-      <section className="px-6 pb-16">
+      <section className="px-6 pb-16 lg:px-20 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl space-y-6">
           {sections.map((section, index) => {
-            const media = showcaseMedia[section.id as FeatureSectionKey];
+            const media = section.items[0]?.media ?? showcaseMedia[section.id as FeatureSectionKey];
 
             return (
               <article
                 key={section.id}
                 id={section.id}
-                className="scroll-mt-24 rounded-[2.2rem] border border-slate-200/80 bg-white/96 p-6 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.16)] sm:p-8 lg:p-10"
+                className="scroll-mt-24 py-4 sm:py-5"
               >
-                <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start lg:gap-10">
+                <div className="grid gap-7 lg:grid-cols-[0.76fr_1.24fr] lg:items-start lg:gap-10">
                   <div>
                     <div className="space-y-4">
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary/85">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                         {locale === 'ca'
                           ? `Bloc ${index + 1}`
                           : locale === 'es'
@@ -952,10 +952,10 @@ export default async function FeaturesPage({ params }: PageProps) {
                               ? `Bloc ${index + 1}`
                               : `Bloco ${index + 1}`}
                       </p>
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary/85">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                         {section.label}
                       </p>
-                      <h2 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-[2.2rem]">
+                      <h2 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950 sm:text-[2.15rem] sm:leading-[1.04]">
                         {section.title}
                       </h2>
                       <p className="max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
@@ -965,16 +965,34 @@ export default async function FeaturesPage({ params }: PageProps) {
                   </div>
 
                   <div>
-                    <div className="rounded-[2rem] border border-sky-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,250,255,0.96))] p-4 shadow-[0_24px_72px_-56px_rgba(14,165,233,0.18)]">
+                    <div className="rounded-[2.05rem] bg-[radial-gradient(circle_at_top_right,rgba(191,219,254,0.36),rgba(255,255,255,0)_34%),linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.96))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_28px_70px_-56px_rgba(15,23,42,0.16)] ring-1 ring-black/[0.04] sm:p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                        </div>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {section.items.slice(0, 2).map((item) => (
+                            <span
+                              key={item.id}
+                              className="inline-flex items-center rounded-full bg-white/72 px-3 py-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-black/[0.05] backdrop-blur"
+                            >
+                              {item.title}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                       <PublicFeatureDemo
                         locale={locale}
                         media={media}
+                        variant="stage"
                         showDemoBadge={false}
                         showCaptionsBadge={false}
                         expandOnPlay={false}
                         dialogTitle={section.title}
                         dialogDescription={section.description}
-                        className="border border-white/90 bg-white/96 shadow-[0_24px_60px_-46px_rgba(15,23,42,0.18)]"
+                        className="bg-transparent"
                       />
                     </div>
                   </div>

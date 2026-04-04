@@ -85,7 +85,7 @@ export default async function NovetatsPage({ params }: PageProps) {
     <main className={pageShellClass}>
       <PublicSiteHeader locale={locale} />
 
-      <section className="px-6 pb-12 pt-8 lg:pt-12">
+      <section className="px-6 pb-12 pt-8 lg:px-20 lg:pt-12 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl">
           <Button asChild variant="ghost" size="sm" className="rounded-full px-4 text-muted-foreground hover:text-foreground">
             <Link href={`/${locale}`}>
@@ -114,7 +114,7 @@ export default async function NovetatsPage({ params }: PageProps) {
         </div>
       </section>
 
-      <section className="px-6 pb-20">
+      <section className="px-6 pb-20 lg:px-20 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl">
           {updates.length > 0 ? (
             <div className="grid gap-5 md:grid-cols-2">

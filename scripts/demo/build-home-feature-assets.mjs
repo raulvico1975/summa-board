@@ -3,11 +3,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { getBlockVideoPreset } from './video-block-standards.mjs';
 
 const ROOT = process.cwd();
 const SOURCE_DIR = path.join(ROOT, 'output', 'playwright');
 const TARGET_DIR = path.join(ROOT, 'public', 'visuals', 'web', 'features');
 const TMP_DIR = path.join(ROOT, 'tmp', 'home-feature-assets');
+const BLOCK_VIDEO_PRESET = getBlockVideoPreset();
+const EXPORT_FRAME = BLOCK_VIDEO_PRESET.exportDimensions;
 
 const TARGETS = [
   {
@@ -133,9 +136,9 @@ const TARGETS = [
 ];
 
 const LAYOUTS = {
-  desktop: { width: 1040, height: 584 },
-  dialog: { width: 900, height: 540 },
-  mobile: { width: 340, height: 604 },
+  desktop: { mode: 'cover' },
+  dialog: { mode: 'cover' },
+  mobile: { mode: 'contain', width: 1220, height: EXPORT_FRAME.height },
 };
 
 function ensureDir(dirPath) {
@@ -160,30 +163,34 @@ function run(command, args) {
 }
 
 function buildMagickArgs(inputPath, tempPath, layout) {
-  const { width, height } = LAYOUTS[layout];
+  const frame = `${EXPORT_FRAME.width}x${EXPORT_FRAME.height}`;
+  const layoutConfig = LAYOUTS[layout];
+
+  if (layoutConfig.mode === 'contain') {
+    return [
+      '-size',
+      frame,
+      'canvas:none',
+      '(',
+      inputPath,
+      '-resize',
+      `${layoutConfig.width}x${layoutConfig.height}`,
+      ')',
+      '-gravity',
+      'center',
+      '-composite',
+      tempPath,
+    ];
+  }
 
   return [
-    '-size',
-    '1200x680',
-    'gradient:#eef4ff-#f9fbff',
-    '(',
     inputPath,
     '-resize',
-    `${width}x${height}`,
-    '-background',
-    '#ffffff',
+    `${frame}^`,
     '-gravity',
     'center',
     '-extent',
-    `${width}x${height}`,
-    '-bordercolor',
-    '#d9e6ff',
-    '-border',
-    '2x2',
-    ')',
-    '-gravity',
-    'center',
-    '-composite',
+    frame,
     tempPath,
   ];
 }

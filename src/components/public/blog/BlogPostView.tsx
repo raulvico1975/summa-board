@@ -71,7 +71,7 @@ export async function BlogPostView({
     <main className={pageShellClass}>
       <PublicSiteHeader locale={locale} currentSection="blog" />
 
-      <section className="px-6 pb-12 pt-10 lg:pt-14">
+      <section className="px-6 pb-12 pt-10 lg:px-20 lg:pt-14 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-5xl">
           <Button
             asChild
@@ -134,7 +134,7 @@ export async function BlogPostView({
         </div>
       </section>
 
-      <section className="px-6 pb-14">
+      <section className="px-6 pb-14 lg:px-20 xl:px-28 2xl:px-32">
         <article className="mx-auto max-w-[54rem] rounded-[2.25rem] border border-white/75 bg-white/96 px-6 py-8 shadow-[0_36px_110px_-72px_rgba(15,23,42,0.24)] sm:px-10 sm:py-12 lg:px-14">
           <div
             className="blog-rich-text"
@@ -143,7 +143,7 @@ export async function BlogPostView({
         </article>
       </section>
 
-      <section className="px-6 pb-20">
+      <section className="px-6 pb-20 lg:px-20 xl:px-28 2xl:px-32">
         <div className="mx-auto flex max-w-[54rem] flex-wrap items-center justify-between gap-4 rounded-[1.8rem] border border-white/75 bg-white/90 px-5 py-4 shadow-[0_28px_90px_-70px_rgba(15,23,42,0.24)] sm:px-6">
           <Button asChild variant="outline" className="rounded-full">
             <Link href={blogBasePath}>{copy.browseBlog}</Link>

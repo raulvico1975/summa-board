@@ -126,6 +126,28 @@ function findBinary(name) {
   return result.stdout.trim() || null;
 }
 
+function resolveFfmpegPath() {
+  if (process.env.FFMPEG_PATH?.trim()) {
+    return process.env.FFMPEG_PATH.trim();
+  }
+
+  const systemBinary = findBinary('ffmpeg');
+  if (systemBinary) {
+    return systemBinary;
+  }
+
+  const pythonLookup = runCommand('python3', [
+    '-c',
+    'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())',
+  ]);
+
+  if (pythonLookup.status !== 0) {
+    return null;
+  }
+
+  return pythonLookup.stdout.trim() || null;
+}
+
 function formatSeconds(seconds) {
   return Number(seconds.toFixed(2)).toString();
 }
@@ -747,6 +769,24 @@ async function runFlow(page, db, scenarioData, artifactDir) {
   await page.screenshot({ path: resultPath, fullPage: false });
 }
 
+async function runImportOnlyFlow(page, artifactDir, scenarioData) {
+  await page.setViewportSize(
+    QUALITY_MODE === 'commercial'
+      ? { width: COMMERCIAL_VIEWPORT.width, height: COMMERCIAL_VIEWPORT.height }
+      : { width: 1440, height: 960 }
+  );
+  await hideNoise(page);
+  await sleep(1200);
+
+  const markerPath = path.join(artifactDir, 'movements-start.png');
+  await page.screenshot({ path: markerPath, fullPage: false });
+  await sleep(1200);
+
+  await startImport(page, scenarioData.csvPath);
+  await confirmBankAccountDialog(page, artifactDir);
+  await sleep(1800);
+}
+
 function convertVideo(ffmpegPath, inputPath, outputPath, trimStartSeconds, durationSeconds) {
   const args = [
     '-y',
@@ -810,6 +850,12 @@ const MAX_VIDEO_SECONDS_ARG = parseArg('--duration');
 const MAX_VIDEO_SECONDS = MAX_VIDEO_SECONDS_ARG ? Number(MAX_VIDEO_SECONDS_ARG) : null;
 const EMAIL = process.env.DEMO_RECORDER_EMAIL || DEFAULT_EMAIL;
 const PASSWORD = process.env.DEMO_RECORDER_PASSWORD || DEFAULT_PASSWORD;
+const SKIP_FINAL_VIDEO = hasFlag('--skip-final-video');
+const FLOW_MODE = (parseArg('--flow') || 'full').trim();
+
+if (!['full', 'import-only'].includes(FLOW_MODE)) {
+  fail(`Flow no suportat: ${FLOW_MODE}`);
+}
 
 async function main() {
   resetDir(OUTPUT_DIR);
@@ -837,9 +883,9 @@ async function main() {
   const credentials = await ensureDemoRecorder(auth, db, EMAIL, PASSWORD);
   const scenarioData = await prepareScenarioData(db, TMP_DIR);
 
-  const ffmpegPath = findBinary('ffmpeg');
-  if (!ffmpegPath) {
-    fail('No s ha trobat ffmpeg al sistema.');
+  const ffmpegPath = resolveFfmpegPath();
+  if (!ffmpegPath && !SKIP_FINAL_VIDEO) {
+    fail('No s ha trobat ffmpeg al sistema. Usa --skip-final-video per conservar captures i raw webm.');
   }
 
   log(`Obrint navegador a ${BASE_URL}...`);
@@ -854,6 +900,7 @@ async function main() {
       QUALITY_MODE === 'commercial'
         ? { width: COMMERCIAL_VIEWPORT.width, height: COMMERCIAL_VIEWPORT.height }
         : { width: 1440, height: 960 },
+    deviceScaleFactor: QUALITY_MODE === 'commercial' ? 2 : 1,
     locale: 'ca-ES',
     acceptDownloads: true,
   };
@@ -884,7 +931,11 @@ async function main() {
   try {
     await openMovementsPage(page, credentials, OUTPUT_DIR);
     const demoStart = Date.now();
-    await runFlow(page, db, scenarioData, OUTPUT_DIR);
+    if (FLOW_MODE === 'import-only') {
+      await runImportOnlyFlow(page, OUTPUT_DIR, scenarioData);
+    } else {
+      await runFlow(page, db, scenarioData, OUTPUT_DIR);
+    }
     const demoEnd = Date.now();
     trimStartSeconds = (demoStart - recordingStartedAt) / 1000;
     const measuredDurationSeconds = Math.max(1, (demoEnd - demoStart) / 1000);
@@ -905,12 +956,17 @@ async function main() {
   fs.copyFileSync(videoPath, rawTargetPath);
   rawVideoPath = rawTargetPath;
 
-  finalVideoPath = path.join(OUTPUT_DIR, `${SCENARIO_SLUG}.mp4`);
-  convertVideo(ffmpegPath, rawTargetPath, finalVideoPath, trimStartSeconds, finalDurationSeconds);
+  if (ffmpegPath && !SKIP_FINAL_VIDEO) {
+    finalVideoPath = path.join(OUTPUT_DIR, `${SCENARIO_SLUG}.mp4`);
+    convertVideo(ffmpegPath, rawTargetPath, finalVideoPath, trimStartSeconds, finalDurationSeconds);
+  } else {
+    finalVideoPath = null;
+  }
 
   const summary = {
     scenario: SCENARIO_SLUG,
     quality: QUALITY_MODE,
+    flow: FLOW_MODE,
     cursorVisible: false,
     baseUrl: BASE_URL,
     email: credentials.email,
@@ -918,6 +974,7 @@ async function main() {
     bankAccountId: scenarioData.bankAccount.id,
     rawVideoPath,
     finalVideoPath,
+    skipFinalVideo: SKIP_FINAL_VIDEO || !ffmpegPath,
     durationSeconds: Number(finalDurationSeconds.toFixed(2)),
     contacts: scenarioData.contacts,
     searchTerm: scenarioData.searchTerm,

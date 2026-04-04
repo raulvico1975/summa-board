@@ -1292,6 +1292,25 @@ function createImageMedia(src: string, alt: string): PublicLandingHeroMedia {
   };
 }
 
+function createVideoMedia(
+  src: string,
+  alt: string,
+  poster?: string,
+  mp4FallbackSrc?: string
+): PublicLandingHeroMedia {
+  return {
+    type: 'video',
+    src,
+    alt,
+    poster,
+    mp4FallbackSrc,
+    autoPlay: true,
+    loop: true,
+    muted: true,
+    controls: false,
+  };
+}
+
 interface PageProps {
   params: Promise<{ lang: string }>;
 }
@@ -1479,10 +1498,10 @@ export default async function HomePage({ params }: PageProps) {
     control: ['dashboard', 'smartAlerts', 'boardReport', 'dataExport'],
   };
   const CARD_SCREENSHOTS: Record<string, string> = {
-    'conciliation.importStatements': '/visuals/web/features/block1_import_extractes.webp',
-    'conciliation.autoClassification': '/visuals/web/features/block1_classificacio_auto.webp',
-    'conciliation.contactAssignment': '/visuals/web/features/block1_assignacio_contactes.webp',
-    'conciliation.multiBankAccount': '/visuals/web/features/block1_multi_compte.webp',
+    'conciliation.importStatements': '/visuals/web/features-v3/block1_import_extractes_start_4k.webp',
+    'conciliation.autoClassification': '/visuals/web/features-v3/block1_classificacio_auto_4k.webp',
+    'conciliation.contactAssignment': '/visuals/web/features-v3/block1_assignacio_contactes_4k.webp',
+    'conciliation.multiBankAccount': '/visuals/web/features-v3/block1_multi_compte_4k.webp',
     'donorsMembers.donorProfile': '/visuals/web/features/block2_fitxa_donant.webp',
     'donorsMembers.bulkImport': '/visuals/web/features/block2_importacio_massiva.webp',
     'donorsMembers.donorHistory': '/visuals/web/features/block2_historic_donant.webp',
@@ -1503,6 +1522,58 @@ export default async function HomePage({ params }: PageProps) {
     'control.smartAlerts': '/visuals/web/features/block6_alertes.webp',
     'control.boardReport': '/visuals/web/features/block6_informe_junta.webp',
     'control.dataExport': '/visuals/web/features/block6_exportacio_dades.webp',
+  };
+  const CARD_VIDEO_OVERRIDES: Partial<Record<string, PublicLandingHeroMedia>> = {
+    'conciliation.importStatements': createVideoMedia(
+      '/visuals/web/features-v3/block1_import_extractes_loop_4k.mp4',
+      t.home.blocks.conciliation.cards.importStatements.screenshotAlt,
+      '/visuals/web/features-v3/block1_import_extractes_start_4k.webp'
+    ),
+    'donorsMembers.donorProfile': createVideoMedia(
+      locale === 'es'
+        ? '/visuals/landings/control-donacions-ong/animations/control-donacions-demo-es.mp4'
+        : '/visuals/landings/control-donacions-ong/animations/control-donacions-demo-ca.mp4',
+      t.home.blocks.donorsMembers.cards.donorProfile.screenshotAlt,
+      '/visuals/landings/control-donacions-ong/optimized/control-donacions-demo-poster.webp'
+    ),
+    'donorsMembers.donorHistory': createVideoMedia(
+      locale === 'es'
+        ? '/visuals/landings/control-donacions-ong/animations/control-donacions-demo-es.mp4'
+        : '/visuals/landings/control-donacions-ong/animations/control-donacions-demo-ca.mp4',
+      t.home.blocks.donorsMembers.cards.donorHistory.screenshotAlt,
+      '/visuals/landings/control-donacions-ong/optimized/control-donacions-demo-poster.webp'
+    ),
+    'payments.remittanceSplitter': createVideoMedia(
+      locale === 'es'
+        ? '/visuals/landings/remeses-sepa/animations/remeses-sepa-demo-es.mp4'
+        : '/visuals/landings/remeses-sepa/animations/remeses-sepa-demo-ca.mp4',
+      t.home.blocks.payments.cards.remittanceSplitter.screenshotAlt,
+      '/visuals/landings/remeses-sepa/optimized/remeses-sepa-demo-poster.webp'
+    ),
+    'payments.sepaPayments': createVideoMedia(
+      locale === 'es'
+        ? '/visuals/landings/remeses-sepa/animations/remeses-sepa-demo-es.mp4'
+        : '/visuals/landings/remeses-sepa/animations/remeses-sepa-demo-ca.mp4',
+      t.home.blocks.payments.cards.sepaPayments.screenshotAlt,
+      '/visuals/landings/remeses-sepa/optimized/remeses-sepa-demo-poster.webp'
+    ),
+    'fiscal.model182': createVideoMedia(
+      locale === 'es'
+        ? '/visuals/landings/model-182/animations/model-182-demo-es.mp4'
+        : '/visuals/landings/model-182/animations/model-182-demo-ca.mp4',
+      t.home.blocks.fiscal.cards.model182.screenshotAlt,
+      '/visuals/landings/model-182/optimized/model-182-demo-poster.webp'
+    ),
+    'control.dashboard': createVideoMedia(
+      '/visuals/functionalities/dashboard/animations/dashboard-control-feature-ca.mp4',
+      t.home.blocks.control.cards.dashboard.screenshotAlt,
+      '/visuals/functionalities/dashboard/optimized/dashboard-control-feature-poster-ca.png'
+    ),
+    'control.smartAlerts': createVideoMedia(
+      '/visuals/functionalities/dashboard/animations/dashboard-control-feature-ca.mp4',
+      t.home.blocks.control.cards.smartAlerts.screenshotAlt,
+      '/visuals/functionalities/dashboard/optimized/dashboard-control-feature-poster-ca.png'
+    ),
   };
 
   const valueRail = [
@@ -1579,7 +1650,9 @@ export default async function HomePage({ params }: PageProps) {
             description: card.description,
             href: readMoreHref,
             ctaLabel: copy.functionality.cta,
-            media: createImageMedia(screenshot, card.screenshotAlt),
+            media:
+              CARD_VIDEO_OVERRIDES[`${blockKey}.${cardKey}`] ??
+              createImageMedia(screenshot, card.screenshotAlt),
           });
 
           return accumulator;
@@ -1608,7 +1681,7 @@ export default async function HomePage({ params }: PageProps) {
 
       <PublicSiteHeader locale={locale} />
 
-      <section className="relative overflow-hidden bg-background px-6 pb-12 pt-12 lg:pb-16 lg:pt-16">
+      <section className="relative overflow-hidden bg-background px-6 pb-12 pt-12 lg:px-20 lg:pb-16 lg:pt-16 xl:px-28 2xl:px-32">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute left-[-5rem] top-[-4rem] h-52 w-52 rounded-full bg-sky-100/85 blur-3xl" />
           <div className="absolute right-[8%] top-[12%] h-72 w-72 rounded-full bg-amber-100/70 blur-3xl" />
@@ -1731,7 +1804,7 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
-      <section className="px-6 py-16 lg:py-20">
+      <section className="px-6 py-16 lg:px-20 lg:py-20 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl space-y-4">
             {copy.beforeAfter.eyebrow ? (
@@ -1782,14 +1855,14 @@ export default async function HomePage({ params }: PageProps) {
       {/* D) FUNCIONALITATS — EXPLORADOR */}
       <section
         id="capabilities"
-        className="scroll-mt-24 bg-[linear-gradient(180deg,#eef6ff_0%,#f8fbff_22%,#ffffff_100%)] px-6 py-20 lg:py-24"
+        className="scroll-mt-24 bg-[linear-gradient(180deg,#f8f9fc_0%,#f8f9fc_36%,#ffffff_100%)] px-6 py-16 lg:px-20 lg:py-20 xl:px-28 2xl:px-32"
       >
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-[96rem]">
+          <div className="mx-auto max-w-[42rem] text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary/85">
               {t.common.features}
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.9rem]">
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.45rem]">
               {t.home.systemOverview.title}
             </h2>
             <p className="mt-4 text-base leading-7 text-muted-foreground sm:text-lg">
@@ -1797,12 +1870,13 @@ export default async function HomePage({ params }: PageProps) {
             </p>
           </div>
 
-          <div className="mt-14 rounded-[2.4rem] border border-sky-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(244,250,255,0.96))] p-5 shadow-[0_28px_90px_-60px_rgba(14,165,233,0.16)] sm:p-7 lg:p-9">
+          <div className="mt-10 lg:mt-12">
             <PublicFeaturesExplorer
               locale={locale}
               sections={homeFeatureExplorerSections}
               tabsAlign="center"
               showSectionIntro
+              showSectionTitle={false}
               resetItemOnSectionChange
               layout="image-heavy"
               compactCards
@@ -1812,7 +1886,7 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
-      <section className="px-6 py-16 lg:py-20">
+      <section className="px-6 py-16 lg:px-20 lg:py-20 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl space-y-4">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary/85">
@@ -1855,7 +1929,7 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
-      <section id="how-we-work" className="bg-white px-6 py-16 lg:py-20">
+      <section id="how-we-work" className="bg-white px-6 py-16 lg:px-20 lg:py-20 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl">
           <div className={`${SURFACE_CLASS} grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start`}>
             <div className="space-y-6">
@@ -1878,7 +1952,7 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
-      <section data-preview-section="cta-final" className="px-6 pb-20 pt-10 lg:pt-14">
+      <section data-preview-section="cta-final" className="px-6 pb-20 pt-10 lg:px-20 lg:pt-14 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-6xl rounded-[2.4rem] border border-sky-200/70 bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(255,255,255,0.96)_45%,rgba(240,249,255,0.92))] p-6 shadow-[0_30px_90px_-56px_rgba(14,165,233,0.45)] sm:p-8 lg:p-10">
           <div className="grid gap-8 lg:grid-cols-[1fr_0.92fr] lg:items-center">
             <div className="space-y-5">
@@ -1907,7 +1981,7 @@ export default async function HomePage({ params }: PageProps) {
         </div>
       </section>
 
-      <footer className="border-t bg-muted/20 px-6 py-12">
+      <footer className="border-t bg-muted/20 px-6 py-12 lg:px-20 xl:px-28 2xl:px-32">
         <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-3">
           <div className="space-y-4">
             <Link

@@ -5,15 +5,16 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { chromium } from 'playwright';
+import { getBlockVideoPreset } from './video-block-standards.mjs';
 
 const DEFAULT_BASE_URL = 'http://localhost:9002/demo';
 const DEFAULT_OUTPUT_DIR = path.join(process.cwd(), 'output', 'playwright', 'home-extra-screens');
 const DEFAULT_EMAIL = 'demo.recorder@summasocial.local';
 const DEFAULT_PASSWORD = 'DemoRecorder!2026';
 const DEMO_PROJECT_ID = 'demo_project_00';
-const DESKTOP_VIEWPORT = { width: 1440, height: 960 };
+const BLOCK_VIDEO_PRESET = getBlockVideoPreset();
+const DESKTOP_VIEWPORT = BLOCK_VIDEO_PRESET.captureViewport;
 const MOBILE_VIEWPORT = { width: 430, height: 932 };
-const PRESENTATION_SCALE = 0.92;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -77,24 +78,13 @@ async function setStablePresentation(context, page, viewport) {
   ]);
 
   await page.setViewportSize(viewport);
-
-  if (viewport.width >= 768) {
-    await page.evaluate((scale) => {
-      document.documentElement.style.zoom = String(scale);
-      if (document.body) {
-        document.body.style.zoom = String(scale);
-      }
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }, PRESENTATION_SCALE);
-  } else {
-    await page.evaluate(() => {
-      document.documentElement.style.zoom = '1';
-      if (document.body) {
-        document.body.style.zoom = '1';
-      }
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    });
-  }
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = '1';
+    if (document.body) {
+      document.body.style.zoom = '1';
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  });
 
   await sleep(350);
 }

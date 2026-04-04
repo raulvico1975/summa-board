@@ -54,6 +54,7 @@ interface PublicFeatureDemoProps {
   media: PublicLandingHeroMedia;
   className?: string;
   mediaClassName?: string;
+  variant?: 'default' | 'stage' | 'airy';
   showDemoBadge?: boolean;
   showCaptionsBadge?: boolean;
   expandOnPlay?: boolean;
@@ -66,6 +67,7 @@ export function PublicFeatureDemo({
   media,
   className,
   mediaClassName,
+  variant = 'default',
   showDemoBadge = true,
   showCaptionsBadge = true,
   expandOnPlay = false,
@@ -77,12 +79,21 @@ export function PublicFeatureDemo({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const showMetaRow = showDemoBadge || Boolean(media.durationLabel) || (showCaptionsBadge && Boolean(media.captionsSrc));
   const canExpandVideo = expandOnPlay && media.type === 'video';
+  const isStage = variant === 'stage';
+  const isAiry = variant === 'airy';
 
   const previewFrame = canExpandVideo ? (
     <button
       type="button"
       onClick={() => setIsModalOpen(true)}
-      className="group relative block w-full overflow-hidden rounded-[1.3rem] border border-border/60 bg-slate-950 shadow-[0_24px_65px_-48px_rgba(15,23,42,0.45)]"
+      className={cn(
+        'group relative block w-full overflow-hidden',
+        isAiry
+          ? 'rounded-none bg-transparent shadow-none'
+          : isStage
+            ? 'rounded-[1.7rem] border border-black/[0.08] bg-white/90 shadow-[0_20px_48px_-38px_rgba(15,23,42,0.18)]'
+            : 'rounded-[1.3rem] border border-border/60 bg-slate-950 shadow-[0_24px_65px_-48px_rgba(15,23,42,0.45)]'
+      )}
       aria-label={labels.open}
     >
       {media.poster ? (
@@ -92,7 +103,12 @@ export function PublicFeatureDemo({
           width={1600}
           height={900}
           sizes="(min-width: 1024px) 42vw, 100vw"
-          className={cn('aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.01]', mediaClassName)}
+          className={cn(
+            'aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.01]',
+            isStage && 'bg-[#f8fafc]',
+            isAiry && 'bg-transparent',
+            mediaClassName
+          )}
         />
       ) : (
         <PublicLandingVideo
@@ -110,21 +126,61 @@ export function PublicFeatureDemo({
           loop={false}
           controls={false}
           preload="none"
-          className={cn('aspect-video w-full bg-black object-cover', mediaClassName)}
+          className={cn(
+            'aspect-video w-full object-cover',
+            isStage ? 'bg-[#f8fafc]' : isAiry ? 'bg-transparent' : 'bg-black',
+            mediaClassName
+          )}
           prefersMp4AsPrimary={prefersMp4AsPrimary}
         />
       )}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.05),rgba(15,23,42,0.22))]" />
+      {!isStage && !isAiry ? (
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.05),rgba(15,23,42,0.22))]" />
+      ) : null}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0ea5e9,#38bdf8)] p-[2px] shadow-[0_20px_40px_-24px_rgba(14,165,233,0.9)] transition-transform duration-300 group-hover:scale-105">
-          <span className="flex h-full w-full items-center justify-center rounded-full bg-white/95 backdrop-blur">
-            <Play className="ml-1 h-8 w-8 fill-sky-500 text-sky-500" strokeWidth={2.1} />
+        <span
+          className={cn(
+            'flex items-center justify-center transition-transform duration-300 group-hover:scale-105',
+            isAiry
+              ? 'h-14 w-14 rounded-full bg-white/95 shadow-[0_18px_36px_-26px_rgba(15,23,42,0.2)] ring-1 ring-black/[0.05]'
+              : '',
+            isStage
+              ? 'h-16 w-16 rounded-full bg-white/96 shadow-[0_20px_40px_-28px_rgba(15,23,42,0.22)] ring-1 ring-black/[0.06]'
+              : 'h-20 w-20 rounded-full bg-[linear-gradient(135deg,#0ea5e9,#38bdf8)] p-[2px] shadow-[0_20px_40px_-24px_rgba(14,165,233,0.9)]'
+          )}
+        >
+          <span
+            className={cn(
+              'flex h-full w-full items-center justify-center rounded-full',
+              isStage || isAiry ? 'bg-white/98' : 'bg-white/95 backdrop-blur'
+            )}
+          >
+            <Play
+              className={cn(
+                'ml-1',
+                isAiry
+                  ? 'h-5 w-5 fill-slate-700 text-slate-700'
+                  : isStage
+                    ? 'h-6 w-6 fill-slate-700 text-slate-700'
+                    : 'h-8 w-8 fill-sky-500 text-sky-500'
+              )}
+              strokeWidth={2.1}
+            />
           </span>
         </span>
       </div>
     </button>
   ) : (
-    <div className="overflow-hidden rounded-[1.3rem] border border-border/60 bg-slate-950 shadow-[0_24px_65px_-48px_rgba(15,23,42,0.45)]">
+    <div
+      className={cn(
+        'overflow-hidden',
+        isAiry
+          ? 'rounded-none bg-transparent shadow-none'
+          : isStage
+            ? 'rounded-[1.7rem] border border-black/[0.08] bg-white/90 shadow-[0_20px_48px_-38px_rgba(15,23,42,0.18)]'
+            : 'rounded-[1.3rem] border border-border/60 bg-slate-950 shadow-[0_24px_65px_-48px_rgba(15,23,42,0.45)]'
+      )}
+    >
       {media.type === 'image' ? (
         <Image
           src={media.src}
@@ -132,7 +188,12 @@ export function PublicFeatureDemo({
           width={1600}
           height={900}
           sizes="(min-width: 1024px) 42vw, 100vw"
-          className={cn('aspect-video w-full object-cover', mediaClassName)}
+          className={cn(
+            'aspect-video w-full object-cover',
+            isStage && 'bg-[#f8fafc]',
+            isAiry && 'bg-transparent',
+            mediaClassName
+          )}
         />
       ) : (
         <PublicLandingVideo
@@ -145,12 +206,16 @@ export function PublicFeatureDemo({
           captionsLabel={media.captionsLabel ?? labels.demo}
           captionsDefault={media.captionsDefault ?? false}
           captionsDisplay="native"
-          autoPlay={false}
+          autoPlay={media.autoPlay ?? false}
           muted={media.muted ?? false}
           loop={media.loop ?? false}
           controls={media.controls ?? true}
-          preload="none"
-          className={cn('aspect-video w-full bg-black object-cover', mediaClassName)}
+          preload={media.autoPlay ? 'auto' : 'none'}
+          className={cn(
+            'aspect-video w-full object-cover',
+            isStage ? 'bg-[#f8fafc]' : isAiry ? 'bg-transparent' : 'bg-black',
+            mediaClassName
+          )}
           prefersMp4AsPrimary={prefersMp4AsPrimary}
         />
       )}
@@ -161,7 +226,11 @@ export function PublicFeatureDemo({
     <>
       <div
         className={cn(
-          'rounded-[1.55rem] border border-white/80 bg-white/94 p-3 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.3)] backdrop-blur sm:p-4',
+          isAiry
+            ? 'rounded-none bg-transparent p-0 shadow-none'
+            : isStage
+              ? 'rounded-[1.85rem] bg-transparent p-0 shadow-none'
+              : 'rounded-[1.55rem] border border-white/80 bg-white/94 p-3 shadow-[0_24px_70px_-46px_rgba(15,23,42,0.3)] backdrop-blur sm:p-4',
           className
         )}
       >
