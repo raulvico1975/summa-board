@@ -68,6 +68,20 @@ interface ExpenseAggregationParams {
   labels: EconomicReportLabels;
 }
 
+interface ExpenseCategoryAggregationParams {
+  transactions?: Transaction[] | null;
+  categories?: (Category & { id: string })[] | null;
+  topN?: number;
+  missionKey: string;
+  labels: EconomicReportLabels;
+}
+
+interface ExpenseAxisAggregationParams {
+  transactions?: Transaction[] | null;
+  projects?: (Project & { id: string })[] | null;
+  missionKey: string;
+}
+
 interface TransferAggregationParams {
   transactions?: Transaction[] | null;
   contacts?: (Contact & { id: string })[] | null;
@@ -155,6 +169,85 @@ export function aggregateOperationalExpensesByProject({
   return finalizeAggregation(rows, total, topN, labels);
 }
 
+export function aggregateOperationalExpensesByCategory({
+  transactions,
+  categories,
+  topN = DEFAULT_TOP_N,
+  missionKey,
+  labels,
+}: ExpenseCategoryAggregationParams): AggregateResult {
+  const categoryMap = new Map<string, Category & { id: string }>();
+  categories?.forEach((category) => {
+    categoryMap.set(category.id, category);
+  });
+
+  const rows = new Map<string, AggregateRow>();
+  let total = 0;
+
+  transactions?.forEach((tx) => {
+    if (tx.amount >= 0) return;
+    if (tx.category === missionKey) return;
+
+    const category = tx.category ? categoryMap.get(tx.category) : undefined;
+    const isValidCategory = category && category.type === 'expense';
+    const key = isValidCategory ? category!.id : UNCATEGORIZED_ID;
+    const name = isValidCategory ? category!.name : labels.uncategorized;
+
+    const amount = Math.abs(tx.amount);
+    total += amount;
+
+    if (!rows.has(key)) {
+      rows.set(key, { id: key, name, amount: 0, percentage: 0, count: 0 });
+    }
+    const entry = rows.get(key)!;
+    entry.amount += amount;
+    entry.count += 1;
+  });
+
+  return finalizeAggregation(rows, total, topN, labels);
+}
+
+export function aggregateOperationalExpensesByAxis({
+  transactions,
+  projects,
+  missionKey,
+}: ExpenseAxisAggregationParams): AggregateResult {
+  const projectMap = new Map<string, Project & { id: string }>();
+  const rows = new Map<string, AggregateRow>();
+
+  projects?.forEach((project) => {
+    projectMap.set(project.id, project);
+    rows.set(project.id, {
+      id: project.id,
+      name: project.name,
+      amount: 0,
+      percentage: 0,
+      count: 0,
+    });
+  });
+
+  let total = 0;
+
+  transactions?.forEach((tx) => {
+    if (tx.amount >= 0) return;
+    if (tx.category === missionKey) return;
+    if (!tx.projectId) return;
+
+    const project = projectMap.get(tx.projectId);
+    if (!project) return;
+
+    const amount = Math.abs(tx.amount);
+    total += amount;
+
+    const entry = rows.get(project.id);
+    if (!entry) return;
+    entry.amount += amount;
+    entry.count += 1;
+  });
+
+  return buildCompleteAggregation(rows, total);
+}
+
 export function aggregateMissionTransfersByContact({
   transactions,
   contacts,
@@ -227,6 +320,20 @@ function finalizeAggregation(
   }
 
   return { aggregated, complete, total };
+}
+
+function buildCompleteAggregation(rows: Map<string, AggregateRow>, total: number): AggregateResult {
+  const complete = Array.from(rows.values())
+    .map((row) => ({
+      ...row,
+      percentage: total > 0 ? (row.amount / total) * 100 : 0,
+    }))
+    .sort((a, b) => {
+      if (b.amount !== a.amount) return b.amount - a.amount;
+      return a.name.localeCompare(b.name, 'ca');
+    });
+
+  return { aggregated: complete, complete, total };
 }
 
 export interface NarrativeDraft {
