@@ -420,7 +420,7 @@ const createCard = (title: string, description: string, screenshotAlt = title): 
 const HOME_BLOCKS_CA: PublicTranslations['home']['blocks'] = {
   conciliation: {
     title: 'Conciliació bancària',
-    subtitle: 'Saber exactament què ha passat al banc',
+    subtitle: '',
     cards: {
       importStatements: createCard(
         "Importació d'extractes",
@@ -555,7 +555,7 @@ const HOME_BLOCKS_CA: PublicTranslations['home']['blocks'] = {
 const HOME_BLOCKS_ES: PublicTranslations['home']['blocks'] = {
   conciliation: {
     title: 'Conciliación bancaria',
-    subtitle: 'Saber exactamente qué ha pasado en el banco',
+    subtitle: '',
     cards: {
       importStatements: createCard(
         'Importación de extractos',
@@ -690,7 +690,7 @@ const HOME_BLOCKS_ES: PublicTranslations['home']['blocks'] = {
 const HOME_BLOCKS_FR: PublicTranslations['home']['blocks'] = {
   conciliation: {
     title: 'Rapprochement bancaire',
-    subtitle: "Savoir exactement ce qui s'est passé à la banque",
+    subtitle: '',
     cards: {
       importStatements: createCard(
         'Importation de relevés',
@@ -825,7 +825,7 @@ const HOME_BLOCKS_FR: PublicTranslations['home']['blocks'] = {
 const HOME_BLOCKS_PT: PublicTranslations['home']['blocks'] = {
   conciliation: {
     title: 'Reconciliação bancária',
-    subtitle: 'Saber exatamente o que aconteceu no banco',
+    subtitle: '',
     cards: {
       importStatements: createCard(
         'Importação de extratos',
@@ -1313,8 +1313,7 @@ const ca: PublicTranslations = {
     },
     systemOverview: {
       title: 'Què pots fer amb Summa Social',
-      subtitle:
-        "Summa Social porta ordre, control i tranquil·litat a la gestió econòmica de les entitats d'acció social i de cooperació.",
+      subtitle: 'Ordre i control per a la gestió econòmica de la vostra entitat.',
     },
     capabilities: {
       title: 'Què pots fer amb Summa Social',
@@ -1909,8 +1908,7 @@ const es: PublicTranslations = {
     },
     systemOverview: {
       title: 'Qué puedes hacer con Summa Social',
-      subtitle:
-        'Summa Social aporta orden, control y tranquilidad a la gestión económica de las entidades de acción social y cooperación.',
+      subtitle: 'Orden y control para la gestión económica de vuestra entidad.',
     },
     capabilities: {
       title: 'Qué puedes hacer con Summa Social',

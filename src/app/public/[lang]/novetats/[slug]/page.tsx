@@ -88,7 +88,7 @@ export default async function NovetatsDetailPage({ params }: PageProps) {
     <main className={pageShellClass}>
       <PublicSiteHeader locale={locale} />
 
-      <section className="px-6 pb-10 pt-8 lg:pt-12">
+      <section className="px-6 pb-10 pt-8 lg:px-20 lg:pt-12 xl:px-28 2xl:px-32">
         <div className="mx-auto max-w-5xl">
           <Button asChild variant="ghost" size="sm" className="rounded-full px-4 text-muted-foreground hover:text-foreground">
             <Link href={`/${locale}/novetats`}>
@@ -116,7 +116,7 @@ export default async function NovetatsDetailPage({ params }: PageProps) {
         </div>
       </section>
 
-      <section className="px-6 pb-20">
+      <section className="px-6 pb-20 lg:px-20 xl:px-28 2xl:px-32">
         <article className="mx-auto max-w-4xl rounded-[2rem] border border-border/60 bg-white/95 p-6 shadow-[0_28px_80px_-56px_rgba(15,23,42,0.22)] sm:p-10">
           {update.content ? (
             <div className="prose prose-neutral max-w-none text-base leading-8 prose-headings:tracking-tight prose-p:text-muted-foreground prose-li:text-muted-foreground">
