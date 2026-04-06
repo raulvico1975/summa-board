@@ -17,11 +17,33 @@ Només hi ha tres veritats operatives:
 Regles del model:
 
 - El repositori de control és `/Users/raulvico/Documents/summa-social`.
-- El repositori de control viu a `main` i s'ha de mantenir net.
+- El repositori de control viu a `main` i s'ha de mantenir sense canvis locals pendents abans d'integrar o publicar.
 - `npm run inicia` crea una branca `codex/*` i un worktree extern a `../summa-social-worktrees/<branch>`.
 - La implementació es fa només dins del worktree de tasca.
 - Treballar directament al repositori de control per fer una feature queda prohibit.
 - `main` és integració; `prod` és producció.
+
+## 1.1 Semàntica obligatòria dels estats
+
+El terme genèric `net` queda prohibit com a estat suficient. A nivell operatiu només existeixen aquests tres estats:
+
+- `NETA_DE_TASCA`: el worktree/branca actual està en estat correcte per tancar la tasca.
+- `LLESTA_PER_INTEGRAR`: la branca es pot integrar a `main` sense bloqueig.
+- `LLESTA_PER_PUBLICAR`: `main`, `prod`, worktrees, validacions i precondicions permeten publicar ara mateix.
+
+Per als worktrees, només existeixen aquestes etiquetes:
+
+- `ACTIU`
+- `BLOQUEJANT`
+- `RESIDUAL`
+- `INTEGRAT-NET`
+
+Interpretació obligatòria:
+
+- Una tasca pot estar tancada i no estar llesta per publicar.
+- `Integrable` i `publicable` no són sinònims.
+- Un worktree `actiu` no és sinònim de worktree `bloquejant`.
+- `Autoritzo deploy` només es pot dir quan l'estat global és explícitament `llesta per publicar`.
 
 ## 2. Flux obligatori
 
@@ -57,6 +79,7 @@ La decisió de publicar és separada del tancament i de la integració. Acabar u
 
 - S'executa des del worktree de tasca.
 - Corre validacions i, si hi ha canvis locals, fa commit i push.
+- Prepara només els fitxers canviats del worktree actual.
 - No integra res a `main`.
 - No publica res a `prod`.
 - El resultat correcte és: branca llesta per integrar.
@@ -72,7 +95,11 @@ La decisió de publicar és separada del tancament i de la integració. Acabar u
 ### `npm run status`
 
 - És la font única d'estat operatiu.
-- Resumeix `WORK`, `MAIN`, `PROD`, el parc de worktrees i l'`ESTAT GLOBAL`.
+- Resumeix `TASCA`, `MAIN`, `PUBLICACIÓ` i el parc de worktrees.
+- Distingeix worktrees `actius`, `bloquejants`, `residuals` i `integrats-nets`.
+- Ha d'acabar amb una decisió binària per al CEO:
+  - `DECISIÓ CEO: POTS DIR "AUTORITZO DEPLOY"`
+  - o `DECISIÓ CEO: NO POTS DIR "AUTORITZO DEPLOY"`
 - Si diu `BLOQUEJAT`, ni `integra` ni `publica` poden continuar.
 
 ### `npm run publica`
@@ -80,6 +107,8 @@ La decisió de publicar és separada del tancament i de la integració. Acabar u
 - S'executa només des del repositori de control.
 - És l'única porta d'entrada a `prod`.
 - Publica a `prod` només allò que ja és a `main`.
+- No bloqueja per simple existència d'altres worktrees `actius`.
+- Sí que bloqueja worktrees `bloquejants` o `residuals`.
 - Si falla, `prod` no s'ha de donar per actualitzada.
 
 ## 4. Bloquejos que aturen el ritual
@@ -88,9 +117,9 @@ Qualsevol d'aquests casos talla el flux:
 
 - `main` amb canvis locals.
 - `main` desalineada amb `origin/main`.
-- worktrees residuals o ambigus.
+- worktrees `residuals` o ambigus.
+- worktrees `bloquejants`.
 - més d'una branca llesta per integrar.
-- feina local o commits sense pujar dins dels worktrees.
 - `prod` amb commits fora de `main`.
 - `ESTAT GLOBAL: BLOQUEJAT`.
 
@@ -111,6 +140,7 @@ Cap d'aquestes comandes substitueix `acabat`, `integra` o `publica`.
 - No treballar sense worktree de tasca.
 - No implementar al repositori de control.
 - No interpretar `npm run acabat` com a integració.
+- No interpretar un worktree `actiu` com a motiu automàtic de bloqueig.
 - No fer deploy fora de `npm run publica`.
 - No usar l'estat d'un worktree com a font de veritat per damunt de `npm run status`.
 - No barrejar neteja de repo amb una feature.
