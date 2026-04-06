@@ -12,6 +12,28 @@ Document curt d'autoritat operativa.
 - Si `npm run status` diu `BLOQUEJAT`, ni `integra` ni `publica` poden continuar.
 - `npm run publica` és l'única porta d'entrada a `prod`.
 
+## Tres estats i quatre etiquetes de worktree
+
+El terme genèric `net` queda prohibit com a estat suficient. A partir d'ara només es pot parlar de:
+
+- `NETA_DE_TASCA`: el worktree/branca actual està en estat correcte per tancar la tasca.
+- `LLESTA_PER_INTEGRAR`: la branca es pot integrar a `main` sense bloqueig.
+- `LLESTA_PER_PUBLICAR`: `main`, `prod`, worktrees, validacions i precondicions permeten publicar ara mateix.
+
+Per als worktrees, el sistema només pot etiquetar:
+
+- `ACTIU`: tasca viva, ordenada i sense risc operatiu.
+- `BLOQUEJANT`: worktree que sí impedeix integrar o publicar.
+- `RESIDUAL`: worktree ambigu, trencat, detached o prunable.
+- `INTEGRAT-NET`: worktree ja integrat i net, pendent només de tancar-se.
+
+Regla curta:
+
+- Una tasca pot estar tancada i no estar llesta per publicar.
+- `Integrable` i `publicable` no són sinònims.
+- Un worktree `actiu` no és necessàriament `bloquejant`.
+- `Autoritzo deploy` només es pot dir quan l'estat global és explícitament `llesta per publicar`.
+
 ## Flux normal
 
 ```bash
@@ -26,6 +48,7 @@ npm run publica
 ## Què garanteix `acabat`
 
 - La branca `codex/*` queda validada, commitada i pujada.
+- Tanca només la feina del worktree actual; no ha d'arrossegar altres worktrees ni altres tasques.
 - `main` no es toca.
 - `prod` no es toca.
 
@@ -38,14 +61,18 @@ npm run publica
 
 ## Què garanteix `status`
 
-- Resumeix `WORK`, `MAIN`, `PROD` i el parc de worktrees.
-- Decideix si l'estat global és `OK` o `BLOQUEJAT`.
-- Si diu `BLOQUEJAT`, s'atura el ritual i es diagnostica el repo.
+- Resumeix `TASCA`, `MAIN`, `PUBLICACIÓ` i l'estat del parc de worktrees.
+- Distingeix entre worktrees `actius`, `bloquejants`, `residuals` i `integrats-nets`.
+- Dona una línia executiva final:
+  - `DECISIÓ CEO: POTS DIR "AUTORITZO DEPLOY"`
+  - o `DECISIÓ CEO: NO POTS DIR "AUTORITZO DEPLOY"`
+- Si no es pot publicar, mostra només 1-3 motius curts.
 
 ## Què garanteix `publica`
 
 - Publica a `prod` només allò que ja és a `main`.
-- No accepta residus ni `prod` fora de `main`.
+- No accepta worktrees `bloquejants`, worktrees `residuals` ni `prod` fora de `main`.
+- No es bloqueja només perquè hi hagi altres worktrees `actius` i ordenats en paral·lel.
 - Deixa traça operativa del resultat.
 
 ## Què passa quan alguna cosa falla
@@ -54,3 +81,9 @@ npm run publica
 - Si falla `integra`, `main` queda intacta.
 - Si `status` diu `BLOQUEJAT`, primer s'aplica `docs/REPO-HIGIENE-I-DIAGNOSTIC.md`.
 - Si falla `publica`, `prod` no s'ha de donar per actualitzada.
+
+## Traducció per a negoci
+
+- `commit`: tancar un paquet de canvis de la tasca actual.
+- `push`: pujar aquest paquet al servidor.
+- `deploy` o `publica`: fer arribar a producció allò que ja ha passat per `main`.

@@ -20,6 +20,52 @@ say() {
   printf '%s\n' "$1"
 }
 
+append_reason() {
+  local current="${1:-}"
+  local item="${2:-}"
+
+  if [ -z "$item" ]; then
+    printf '%s' "$current"
+    return
+  fi
+
+  if [ -z "$current" ]; then
+    printf '%s' "$item"
+    return
+  fi
+
+  printf '%s\n%s' "$current" "$item"
+}
+
+limit_reasons() {
+  local max_items="${1:-3}"
+  local items="${2:-}"
+
+  if [ -z "$items" ]; then
+    return
+  fi
+
+  printf '%s\n' "$items" | awk 'NF { print; count++; if (count >= '"$max_items"') exit }'
+}
+
+join_reasons_inline() {
+  local items="${1:-}"
+  local first=true
+  local item
+
+  while IFS= read -r item; do
+    [ -z "$item" ] && continue
+    if [ "$first" = true ]; then
+      printf '%s' "$item"
+      first=false
+    else
+      printf '\n- %s' "$item"
+    fi
+  done <<EOF
+$items
+EOF
+}
+
 collect_scope_files() {
   local files=""
   local branch=""
@@ -125,40 +171,112 @@ prod_ahead_of_target_label() {
   printf '%s' "NO"
 }
 
-work_clean_label() {
-  if [ "${WORKTREE_ACTIVE_COUNT:-0}" -gt 1 ] 2>/dev/null; then
-    printf '%s' "NO"
-    return
-  fi
-  if [ "${WORKTREE_DIRTY_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    printf '%s' "NO"
-    return
-  fi
-  if [ "${WORKTREE_UNPUSHED_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+current_repo_local_changes_label() {
+  if [ -n "$(git status --short 2>/dev/null || true)" ]; then
     printf '%s' "NO"
     return
   fi
   printf '%s' "SI"
 }
 
-join_reasons() {
-  local first=true
-  local item
-  for item in "$@"; do
-    [ -z "$item" ] && continue
-    if [ "$first" = true ]; then
-      printf '%s' "$item"
-      first=false
-    else
-      printf '\n- %s' "$item"
+current_repo_task_clean_label() {
+  local branch local_clean
+  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf '%s' '-')"
+  local_clean="$(current_repo_local_changes_label)"
+
+  if [ "$local_clean" != "SI" ]; then
+    printf '%s' "NO"
+    return
+  fi
+
+  if [[ "$branch" == codex/* ]] || [[ "$branch" == hotfix/* ]]; then
+    local ahead_count
+    ahead_count="$(git rev-list --count refs/remotes/origin/main..HEAD 2>/dev/null || printf '0')"
+    if [ "$ahead_count" -gt 0 ] 2>/dev/null && ! git rev-parse --abbrev-ref --symbolic-full-name "@{u}" >/dev/null 2>&1; then
+      printf '%s' "NO"
+      return
     fi
-  done
+  fi
+
+  printf '%s' "SI"
+}
+
+collect_integra_reasons() {
+  local control_branch="$1"
+  local control_clean="$2"
+  local main_aligned="$3"
+  local reasons=""
+
+  if [ "$control_branch" != "main" ]; then
+    reasons="$(append_reason "$reasons" "el repositori de control no està a main")"
+  fi
+  if [ "$control_clean" != "SI" ]; then
+    reasons="$(append_reason "$reasons" "main té canvis locals pendents")"
+  fi
+  if [ "$main_aligned" != "SI" ]; then
+    reasons="$(append_reason "$reasons" "main no està alineada")"
+  fi
+  if [ "${WORKTREE_RESIDUE_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+    reasons="$(append_reason "$reasons" "hi ha worktrees residuals o ambigus")"
+  fi
+  if [ "${WORKTREE_BLOCKING_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+    if [ "${WORKTREE_DIRTY_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+      reasons="$(append_reason "$reasons" "hi ha worktrees bloquejants amb canvis locals")"
+    elif [ "${WORKTREE_UNPUSHED_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+      reasons="$(append_reason "$reasons" "hi ha worktrees bloquejants amb commits no pujats")"
+    else
+      reasons="$(append_reason "$reasons" "hi ha worktrees bloquejants en conflicte amb el ritual")"
+    fi
+  fi
+  if [ "${WORKTREE_READY_COUNT:-0}" -eq 0 ] 2>/dev/null; then
+    reasons="$(append_reason "$reasons" "no hi ha cap tasca llesta per integrar")"
+  fi
+  if [ "${WORKTREE_READY_COUNT:-0}" -gt 1 ] 2>/dev/null; then
+    reasons="$(append_reason "$reasons" "hi ha més d'una tasca llesta per integrar")"
+  fi
+
+  printf '%s' "$reasons"
+}
+
+collect_publica_reasons() {
+  local control_branch="$1"
+  local control_clean="$2"
+  local target_aligned="$3"
+  local prod_ahead="$4"
+  local reasons=""
+
+  if [ "$control_branch" != "$PUBLICA_TARGET_BRANCH" ]; then
+    reasons="$(append_reason "$reasons" "el repositori de control no està a $PUBLICA_TARGET_BRANCH")"
+  fi
+  if [ "$control_clean" != "SI" ]; then
+    reasons="$(append_reason "$reasons" "main té canvis locals pendents")"
+  fi
+  if [ "$target_aligned" != "SI" ]; then
+    reasons="$(append_reason "$reasons" "main no està alineada")"
+  fi
+  if [ "$prod_ahead" = "SI" ]; then
+    reasons="$(append_reason "$reasons" "prod no surt de main")"
+  fi
+  if [ "${WORKTREE_RESIDUE_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+    reasons="$(append_reason "$reasons" "hi ha worktrees residuals o ambigus")"
+  fi
+  if [ "${WORKTREE_BLOCKING_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+    if [ "${WORKTREE_DIRTY_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+      reasons="$(append_reason "$reasons" "hi ha worktrees bloquejants amb canvis locals")"
+    elif [ "${WORKTREE_UNPUSHED_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+      reasons="$(append_reason "$reasons" "hi ha worktrees bloquejants amb commits no pujats")"
+    else
+      reasons="$(append_reason "$reasons" "hi ha worktrees bloquejants en conflicte amb el ritual")"
+    fi
+  fi
+
+  printf '%s' "$reasons"
 }
 
 print_status() {
-  local branch work_clean main_aligned prod_aligned global_status
-  local control_branch control_clean prod_ahead
-  local -a reasons=()
+  local branch task_state main_state publish_state ceo_decision global_status
+  local control_branch control_clean main_aligned target_aligned prod_aligned prod_ahead
+  local task_clean integra_reasons publish_reasons visible_publish_reasons
   local scope_files scope scope_risk deploy_mode scope_eval
 
   git -C "$CONTROL_REPO_DIR" fetch origin --prune --quiet >/dev/null 2>&1 || true
@@ -179,70 +297,72 @@ print_status() {
   control_branch="$(current_control_branch)"
   control_clean="$(control_repo_clean_label)"
   main_aligned="$(main_aligned_label)"
+  target_aligned="$(target_aligned_label "$PUBLICA_TARGET_BRANCH")"
   prod_aligned="$(prod_aligned_with_main_label)"
   prod_ahead="$(prod_ahead_of_main_label)"
-  branch="${WORKTREE_ACTIVE_BRANCH:-"-"}"
-  work_clean="$(work_clean_label)"
+  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf '%s' '-')"
+  task_clean="$(current_repo_task_clean_label)"
+  integra_reasons="$(collect_integra_reasons "$control_branch" "$control_clean" "$main_aligned")"
+  publish_reasons="$(collect_publica_reasons "$control_branch" "$control_clean" "$target_aligned" "$prod_ahead")"
+  visible_publish_reasons="$(limit_reasons 3 "$publish_reasons")"
 
-  if [ "$control_branch" != "main" ]; then
-    reasons+=("el repositori de control no està a main")
-  fi
-  if [ "$control_clean" != "SI" ]; then
-    reasons+=("main té canvis locals pendents")
-  fi
-  if [ "$main_aligned" != "SI" ]; then
-    reasons+=("main no està alineada amb origin/main")
-  fi
-  if [ "${WORKTREE_ACTIVE_CODEX_COUNT:-0}" -gt 1 ] 2>/dev/null; then
-    reasons+=("hi ha més d'un worktree codex actiu")
-  fi
-  if [ "${WORKTREE_ACTIVE_HOTFIX_COUNT:-0}" -gt 1 ] 2>/dev/null; then
-    reasons+=("hi ha més d'un worktree hotfix actiu")
-  fi
-  if [ "${WORKTREE_ACTIVE_COUNT:-0}" -gt 2 ] 2>/dev/null; then
-    reasons+=("hi ha més de 2 worktrees de tasca actius")
-  fi
-  if [ "${WORKTREE_RESIDUE_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    reasons+=("hi ha worktrees residuals o ambigus oberts")
-  fi
-  if [ "$prod_ahead" = "SI" ]; then
-    reasons+=("prod conté commits fora de main")
+  if [ "$task_clean" = "SI" ]; then
+    task_state="NETA"
+  else
+    task_state="NO NETA"
   fi
 
-  if [ "${#reasons[@]}" -eq 0 ]; then
+  if [ -z "$integra_reasons" ]; then
+    main_state="LLESTA PER INTEGRAR"
+  else
+    main_state="NO LLESTA"
+  fi
+
+  if [ -z "$publish_reasons" ]; then
+    publish_state="LLESTA PER PUBLICAR"
+    ceo_decision='POTS DIR "AUTORITZO DEPLOY"'
+  else
+    publish_state="NO LLESTA"
+    ceo_decision='NO POTS DIR "AUTORITZO DEPLOY"'
+  fi
+
+  if [ -z "$publish_reasons" ]; then
     global_status="OK"
   else
     global_status="BLOQUEJAT"
   fi
 
+  say "RESUM OPERATIU"
+  say "- TASCA: $task_state"
+  say "- MAIN: $main_state"
+  say "- PUBLICACIÓ: $publish_state"
+  say ""
+  say "DECISIÓ CEO: $ceo_decision"
+
+  if [ -n "$visible_publish_reasons" ]; then
+    say ""
+    say "MOTIUS CURTS:"
+    say "- $(join_reasons_inline "$visible_publish_reasons")"
+  fi
+
+  say ""
   say "------------------------"
   say "SCOPE: $scope"
   say "RISC: $scope_risk"
   say "DEPLOY MODE: $deploy_mode"
   say "------------------------"
   say ""
-  say "WORK:"
-  say "- branch activa: $branch"
-  say "- clean: $work_clean"
-  say ""
-  say "MAIN:"
-  say "- alineada amb origin: $main_aligned"
-  say ""
-  say "PROD:"
-  say "- alineada amb main: $prod_aligned"
-  say ""
-  say "WORKTREES:"
+  say "CONTEXT OPERATIU:"
+  say "- branca actual: $branch"
+  say "- main alineada amb origin: $main_aligned"
+  say "- prod alineada amb main: $prod_aligned"
   say "- actius: ${WORKTREE_ACTIVE_COUNT:-0}"
+  say "- bloquejants: ${WORKTREE_BLOCKING_COUNT:-0}"
   say "- residus: ${WORKTREE_RESIDUE_COUNT:-0}"
+  say "- integrats nets: ${WORKTREE_INTEGRATED_CLEAN_COUNT:-0}"
   say ""
   say "ESTAT GLOBAL:"
   say "- $global_status"
-
-  if [ "${#reasons[@]}" -gt 0 ]; then
-    say ""
-    say "BLOQUEJOS:"
-    say "- $(join_reasons "${reasons[@]}")"
-  fi
 }
 
 gate_integra() {
@@ -255,37 +375,11 @@ gate_integra() {
   control_branch="$(current_control_branch)"
   control_clean="$(control_repo_clean_label)"
   main_aligned="$(main_aligned_label)"
+  local integra_reasons
+  integra_reasons="$(collect_integra_reasons "$control_branch" "$control_clean" "$main_aligned")"
 
-  if [ "$control_branch" != "main" ]; then
-    say "Abans d'integrar, el repositori de control ha d'estar a main."
-    return 1
-  fi
-  if [ "$control_clean" != "SI" ]; then
-    say "Abans d'integrar, main ha d'estar neta."
-    return 1
-  fi
-  if [ "$main_aligned" != "SI" ]; then
-    say "Abans d'integrar, main ha d'estar alineada amb origin/main."
-    return 1
-  fi
-  if [ "${WORKTREE_RESIDUE_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    say "Abans d'integrar, cal resoldre els worktrees residuals o ambigus."
-    return 1
-  fi
-  if [ "${WORKTREE_DIRTY_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    say "Abans d'integrar, no pot quedar cap worktree amb canvis locals."
-    return 1
-  fi
-  if [ "${WORKTREE_UNPUSHED_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    say "Abans d'integrar, no pot quedar cap worktree amb commits no pujats."
-    return 1
-  fi
-  if [ "${WORKTREE_READY_COUNT:-0}" -eq 0 ] 2>/dev/null; then
-    say "No hi ha cap branca de worktree llesta per integrar."
-    return 1
-  fi
-  if [ "${WORKTREE_READY_COUNT:-0}" -gt 1 ] 2>/dev/null; then
-    say "Hi ha més d'una branca llesta per integrar. Redueix-ho a una sola veritat de treball."
+  if [ -n "$integra_reasons" ]; then
+    say "NO LLESTA PER INTEGRAR: $(printf '%s\n' "$integra_reasons" | awk 'NF { print; exit }')"
     return 1
   fi
 
@@ -303,29 +397,11 @@ gate_publica() {
   control_clean="$(control_repo_clean_label)"
   target_aligned="$(target_aligned_label "$PUBLICA_TARGET_BRANCH")"
   prod_ahead="$(prod_ahead_of_target_label "$PUBLICA_TARGET_BRANCH")"
+  local publish_reasons
+  publish_reasons="$(collect_publica_reasons "$control_branch" "$control_clean" "$target_aligned" "$prod_ahead")"
 
-  if [ "$control_branch" != "$PUBLICA_TARGET_BRANCH" ]; then
-    say "Abans de publicar, el repositori de control ha d'estar a $PUBLICA_TARGET_BRANCH."
-    return 1
-  fi
-  if [ "$control_clean" != "SI" ]; then
-    say "Abans de publicar, $PUBLICA_TARGET_BRANCH ha d'estar neta."
-    return 1
-  fi
-  if [ "$target_aligned" != "SI" ]; then
-    say "Abans de publicar, $PUBLICA_TARGET_BRANCH ha d'estar alineada amb origin/$PUBLICA_TARGET_BRANCH."
-    return 1
-  fi
-  if [ "$prod_ahead" = "SI" ]; then
-    say "Abans de publicar, prod no pot contenir commits fora de $PUBLICA_TARGET_BRANCH."
-    return 1
-  fi
-  if [ "${WORKTREE_RESIDUE_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    say "Abans de publicar, cal resoldre els worktrees residuals o ambigus."
-    return 1
-  fi
-  if [ "${WORKTREE_ACTIVE_COUNT:-0}" -gt 0 ] 2>/dev/null; then
-    say "Abans de publicar, no pot quedar cap worktree de tasca actiu."
+  if [ -n "$publish_reasons" ]; then
+    say "NO POTS DIR \"AUTORITZO DEPLOY\": $(printf '%s\n' "$publish_reasons" | awk 'NF { print; exit }')"
     return 1
   fi
 

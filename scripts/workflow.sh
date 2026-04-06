@@ -328,7 +328,24 @@ EOF2
 }
 
 stage_changes() {
-  git add -A
+  local files="${1:-}"
+  local pathspec_file
+
+  if [ -z "$files" ]; then
+    return 1
+  fi
+
+  pathspec_file="$(mktemp)"
+  while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    printf '%s\0' "$file" >> "$pathspec_file"
+  done <<EOF2
+$files
+EOF2
+
+  git add -A --pathspec-from-file="$pathspec_file" --pathspec-file-nul
+  rm -f "$pathspec_file"
+
   if git diff --cached --quiet; then
     return 1
   fi
@@ -692,9 +709,9 @@ run_acabat() {
       exit 1
     fi
 
-    if ! stage_changes; then
+    if ! stage_changes "$changed_files"; then
       say "BLOCKED_SAFE"
-      say "No s'han pogut preparar canvis per tancar la tasca."
+      say "No s'han pogut preparar només els canvis d'aquest worktree per tancar la tasca."
       exit 1
     fi
     guard_no_prohibited_staged_paths
