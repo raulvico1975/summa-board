@@ -403,32 +403,32 @@ worktree_unpushed_label() {
   printf '%s' "NO"
 }
 
-recommended_state_for_worktree() {
+worktree_operational_state() {
   local branch="$1"
   local detached="$2"
   local prunable_reason="$3"
   local path_exists_label="$4"
   local local_changes_label="$5"
   local unpushed_count="$6"
-  local age_days="$7"
+  local integrated_to_main="$7"
 
   if [ "$path_exists_label" != "SI" ] || [ -n "$prunable_reason" ] || [ "$detached" = "yes" ]; then
-    printf '%s' "REVISAR"
+    printf '%s' "RESIDUAL"
+    return
+  fi
+
+  if [ -z "$branch" ] || [ "$branch" = "-" ] || ! is_task_branch_name "$branch"; then
+    printf '%s' "BLOQUEJANT"
     return
   fi
 
   if [ "$local_changes_label" = "SI" ] || [ "$unpushed_count" -gt 0 ] 2>/dev/null; then
-    printf '%s' "ACTIU"
+    printf '%s' "BLOQUEJANT"
     return
   fi
 
-  if [ -n "$branch" ] && is_branch_integrated_to_main "$branch"; then
-    printf '%s' "TANCAR"
-    return
-  fi
-
-  if [ "$age_days" != "?" ] && [ "$age_days" -ge "$TTL_DAYS_DEFAULT" ] 2>/dev/null; then
-    printf '%s' "REVISAR"
+  if [ "$integrated_to_main" = "true" ]; then
+    printf '%s' "INTEGRAT-NET"
     return
   fi
 
@@ -498,6 +498,7 @@ print_worktree_detail() {
   local wt_detached="$3"
   local wt_prunable="$4"
   local display_branch repo_dir local_changes age_days unpushed_count unpushed_label path_exists_label state
+  local integrated_to_main=false
 
   repo_dir="$(safe_abs_path_if_exists "$wt_path")"
   if [ "$wt_detached" = "yes" ]; then
@@ -521,7 +522,10 @@ print_worktree_detail() {
   fi
 
   unpushed_label="$(worktree_unpushed_label "$repo_dir" "$wt_branch")"
-  state="$(recommended_state_for_worktree "$wt_branch" "$wt_detached" "$wt_prunable" "$path_exists_label" "$local_changes" "$unpushed_count" "$age_days")"
+  if [ -n "$wt_branch" ] && [ "$wt_branch" != "-" ] && is_branch_integrated_to_main "$wt_branch"; then
+    integrated_to_main=true
+  fi
+  state="$(worktree_operational_state "$wt_branch" "$wt_detached" "$wt_prunable" "$path_exists_label" "$local_changes" "$unpushed_count" "$integrated_to_main")"
 
   say "WORKTREE"
   say "- path: $wt_path"
@@ -529,11 +533,13 @@ print_worktree_detail() {
   say "- canvis locals: $local_changes"
   say "- commits no pujats: $unpushed_label"
   say "- antiguitat aproximada: ${age_days}d"
-  say "- estat recomanat: $state"
-  if [ "$state" = "TANCAR" ] && [ -n "$wt_branch" ] && [ "$wt_branch" != "-" ]; then
+  say "- estat operatiu: $state"
+  if [ "$state" = "INTEGRAT-NET" ] && [ -n "$wt_branch" ] && [ "$wt_branch" != "-" ]; then
     say "- acció recomanada: npm run worktree:close $wt_branch"
-  elif [ "$state" = "REVISAR" ]; then
+  elif [ "$state" = "RESIDUAL" ]; then
     say "- acció recomanada: revisar abans de tancar o descartar"
+  elif [ "$state" = "BLOQUEJANT" ]; then
+    say "- acció recomanada: resoldre aquest worktree abans d'integrar o publicar"
   else
     say "- acció recomanada: continuar o integrar quan estigui llest"
   fi
@@ -541,6 +547,8 @@ print_worktree_detail() {
     say "- observació: prunable ($wt_prunable)"
   elif [ "$path_exists_label" = "NO" ]; then
     say "- observació: ruta inexistent"
+  elif [ "$state" = "BLOQUEJANT" ] && ! is_task_branch_name "$wt_branch"; then
+    say "- observació: branca fora del ritual de tasques"
   fi
   say ""
 }
@@ -568,18 +576,19 @@ report_cmd() {
 
   local control_abs wt_path wt_branch wt_detached wt_prunable wt_abs
   local local_changes_label unpushed_count integrated_to_main
-  local active_count residue_count dirty_count unpushed_total ready_count integrated_open_count
+  local active_count blocking_count residue_count dirty_count unpushed_total ready_count integrated_clean_count
   local active_codex_count active_hotfix_count
   local active_branch="" active_branch_count=0
-  local -a active_branches=() ready_branches=() dirty_branches=() unpushed_branches=() residue_items=()
+  local -a active_branches=() ready_branches=() dirty_branches=() unpushed_branches=() residue_items=() blocking_items=() integrated_clean_branches=()
 
   control_abs="$(cd "$CONTROL_REPO_DIR" && pwd -P)"
   active_count=0
+  blocking_count=0
   residue_count=0
   dirty_count=0
   unpushed_total=0
   ready_count=0
-  integrated_open_count=0
+  integrated_clean_count=0
   active_codex_count=0
   active_hotfix_count=0
 
@@ -590,60 +599,55 @@ report_cmd() {
       continue
     fi
 
-    if [ -n "$wt_prunable" ] || [ ! -d "$wt_path" ]; then
-      residue_count=$((residue_count + 1))
-      residue_items+=("$wt_path")
-      continue
+    if [ -d "$wt_path" ]; then
+      local_changes_label="$(worktree_local_changes_label "$wt_abs")"
+      unpushed_count="$(unpushed_commit_count_for_repo "$wt_abs" "$wt_branch")"
+    else
+      local_changes_label="-"
+      unpushed_count=0
     fi
 
-    if [ "$wt_detached" = "yes" ]; then
-      residue_count=$((residue_count + 1))
-      residue_items+=("$wt_path")
-      continue
-    fi
-
-    if ! is_task_branch_name "$wt_branch"; then
-      residue_count=$((residue_count + 1))
-      residue_items+=("$wt_path")
-      continue
-    fi
-
-    local_changes_label="$(worktree_local_changes_label "$wt_abs")"
-    unpushed_count="$(unpushed_commit_count_for_repo "$wt_abs" "$wt_branch")"
     integrated_to_main=false
-    if is_branch_integrated_to_main "$wt_branch"; then
+    if [ -n "$wt_branch" ] && [ "$wt_branch" != "-" ] && is_task_branch_name "$wt_branch" && is_branch_integrated_to_main "$wt_branch"; then
       integrated_to_main=true
     fi
 
-    if [ "$local_changes_label" = "SI" ] || [ "$unpushed_count" -gt 0 ] 2>/dev/null || [ "$integrated_to_main" != true ]; then
-      active_count=$((active_count + 1))
-      active_branches+=("$wt_branch")
-      if [[ "$wt_branch" == codex/* ]]; then
-        active_codex_count=$((active_codex_count + 1))
-      elif [[ "$wt_branch" == hotfix/* ]]; then
-        active_hotfix_count=$((active_hotfix_count + 1))
-      fi
+    local operational_state
+    operational_state="$(worktree_operational_state "$wt_branch" "$wt_detached" "$wt_prunable" "$([ -d "$wt_path" ] && printf 'SI' || printf 'NO')" "$local_changes_label" "$unpushed_count" "$integrated_to_main")"
 
-      if [ "$local_changes_label" = "SI" ]; then
-        dirty_count=$((dirty_count + 1))
-        dirty_branches+=("$wt_branch")
-      fi
-
-      if [ "$unpushed_count" -gt 0 ] 2>/dev/null; then
-        unpushed_total=$((unpushed_total + 1))
-        unpushed_branches+=("$wt_branch")
-      fi
-
-      if [ "$local_changes_label" = "NO" ] && [ "$unpushed_count" -eq 0 ] 2>/dev/null; then
+    case "$operational_state" in
+      ACTIU)
+        active_count=$((active_count + 1))
+        active_branches+=("$wt_branch")
         ready_count=$((ready_count + 1))
         ready_branches+=("$wt_branch")
-      fi
-      continue
-    fi
-
-    integrated_open_count=$((integrated_open_count + 1))
-    residue_count=$((residue_count + 1))
-    residue_items+=("$wt_branch")
+        if [[ "$wt_branch" == codex/* ]]; then
+          active_codex_count=$((active_codex_count + 1))
+        elif [[ "$wt_branch" == hotfix/* ]]; then
+          active_hotfix_count=$((active_hotfix_count + 1))
+        fi
+        ;;
+      BLOQUEJANT)
+        blocking_count=$((blocking_count + 1))
+        blocking_items+=("${wt_branch:-$wt_path}")
+        if [ "$local_changes_label" = "SI" ]; then
+          dirty_count=$((dirty_count + 1))
+          dirty_branches+=("${wt_branch:-$wt_path}")
+        fi
+        if [ "$unpushed_count" -gt 0 ] 2>/dev/null; then
+          unpushed_total=$((unpushed_total + 1))
+          unpushed_branches+=("${wt_branch:-$wt_path}")
+        fi
+        ;;
+      INTEGRAT-NET)
+        integrated_clean_count=$((integrated_clean_count + 1))
+        integrated_clean_branches+=("$wt_branch")
+        ;;
+      *)
+        residue_count=$((residue_count + 1))
+        residue_items+=("$wt_path")
+        ;;
+    esac
   done < <(worktree_records)
 
   if [ "$active_count" -eq 1 ] && [ "${#active_branches[@]}" -eq 1 ]; then
@@ -656,25 +660,30 @@ report_cmd() {
 
   if [ "$format" = "shell" ]; then
     printf 'WORKTREE_ACTIVE_COUNT=%q\n' "$active_count"
+    printf 'WORKTREE_BLOCKING_COUNT=%q\n' "$blocking_count"
     printf 'WORKTREE_RESIDUE_COUNT=%q\n' "$residue_count"
     printf 'WORKTREE_DIRTY_COUNT=%q\n' "$dirty_count"
     printf 'WORKTREE_UNPUSHED_COUNT=%q\n' "$unpushed_total"
     printf 'WORKTREE_READY_COUNT=%q\n' "$ready_count"
     printf 'WORKTREE_ACTIVE_CODEX_COUNT=%q\n' "$active_codex_count"
     printf 'WORKTREE_ACTIVE_HOTFIX_COUNT=%q\n' "$active_hotfix_count"
-    printf 'WORKTREE_INTEGRATED_OPEN_COUNT=%q\n' "$integrated_open_count"
+    printf 'WORKTREE_INTEGRATED_CLEAN_COUNT=%q\n' "$integrated_clean_count"
     printf 'WORKTREE_ACTIVE_BRANCH=%q\n' "$active_branch"
     printf 'WORKTREE_ACTIVE_BRANCHES=%q\n' "$(join_array_var active_branches)"
+    printf 'WORKTREE_BLOCKING_ITEMS=%q\n' "$(join_array_var blocking_items)"
     printf 'WORKTREE_READY_BRANCHES=%q\n' "$(join_array_var ready_branches)"
     printf 'WORKTREE_DIRTY_BRANCHES=%q\n' "$(join_array_var dirty_branches)"
     printf 'WORKTREE_UNPUSHED_BRANCHES=%q\n' "$(join_array_var unpushed_branches)"
     printf 'WORKTREE_RESIDUE_ITEMS=%q\n' "$(join_array_var residue_items)"
+    printf 'WORKTREE_INTEGRATED_CLEAN_BRANCHES=%q\n' "$(join_array_var integrated_clean_branches)"
     return 0
   fi
 
   say "WORKTREE REPORT"
   say "- actius: $active_count"
+  say "- bloquejants: $blocking_count"
   say "- residus: $residue_count"
+  say "- integrats nets: $integrated_clean_count"
   say "- dirty: $dirty_count"
   say "- unpushed: $unpushed_total"
   say "- ready: $ready_count"
@@ -737,22 +746,24 @@ print_control_repo_status() {
   say "- path: $control_abs"
   say "- branca: $branch"
   say "- canvis locals: $local_changes_label"
-  say "- estat esperat: main neta abans d'integrar o publicar"
+  say "- estat esperat: main sense canvis locals pendents abans d'integrar o publicar"
   say ""
 }
 
 list_cmd() {
-  local active_count residue_count
+  local active_count blocking_count residue_count integrated_clean_count
   local closable_count review_count active_items_count
   eval "$(report_cmd --format shell)"
   active_count="${WORKTREE_ACTIVE_COUNT:-0}"
+  blocking_count="${WORKTREE_BLOCKING_COUNT:-0}"
   residue_count="${WORKTREE_RESIDUE_COUNT:-0}"
+  integrated_clean_count="${WORKTREE_INTEGRATED_CLEAN_COUNT:-0}"
   closable_count=0
   review_count=0
   active_items_count=0
 
   say "ROOT TASQUES: $DEFAULT_WORKTREE_ROOT"
-  say "WORKTREES DE TASCA: $active_count actius, $residue_count residus (límit $MAX_ACTIVE_WORKTREES actius)"
+  say "WORKTREES DE TASCA: $active_count actius, $blocking_count bloquejants, $residue_count residus, $integrated_clean_count integrats-nets (límit $MAX_ACTIVE_WORKTREES actius)"
   say ""
   print_control_repo_status
   say "WORKTREES DE TASCA"
@@ -766,7 +777,7 @@ list_cmd() {
       continue
     fi
 
-    local repo_dir local_changes age_days unpushed_count state path_exists_label
+    local repo_dir local_changes age_days unpushed_count state path_exists_label integrated_to_main
     repo_dir="$wt_abs"
     if [ -d "$wt_path" ]; then
       path_exists_label="SI"
@@ -779,11 +790,15 @@ list_cmd() {
       age_days="?"
       unpushed_count=0
     fi
-    state="$(recommended_state_for_worktree "$wt_branch" "$wt_detached" "$wt_prunable" "$path_exists_label" "$local_changes" "$unpushed_count" "$age_days")"
+    integrated_to_main=false
+    if [ -n "$wt_branch" ] && [ "$wt_branch" != "-" ] && is_task_branch_name "$wt_branch" && is_branch_integrated_to_main "$wt_branch"; then
+      integrated_to_main=true
+    fi
+    state="$(worktree_operational_state "$wt_branch" "$wt_detached" "$wt_prunable" "$path_exists_label" "$local_changes" "$unpushed_count" "$integrated_to_main")"
     case "$state" in
-      TANCAR) closable_count=$((closable_count + 1)) ;;
-      REVISAR) review_count=$((review_count + 1)) ;;
-      *) active_items_count=$((active_items_count + 1)) ;;
+      INTEGRAT-NET) closable_count=$((closable_count + 1)) ;;
+      RESIDUAL|BLOQUEJANT) review_count=$((review_count + 1)) ;;
+      ACTIU) active_items_count=$((active_items_count + 1)) ;;
     esac
     print_worktree_detail "$wt_path" "$wt_branch" "$wt_detached" "$wt_prunable"
   done < <(worktree_records)
@@ -794,8 +809,8 @@ list_cmd() {
   say "- actius: $active_items_count"
   say ""
   say "SEGÜENT PAS RECOMANAT"
-  if [ "$residue_count" -gt 0 ] || [ "$active_count" -gt "$MAX_ACTIVE_WORKTREES" ] 2>/dev/null; then
-    say "- redueix el parc fins a un màxim de $MAX_ACTIVE_WORKTREES worktrees actius i 0 residus abans d'integrar o publicar"
+  if [ "$residue_count" -gt 0 ] || [ "$blocking_count" -gt 0 ] || [ "$active_count" -gt "$MAX_ACTIVE_WORKTREES" ] 2>/dev/null; then
+    say "- redueix el parc fins a un màxim de $MAX_ACTIVE_WORKTREES worktrees actius, 0 bloquejants i 0 residus abans d'integrar o publicar"
   elif [ "$closable_count" -gt 0 ]; then
     say "- tanca els worktrees integrats amb 'npm run worktree:close <branca>' o executa 'npm run worktree:gc'"
   else
