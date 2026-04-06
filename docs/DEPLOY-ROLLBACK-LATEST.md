@@ -1,24 +1,24 @@
 # Rollback Plan (auto) — Summa Social
 
-Generat: 2026-04-06 10:50
-Risc: MITJA
+Generat: 2026-04-06 13:22
+Risc: ALT
 Backup curt: NO_REQUIRED
-SHA prod abans de publicar: 0bde0cc1
-SHA branca a publicar (main): e2b3245c
+SHA prod abans de publicar: f29073da
+SHA branca a publicar (codex/expenses-ui-prod-clean): d014675b
 
 ## Si cal marxa enrere rapida
 
 Opcio recomanada (preserva historial):
 ```bash
-git checkout main
-git revert e2b3245c --no-edit
-git push origin main
-bash scripts/deploy.sh main
+git checkout codex/expenses-ui-prod-clean
+git revert d014675b --no-edit
+git push origin codex/expenses-ui-prod-clean
+bash scripts/deploy.sh codex/expenses-ui-prod-clean
 ```
 
 Emergencia critica (nomes si la produccio cau i no hi ha alternativa):
 ```bash
 git checkout prod
-git reset --hard 0bde0cc1
+git reset --hard f29073da
 git push origin prod --force-with-lease
 ```
