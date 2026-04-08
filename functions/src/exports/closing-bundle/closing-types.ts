@@ -6,7 +6,10 @@ export interface ClosingBundleRequest {
   orgId: string;
   dateFrom: string; // YYYY-MM-DD
   dateTo: string;   // YYYY-MM-DD
+  mode?: ClosingBundleMode;
 }
+
+export type ClosingBundleMode = 'user' | 'full';
 
 export type IncidentType =
   | 'FALTA_DOCUMENT'

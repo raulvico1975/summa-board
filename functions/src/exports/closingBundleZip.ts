@@ -15,6 +15,7 @@ import type { Response } from 'express';
 import {
   ClosingBundleRequest,
   ClosingBundleError,
+  ClosingBundleMode,
   DocumentStatusCounts,
 } from './closing-bundle/closing-types';
 import {
@@ -121,6 +122,7 @@ export const exportClosingBundleZip = functions
     }
 
     const { orgId, dateFrom, dateTo } = body;
+    const mode: ClosingBundleMode = body.mode === 'full' ? 'full' : 'user';
 
     // Validar camps
     if (!orgId || typeof orgId !== 'string') {
@@ -414,6 +416,7 @@ export const exportClosingBundleZip = functions
       });
 
       const entries = buildClosingBundleEntries({
+        mode,
         orgSlug,
         dateFrom,
         dateTo,
@@ -434,6 +437,7 @@ export const exportClosingBundleZip = functions
 
       functions.logger.info(`[closingBundleZip][${runId}] Generat amb èxit`, {
         orgId,
+        mode,
         transactions: transactions.length,
         documentsIncluded: downloadedTxIds.size,
         statusCounts,

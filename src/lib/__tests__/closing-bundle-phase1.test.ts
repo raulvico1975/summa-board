@@ -145,7 +145,7 @@ test('visible incidents keep pipeline incidents and add DOCUMENT_NO_RESOLUBLE wh
   );
 });
 
-test('bundle entries generate manifest.json and incidencies.xlsx and keep debug artifacts in the zip', async () => {
+async function buildZipEntryMap(mode: 'user' | 'full') {
   const manifestRows = createManifestRows();
   const diagnostics = createDiagnostics();
   const visibleIncidents = buildVisibleIncidents(
@@ -182,6 +182,7 @@ test('bundle entries generate manifest.json and incidencies.xlsx and keep debug 
   });
 
   const entries = buildClosingBundleEntries({
+    mode,
     orgSlug: 'org-test',
     dateFrom: '2026-01-01',
     dateTo: '2026-03-31',
@@ -212,10 +213,27 @@ test('bundle entries generate manifest.json and incidencies.xlsx and keep debug 
   }
 
   const buffer = await zip.generateAsync({ type: 'nodebuffer' });
-  const loadedZip = await JSZip.loadAsync(buffer);
+  return JSZip.loadAsync(buffer);
+}
+
+test('bundle user mode generates a clean zip for gestoria use', async () => {
+  const loadedZip = await buildZipEntryMap('user');
+
+  assert.ok(loadedZip.file('moviments.xlsx'));
+  assert.ok(loadedZip.file('resum.txt'));
+  assert.equal(loadedZip.file('manifest.json'), null);
+  assert.equal(loadedZip.file('incidencies.xlsx'), null);
+  assert.equal(loadedZip.file('README.txt'), null);
+  assert.equal(loadedZip.file('debug/resum_debug.txt'), null);
+  assert.equal(loadedZip.file('debug/debug.xlsx'), null);
+});
+
+test('bundle full mode generates manifest.json and incidencies.xlsx and keeps debug artifacts in the zip', async () => {
+  const loadedZip = await buildZipEntryMap('full');
 
   assert.ok(loadedZip.file('manifest.json'));
   assert.ok(loadedZip.file('incidencies.xlsx'));
+  assert.ok(loadedZip.file('README.txt'));
   assert.ok(loadedZip.file('moviments.xlsx'));
   assert.ok(loadedZip.file('resum.txt'));
   assert.ok(loadedZip.file('debug/resum_debug.txt'));

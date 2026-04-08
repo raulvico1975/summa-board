@@ -1,5 +1,6 @@
 import {
   ClosingBundleManifest,
+  ClosingBundleMode,
   ClosingIncident,
   ClosingIncidentRow,
   ClosingManifestRow,
@@ -315,6 +316,7 @@ Consulteu debug.xlsx per al detall complet de cada transacció.
 }
 
 export function buildClosingBundleEntries(params: {
+  mode: ClosingBundleMode;
   orgSlug: string;
   dateFrom: string;
   dateTo: string;
@@ -326,6 +328,7 @@ export function buildClosingBundleEntries(params: {
   debugSummaryText: string;
 }): ClosingBundleEntry[] {
   const {
+    mode,
     orgSlug,
     dateFrom,
     dateTo,
@@ -337,12 +340,20 @@ export function buildClosingBundleEntries(params: {
     debugSummaryText,
   } = params;
 
+  const userEntries: ClosingBundleEntry[] = [
+    { name: 'moviments.xlsx', content: buildMovimentsXlsx(manifestRows) },
+    { name: 'resum.txt', content: summaryText },
+  ];
+
+  if (mode === 'user') {
+    return userEntries;
+  }
+
   return [
     { name: 'README.txt', content: buildReadmeText(orgSlug, dateFrom, dateTo) },
-    { name: 'moviments.xlsx', content: buildMovimentsXlsx(manifestRows) },
+    ...userEntries,
     { name: 'incidencies.xlsx', content: buildIncidenciesXlsx(incidentRows) },
     { name: 'manifest.json', content: JSON.stringify(manifest, null, 2) },
-    { name: 'resum.txt', content: summaryText },
     { name: 'debug/resum_debug.txt', content: debugSummaryText },
     { name: 'debug/debug.xlsx', content: buildDebugXlsx(debugRows) },
   ];
