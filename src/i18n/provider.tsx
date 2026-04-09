@@ -164,7 +164,9 @@ export const TranslationsProvider = ({ children }: TranslationsProviderProps) =>
     }
   }, []);
 
-  const t = useMemo(() => translations[language], [language]);
+  // pt fa fallback a ca (translations TS només té ca/es/fr)
+  const tLang = language === 'pt' ? 'ca' : language;
+  const t = useMemo(() => translations[tLang], [tLang]);
 
   // tr() per traduccions JSON planes (ara usa jsonMessages carregats)
   const tr = useMemo(() => {
