@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   browserLocalPersistence,
   setPersistence,
@@ -92,7 +92,6 @@ function SidebarLink({
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { user, firestore, auth, isUserLoading } = useFirebase()
   const { tr } = useTranslations()
 
@@ -103,8 +102,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [loginPassword, setLoginPassword] = React.useState('')
   const [loginError, setLoginError] = React.useState('')
   const [isLoggingIn, setIsLoggingIn] = React.useState(false)
+  const [reason, setReason] = React.useState<string | null>(null)
 
-  const reason = searchParams.get('reason')
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    setReason(new URLSearchParams(window.location.search).get('reason'))
+  }, [])
 
   React.useEffect(() => {
     if (!user) {
