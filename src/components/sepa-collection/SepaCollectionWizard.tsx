@@ -9,7 +9,7 @@ import { useCurrentOrganization } from '@/hooks/organization-provider';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, addDoc, writeBatch, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ref, uploadString } from 'firebase/storage';
-import type { Donor, BankAccount, SepaCollectionRun, SepaCollectionItem, SepaSequenceType } from '@/lib/data';
+import type { Donor, BankAccount, SepaCollectionRun, SepaCollectionRunRecord, SepaCollectionItem, SepaSequenceType } from '@/lib/data';
 import { generatePain008Xml, generateMessageId, validateCollectionRun, filterEligibleDonors, determineSequenceType, computeDonorCollectionStatus, type DonorCollectionStatus } from '@/lib/sepa/pain008';
 import { ArrowLeft, ArrowRight, Download, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -249,7 +249,7 @@ export function SepaCollectionWizard() {
         });
 
         // Build run data for persistence (without items array for Firestore)
-        const runForDb = {
+        const runForDb: SepaCollectionRunRecord = {
           type: 'SEPA_COLLECTION',
           scheme: 'CORE' as const,
           bankAccountId: configData.bankAccountId,
