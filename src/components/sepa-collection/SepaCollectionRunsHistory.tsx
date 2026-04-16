@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Users,
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -119,20 +118,20 @@ export function SepaCollectionRunsHistory() {
   }, [storage, toast, tr]);
 
   return (
-    <Card className="overflow-hidden border-border/60 shadow-sm">
-      <CardHeader className="space-y-2 px-4 pb-4 sm:px-6 sm:pb-5">
-        <CardTitle className="text-xl font-bold tracking-tight font-headline sm:text-2xl">
+    <section className="w-full space-y-4">
+      <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+        <h2 className="text-lg font-semibold text-foreground">
           {tr('sepaPain008.history.title', 'Historial de remeses')}
-        </CardTitle>
-        <CardDescription className="max-w-3xl text-sm sm:text-base">
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           {tr(
             'sepaPain008.history.description',
             'Recupera els XML pain.008 que ja s’han generat i revisa ràpidament què es va incloure a cada remesa.'
           )}
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="space-y-4 px-4 pb-4 sm:px-6 sm:pb-6">
+      <div className="space-y-4 rounded-2xl border border-border/60 bg-background/95 p-4 shadow-sm sm:p-5 xl:p-6 2xl:p-8">
         <Alert>
           <FolderArchive className="h-4 w-4" />
           <AlertDescription>
@@ -309,7 +308,7 @@ export function SepaCollectionRunsHistory() {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
