@@ -10,6 +10,14 @@ Aquest fitxer ja no pretén duplicar el document mestre.
 
 ## Resum dels canvis recents
 
+### 2026-04-17
+
+- producte: `Imputar Stripe` prioritza `Importar des de Stripe` des d'un abonament bancari; el selector mostra payouts recents en estat `paid` i el CSV/manual queda com a via secundaria
+- producte: la imputacio de Stripe escriu a `donations`, no crea filles noves a `transactions`, manté net el ledger de `Moviments` i suporta `undo`
+- codi intern: fix critic a `src/lib/stripe/payout-api.ts` per acceptar `balance_transaction.type = payment` quan `reporting_category = charge`
+- operativa: App Hosting necessita `STRIPE_SECRET_KEY` declarada i accessible pel backend per activar `/api/stripe/payouts` i `/api/stripe/payout/[payoutId]`
+- abast explicitament fora d'aquesta iteracio: auto-suggerir el payout correcte i model de credencial per entitat
+
 ### 2026-04-16
 
 - API/integracions: la private integration API v1 queda consolidada i congelada amb abast tancat a `contacts.read`, `transactions.read` i `pending_documents.write`

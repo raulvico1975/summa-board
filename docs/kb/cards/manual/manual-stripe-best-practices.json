@@ -14,21 +14,23 @@
       "bones practiques amb stripe",
       "bones pràctiques amb stripe",
       "consells per stripe a summa",
-      "stripe comissions i csv"
+      "stripe comissions i csv",
+      "stripe sync o csv"
     ],
     "es": [
       "buenas practicas con stripe",
       "consejos para stripe en summa",
-      "stripe comisiones y csv"
+      "stripe comisiones y csv",
+      "stripe sync o csv"
     ]
   },
   "guideId": null,
   "answer": {
-    "ca": "Per treballar bé amb Stripe a Summa:\n1. Exporta CSV amb columnes predeterminades de Stripe.\n2. No obris ni modifiquis el CSV amb Excel abans d'importar-lo.\n3. Processa cada payout per separat perquè quadri amb el banc.\n4. Revisa els donants no identificats per email abans de tancar l'any fiscal.\n\nAixò evita la majoria d'errors en conciliació i informes.",
-    "es": "Para trabajar bien con Stripe en Summa:\n1. Exporta CSV con columnas predeterminadas de Stripe.\n2. No abras ni modifiques el CSV con Excel antes de importarlo.\n3. Procesa cada payout por separado para que cuadre con el banco.\n4. Revisa los donantes no identificados por email antes de cerrar el año fiscal.\n\nEsto evita la mayoría de errores en conciliación e informes."
+    "ca": "Per treballar bé amb Stripe a Summa:\n1. Comença per **Importar des de Stripe** i selecciona un payout `paid` que quadri amb el banc.\n2. Deixa el CSV o l'entrada manual com a via secundària, només si la sync no està disponible.\n3. Revisa els matchings per email i resol els **pendents d'assignació** abans de confirmar.\n4. Recorda que la imputació s'escriu a `donations`, no a `transactions`: el ledger de Moviments queda net.\n5. Si t'equivoques, fes servir **Desfer imputació Stripe** i reimputa el payout netament.\n\nAixò evita la majoria d'errors en conciliació i informes.",
+    "es": "Para trabajar bien con Stripe en Summa:\n1. Empieza por **Importar desde Stripe** y selecciona un payout `paid` que cuadre con el banco.\n2. Deja el CSV o la entrada manual como vía secundaria, solo si la sync no está disponible.\n3. Revisa los matchings por email y resuelve los **pendientes de asignación** antes de confirmar.\n4. Recuerda que la imputación se escribe en `donations`, no en `transactions`: el ledger de Movimientos queda limpio.\n5. Si te equivocas, usa **Deshacer imputación Stripe** y reimputa el payout limpiamente.\n\nEsto evita la mayoría de errores en conciliación e informes."
   },
   "uiPaths": [
-    "Moviments > Dividir remesa Stripe"
+    "Moviments > Imputar Stripe"
   ],
   "needsSnapshot": false,
   "keywords": [

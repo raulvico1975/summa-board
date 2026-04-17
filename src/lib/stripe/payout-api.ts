@@ -28,6 +28,7 @@ interface StripeCharge {
   description?: string | null;
   billing_details?: {
     email?: string | null;
+    name?: string | null;
   } | null;
   receipt_email?: string | null;
 }
@@ -65,11 +66,13 @@ type StripeFetch = typeof fetch;
 
 export interface StripeRecentPayout {
   id: string;
+  date: number;
   amount: number;
   currency: string;
   arrivalDate: number;
   created: number;
   status: 'paid';
+  preview: StripeRecentPayoutPreview;
 }
 
 export interface StripePayoutDetails {
@@ -79,6 +82,12 @@ export interface StripePayoutDetails {
   arrivalDate: number;
   created: number;
   status: string;
+}
+
+export interface StripeRecentPayoutPreview {
+  paymentCount: number;
+  firstDisplayName: string | null;
+  secondDisplayName: string | null;
 }
 
 export class StripeApiError extends Error {
@@ -170,18 +179,41 @@ function normalizeStripePayout(payout: StripePayout): StripePayoutDetails | null
   };
 }
 
-function mapBalanceTransactionToPayment(
+function isChargeLikeBalanceTransaction(
   balanceTransaction: StripeBalanceTransaction
-): StripePayoutPayment | null {
+): boolean {
   const type = balanceTransaction.type.trim().toLowerCase();
   const reportingCategory = balanceTransaction.reporting_category?.trim().toLowerCase() ?? null;
 
-  const isChargeLikeBalanceTransaction =
+  return (
     type === 'charge' ||
     type === 'payment' ||
-    reportingCategory === 'charge';
+    reportingCategory === 'charge'
+  );
+}
 
-  if (!isChargeLikeBalanceTransaction || !isStripeCharge(balanceTransaction.source)) {
+function deriveStripeDisplayName(charge: StripeCharge): string | null {
+  const billingName = charge.billing_details?.name?.trim() ?? '';
+  if (billingName) {
+    return billingName;
+  }
+
+  const email =
+    charge.billing_details?.email?.trim() ||
+    charge.receipt_email?.trim() ||
+    null;
+  if (!email) {
+    return null;
+  }
+
+  const localPart = email.split('@')[0]?.trim() ?? '';
+  return localPart || null;
+}
+
+function mapBalanceTransactionToPayment(
+  balanceTransaction: StripeBalanceTransaction
+): StripePayoutPayment | null {
+  if (!isChargeLikeBalanceTransaction(balanceTransaction) || !isStripeCharge(balanceTransaction.source)) {
     return null;
   }
 
@@ -201,6 +233,65 @@ function mapBalanceTransactionToPayment(
     description: charge.description?.trim() || null,
     created: charge.created,
   };
+}
+
+async function fetchStripePayoutPreview(input: {
+  secretKey: string;
+  payoutId: string;
+  fetchImpl?: StripeFetch;
+  timeoutMs?: number;
+}): Promise<StripeRecentPayoutPreview> {
+  const displayNames: string[] = [];
+  let paymentCount = 0;
+  let startingAfter: string | null = null;
+
+  for (let page = 0; page < STRIPE_MAX_PAGE_LOOPS; page += 1) {
+    const pageResponse = await fetchStripeBalanceTransactionsPage({
+      secretKey: input.secretKey,
+      payoutId: input.payoutId,
+      startingAfter,
+      fetchImpl: input.fetchImpl,
+      timeoutMs: input.timeoutMs,
+    });
+
+    for (const balanceTransaction of pageResponse.data) {
+      if (!isChargeLikeBalanceTransaction(balanceTransaction) || !isStripeCharge(balanceTransaction.source)) {
+        continue;
+      }
+
+      paymentCount += 1;
+
+      if (displayNames.length < 2) {
+        const displayName = deriveStripeDisplayName(balanceTransaction.source);
+        if (displayName) {
+          displayNames.push(displayName);
+        }
+      }
+    }
+
+    if (!pageResponse.has_more) {
+      return {
+        paymentCount,
+        firstDisplayName: displayNames[0] ?? null,
+        secondDisplayName: displayNames[1] ?? null,
+      };
+    }
+
+    startingAfter = pageResponse.data.at(-1)?.id ?? null;
+    if (!startingAfter) {
+      return {
+        paymentCount,
+        firstDisplayName: displayNames[0] ?? null,
+        secondDisplayName: displayNames[1] ?? null,
+      };
+    }
+  }
+
+  throw new StripeApiError(
+    'Stripe ha retornat massa pàgines per aquest payout. Redueix el volum o revisa el compte.',
+    422,
+    'STRIPE_PAGINATION_LIMIT'
+  );
 }
 
 export function assertStripePayoutPaid(payout: StripePayoutDetails): void {
@@ -257,14 +348,32 @@ export async function listRecentPaidStripePayouts(input: {
     timeoutMs: input.timeoutMs,
   });
 
-  return response.data
+  const payouts = response.data
     .map(normalizeStripePayout)
     .filter((payout): payout is StripePayoutDetails => Boolean(payout))
-    .filter((payout) => payout.status === 'paid')
-    .map((payout) => ({
-      ...payout,
-      status: 'paid' as const,
-    }));
+    .filter((payout) => payout.status === 'paid');
+
+  const previews = await Promise.all(
+    payouts.map((payout) =>
+      fetchStripePayoutPreview({
+        secretKey: input.secretKey,
+        payoutId: payout.id,
+        fetchImpl: input.fetchImpl,
+        timeoutMs: input.timeoutMs,
+      })
+    )
+  );
+
+  return payouts.map((payout, index) => ({
+    ...payout,
+    date: payout.arrivalDate,
+    status: 'paid' as const,
+    preview: previews[index] ?? {
+      paymentCount: 0,
+      firstDisplayName: null,
+      secondDisplayName: null,
+    },
+  }));
 }
 
 async function fetchStripeBalanceTransactionsPage(input: {

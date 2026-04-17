@@ -59,3 +59,19 @@ Registre curt d'incidències de deploy bloquejat o incomplet.
 | 2026-03-19 11:28 | Verificacions | ALT | 22acb1a1 | 6f1cbdfa | BLOCKED_SAFE | La verificacio local no ha passat. | Pendent |
 | 2026-04-02 13:58 | Verificacions | MITJA | a3194f32 | 2b136a69 | BLOCKED_SAFE | La verificacio de CI no ha passat. | Pendent |
 | 2026-04-03 08:57 | Verificacions | MITJA | 669391d4 | 46a58657 | BLOCKED_SAFE | La verificacio de CI no ha passat. | Pendent |
+| 2026-04-17 09:34 | Rollout App Hosting | MITJA | 080ac3761 | 080ac3761 | BLOCKED_SAFE | El rollout de prod va fallar perquè `STRIPE_SECRET_KEY` no estava encara disponible per al backend d'App Hosting. | Secret creat, referencia afegida a `apphosting.yaml`, `grantaccess` executat sobre el backend `studio` i rollout repetit fins a revisio activa `studio-build-2026-04-17-005`. |
+
+## 2026-04-17 — Stripe Sync desplegat després de resoldre secret i permisos d'App Hosting
+
+- Incidencia inicial: el codi funcional de Stripe ja era a `prod`, pero el backend desplegat no rebia `STRIPE_SECRET_KEY`; `GET /api/stripe/payouts` retornava `412 STRIPE_NOT_CONFIGURED`.
+- Causa: faltava declarar `STRIPE_SECRET_KEY` a `apphosting.yaml` i donar acces del backend `studio` al secret a Secret Manager.
+- Resolucio:
+  - referencia `STRIPE_SECRET_KEY` afegida a `apphosting.yaml`
+  - secret creat/actualitzat a App Hosting
+  - `firebase apphosting:secrets:grantaccess STRIPE_SECRET_KEY -b studio -l us-central1`
+  - nou rollout explicit del commit `080ac3761254c5da3245caaaf71a64a35013f2bb`
+- Validacio final:
+  - Cloud Build correcte per la revisio `studio-build-2026-04-17-005`
+  - smoke autenticat a produccio amb Baruma: `GET /api/stripe/payouts` `200`, selector de payouts visible, payout real carregat a la modal, sense confirmar cap imputacio nova
+- Estat final: `resolt`, `desplegat`, `verificat en produccio`
+| 2026-04-17 14:52 | Capturar revisio App Hosting abans de publicar | MITJA | 6ff56fe09 | 080ac3761 | BLOCKED_SAFE | gcloud no disponible per verificar la revisio efectiva d'App Hosting. | Pendent |
