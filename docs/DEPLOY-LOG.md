@@ -4,6 +4,18 @@ Registre cronologic de desplegaments a produccio.
 
 ## Notes operatives sense deploy
 
+### 2026-04-17 — Stripe Sync read-only desplegat i validat a produccio
+
+- SHA publicat: `080ac3761`.
+- Revisio App Hosting activa validada: `studio-build-2026-04-17-005`.
+- Scope funcional tancat: `Stripe Sync` read-only des del payout com a via principal; CSV/manual queda com a via secundaria.
+- Validacio real sobre Baruma:
+  - `GET /api/stripe/payouts` retorna payouts `paid`.
+  - el cas real de payout utilitza `balance_transaction.type = payment` amb `reporting_category = charge`.
+  - la imputacio escriu a `donations`, no crea filles noves a `transactions`, manté el ledger de `Moviments` net i suporta `undo`.
+- Requisit operatiu de produccio: App Hosting necessita `STRIPE_SECRET_KEY` declarada a `apphosting.yaml` i el backend ha de tenir acces al secret; sense aixo l'API respon `412 STRIPE_NOT_CONFIGURED`.
+- Fora d'abast explicit d'aquesta tasca: auto-suggerir el payout correcte des del moviment bancari i model de credencial per entitat.
+
 ### 2026-04-16 — Validacio real de la private integration API v1 a produccio
 
 - Validacio executada sobre la instancia productiva ja desplegada, sense deploy addicional.
@@ -324,6 +336,7 @@ Registre cronologic de desplegaments a produccio.
 | 2026-04-16 10:51 | ce819c77 | ALT | No | 16 | OK |
 | 2026-04-16 15:03 | 11d7591f6 | ALT | Si | 27 | OK_AMB_AVIS |
 | 2026-04-16 16:59 | ec8be4936 | MITJA | No | 7 | OK |
+| 2026-04-17 11:17 | 6b3f446cc | ALT | No | 13 | OK_AMB_AVIS |
 ## Decisions humanes (negoci)
 
 | Data | SHA | human_question_reason | business_impact | decision_taken |
@@ -429,3 +442,5 @@ Registre cronologic de desplegaments a produccio.
 | 2026-04-16 15:03 | 11d7591f6 | Risc ALT residual detectat (avís guiat, no bloquejant). | podria alterar imports de donacions o devolucions, i l'entitat podria veure totals incorrectes en certificats o informes fiscals. | AUTO_CONTINUE_GUIDED_WARNING |
 | 2026-04-16 15:03 | 11d7591f6 | ALT | podria alterar imports de donacions o devolucions, i l'entitat podria veure totals incorrectes en certificats o informes fiscals. | Recomanacio: validar 1 cas real curt abans de publicar (moviment d'exemple -> resultat final esperat). |
 | 2026-04-16 15:03 | 11d7591f6 | SKIPPED_NO_BUCKET | - |
+| 2026-04-17 11:17 | 6b3f446cc | Risc ALT residual detectat (avís guiat, no bloquejant). | podria afectar l'accés a dades sensibles, i l'entitat podria veure restriccions incorrectes o exposició de dades. | AUTO_CONTINUE_GUIDED_WARNING |
+| 2026-04-17 11:17 | 6b3f446cc | ALT | podria afectar l'accés a dades sensibles, i l'entitat podria veure restriccions incorrectes o exposició de dades. | Recomanacio: publicar amb monitoratge curt post-deploy. |
