@@ -4,6 +4,18 @@ Registre cronologic de desplegaments a produccio.
 
 ## Notes operatives sense deploy
 
+### 2026-04-17 — Stripe Sync read-only desplegat i validat a produccio
+
+- SHA publicat: `080ac3761`.
+- Revisio App Hosting activa validada: `studio-build-2026-04-17-005`.
+- Scope funcional tancat: `Stripe Sync` read-only des del payout com a via principal; CSV/manual queda com a via secundaria.
+- Validacio real sobre Baruma:
+  - `GET /api/stripe/payouts` retorna payouts `paid`.
+  - el cas real de payout utilitza `balance_transaction.type = payment` amb `reporting_category = charge`.
+  - la imputacio escriu a `donations`, no crea filles noves a `transactions`, manté el ledger de `Moviments` net i suporta `undo`.
+- Requisit operatiu de produccio: App Hosting necessita `STRIPE_SECRET_KEY` declarada a `apphosting.yaml` i el backend ha de tenir acces al secret; sense aixo l'API respon `412 STRIPE_NOT_CONFIGURED`.
+- Fora d'abast explicit d'aquesta tasca: auto-suggerir el payout correcte des del moviment bancari i model de credencial per entitat.
+
 ### 2026-04-16 — Validacio real de la private integration API v1 a produccio
 
 - Validacio executada sobre la instancia productiva ja desplegada, sense deploy addicional.

@@ -1543,60 +1543,65 @@ No saps qui ha donat què!
 
 ---
 
-## 8.2 Com dividir un payout de Stripe
+## 8.2 Com imputar un payout de Stripe
 
 ### Pas 1: Localitza el moviment
 
 Ves a 💰 **Moviments** i cerca "Stripe".
 
-### Pas 2: Obre el divisor
+### Pas 2: Obre la imputació
 
-Menú **⋮** → **"Dividir remesa Stripe"**
+Menú **⋮** → **"Imputar Stripe"**
 
-### Pas 3: Exporta el CSV de Stripe
+### Pas 3: Importa'l des de Stripe
+
+1. Clica **"Importar des de Stripe"**
+2. Summa carregarà els **payouts recents** que Stripe té en estat **paid**
+3. Selecciona el payout que quadra amb l'ingrés del banc
+4. Clica **"Carregar payout"**
+
+> Aquesta és la via principal. Si la sync no està disponible, pots usar el CSV o afegir línies manuals com a alternativa.
+
+### Pas 4: Fes servir CSV només com a via secundària
+
+Si no pots carregar el payout des de Stripe:
 
 1. Entra a **dashboard.stripe.com**
 2. Ves a **Pagaments → Exportar**
 3. Selecciona **"Columnes predeterminades"**
 4. Descarrega el CSV
+5. A Summa, clica **"Carregar CSV"**
 
-> ⚠️ **Molt important:** NO obris el CSV amb Excel abans de pujar-lo!
-
-### Pas 4: Carrega el CSV
-
-Arrossega el fitxer. El sistema agrupa per payout.
+> ⚠️ **Molt important:** NO obris ni modifiquis el CSV amb Excel abans de pujar-lo.
 
 > Nota: si el CSV inclou pagaments que Stripe encara no ha liquidat al banc, aquests moviments poden venir sense `Transfer`. Summa Social els ignorarà fins que apareguin en un payout posterior.
 
-### Pas 5: Selecciona el payout correcte
-
-Busca el que coincideix amb l'import del banc.
-
-### Pas 6: Revisa el matching
+### Pas 5: Revisa el matching
 
 El sistema identifica donants per **email**.
 
 | Estat | Significat |
 |-------|------------|
 | ✅ Identificat | El donant existeix |
-| ⚠️ Pendent | Cal assignar manualment |
+| ⚠️ Pendent d'assignació | Cal assignar manualment abans de confirmar |
 
-### Pas 7: Verifica que quadra
+Quan una línia no troba match, veuràs l'estat **"Pendent d'assignació"** abans d'obrir el selector de donant.
 
-L'import net ha de coincidir amb l'ingrés del banc.
+### Pas 6: Verifica que quadra
 
-### Pas 8: Processa
+El sistema et mostra el total imputat, l'import del banc i la diferència. Aquesta diferència pot venir de comissions o ajustos de Stripe, però l'has de revisar abans de confirmar.
 
-Clica **"Importar donacions"**. Es creen:
-- N donacions (import brut)
-- 1 despesa de comissions (agregada)
+### Pas 7: Confirma la imputació
 
 Abans d'escriure res, veuràs una **confirmació final** amb el resum del payout. Quan confirmes:
-- El moviment original del banc es **conserva com a moviment pare**
-- Queda **marcat com a payout Stripe ja processat**
-- Les donacions i la comissió queden vinculades a aquest pare i **no compten dues vegades** al llistat principal
 
-Si t'has equivocat, no intentis tornar-lo a dividir ni eliminar-lo: fes servir **"Desfer remesa"** i torna a processar-lo correctament.
+- El moviment original del banc es **conserva com a moviment pare**
+- El payout queda **marcat com a Stripe ja imputat**
+- La imputació s'escriu a **`donations`**, no a **`transactions`**
+- El ledger principal de **Moviments queda net**: no hi apareixen línies filles noves
+- La fitxa del donant i els informes fiscals llegeixen aquesta informació des de `donations`
+
+Si t'has equivocat, fes servir **"Desfer imputació Stripe"**. El moviment pare queda intacte i podràs reimputar el payout de nou.
 
 ---
 
@@ -1604,10 +1609,10 @@ Si t'has equivocat, no intentis tornar-lo a dividir ni eliminar-lo: fes servir *
 
 | ✅ Fer | ❌ No fer |
 |--------|----------|
-| Processar cada payout amb el seu CSV | Crear donacions a mà |
-| Verificar que l'import quadra | Processar si no quadra |
-| Assegurar que els donants tenen email | Obrir el CSV amb Excel |
-| Si t'equivoques, desfer i tornar a processar | Intentar eliminar el payout pare o les línies filles |
+| Començar per **Importar des de Stripe** | Fer servir CSV com a via principal si la sync ja funciona |
+| Seleccionar un payout **paid** que quadri amb el banc | Confirmar si encara hi ha línies pendents d'assignació |
+| Revisar els matchings per email i els pendents manuals | Crear donacions a mà o intentar escriure al ledger |
+| Si t'equivoques, usar **Desfer imputació Stripe** | Intentar eliminar el payout pare o duplicar la imputació |
 
 ---
 

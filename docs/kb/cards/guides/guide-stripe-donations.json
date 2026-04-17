@@ -13,31 +13,37 @@
     "ca": [
       "com gestiono Stripe",
       "donacions online",
-      "dividir pagament de Stripe",
+      "imputar payout de Stripe",
+      "importar des de Stripe",
       "Stripe no quadra",
       "payout de Stripe",
+      "selector de payouts stripe",
       "bones practiques stripe",
       "com processar cada payout",
       "que es stripe i com funciona",
-      "on descarrego el csv de stripe"
+      "on descarrego el csv de stripe",
+      "desfer imputacio stripe"
     ],
     "es": [
       "cómo gestiono Stripe",
       "donaciones online",
-      "dividir pago de Stripe",
+      "imputar payout de Stripe",
+      "importar desde Stripe",
       "Stripe no cuadra",
       "payout de Stripe",
+      "selector de payouts stripe",
       "buenas practicas stripe",
       "como procesar cada payout",
       "que es stripe y como funciona",
-      "donde descargo el csv de stripe"
+      "donde descargo el csv de stripe",
+      "deshacer imputacion stripe"
     ]
   },
   "guideId": "stripeDonations",
   "answer": null,
-  "uiPaths": ["Moviments > Stripe"],
+  "uiPaths": ["Moviments > Imputar Stripe"],
   "needsSnapshot": false,
-  "keywords": ["stripe", "donacions", "online", "payout", "dividir", "comissions", "bones practiques", "csv", "exportar", "dashboard stripe"],
+  "keywords": ["stripe", "donacions", "online", "payout", "imputar", "sync", "comissions", "bones practiques", "csv", "dashboard stripe", "undo"],
   "source_faq": ["Q62", "Q63", "Q64"],
   "source_manual": ["8.1", "8.2", "8.3"],
   "source_guides": ["stripeDonations"],
