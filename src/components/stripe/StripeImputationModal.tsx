@@ -91,6 +91,10 @@ import {
   type StripePayoutPayment,
 } from '@/lib/stripe/payout-sync';
 import type { StripeRecentPayout } from '@/lib/stripe/payout-api';
+import {
+  assessStripePayoutLink,
+  selectSuggestedStripePayout,
+} from '@/lib/stripe/payout-linking';
 import { useTranslations, type TrFunction } from '@/i18n';
 
 interface BankTransactionSummary {
@@ -146,12 +150,67 @@ function formatStripeCurrencyAmount(amount: number, currency: string): string {
   }
 }
 
+function formatIsoDateLabel(date: string | null | undefined): string {
+  const trimmed = date?.trim();
+  if (!trimmed) {
+    return '--';
+  }
+
+  const parsed = new Date(`${trimmed}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return trimmed;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+}
+
 function shortenStripeId(id: string): string {
   if (id.length <= 14) {
     return id;
   }
 
   return `${id.slice(0, 8)}...${id.slice(-4)}`;
+}
+
+function formatSignedEuroAmount(value: number): string {
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)} €`;
+}
+
+function buildStripePayoutPeopleSummary(
+  payout: StripeRecentPayout,
+  tr: TrFunction
+): string {
+  const paymentCount = payout.preview.paymentCount;
+  const firstDisplayName = payout.preview.firstDisplayName?.trim() ?? '';
+
+  if (paymentCount <= 1) {
+    return firstDisplayName || tr('dialogs.stripeImputation.singleChargeFallback', '1 cobrament');
+  }
+
+  const chargeCountLabel = tr('dialogs.stripeImputation.chargeCountLabel', '{count} cobraments')
+    .replace('{count}', String(paymentCount));
+
+  if (!firstDisplayName) {
+    return chargeCountLabel;
+  }
+
+  const moreCountLabel = tr('dialogs.stripeImputation.moreChargesSuffix', '{count} més')
+    .replace('{count}', String(paymentCount - 1));
+
+  return `${chargeCountLabel} · ${firstDisplayName} + ${moreCountLabel}`;
+}
+
+interface StripePayoutOptionView {
+  payout: StripeRecentPayout;
+  mainLabel: string;
+  secondaryLabel: string;
+  amountMatchLabel: string;
+  assessment: ReturnType<typeof assessStripePayoutLink>;
 }
 
 function buildCsvWarning(parsedWarningCount: number, matchingCount: number, tr: TrFunction): string | null {
@@ -298,6 +357,44 @@ export function StripeImputationModal({
   const importedSourceLabel = csvImportState?.source === 'stripe'
     ? tr('dialogs.stripeImputation.importSourceStripe', 'Stripe')
     : 'CSV';
+  const stripePayoutOptions = React.useMemo<StripePayoutOptionView[]>(() => {
+    return stripeRecentPayouts.map((payout) => {
+      const assessment = assessStripePayoutLink({
+        payout,
+        bankAmount: bankTransaction.amount,
+        bankDate: bankTransaction.date,
+      });
+      const amountMatchLabel = assessment.withinTolerance
+        ? tr('dialogs.stripeImputation.sameAmountBadge', 'Mateix import')
+        : tr('dialogs.stripeImputation.noMatchBadge', 'No coincideix');
+      const mainLabel = [
+        formatStripePayoutDate(payout.arrivalDate || payout.created),
+        formatStripeCurrencyAmount(payout.amount, payout.currency),
+        buildStripePayoutPeopleSummary(payout, tr),
+        amountMatchLabel,
+      ].join(' · ');
+
+      return {
+        payout,
+        mainLabel,
+        secondaryLabel: shortenStripeId(payout.id),
+        amountMatchLabel,
+        assessment,
+      };
+    });
+  }, [bankTransaction.amount, bankTransaction.date, stripeRecentPayouts, tr]);
+  const stripePayoutOptionById = React.useMemo(
+    () => new Map(stripePayoutOptions.map((option) => [option.payout.id, option])),
+    [stripePayoutOptions]
+  );
+  const selectedStripePayoutOption = React.useMemo(
+    () => stripePayoutOptionById.get(selectedStripePayoutId) ?? null,
+    [selectedStripePayoutId, stripePayoutOptionById]
+  );
+  const stripeAmountMatchingOptions = React.useMemo(
+    () => stripePayoutOptions.filter((option) => option.assessment.withinTolerance),
+    [stripePayoutOptions]
+  );
 
   const summary = React.useMemo(() => calculateEditableStripeImputationSummary({
     lines: editableLines,
@@ -314,6 +411,7 @@ export function StripeImputationModal({
     && !summary.hasInvalidLines
     && summary.duplicateStripePaymentIds.length === 0
     && (!requiresDifferenceConfirmation || isDifferenceConfirmed);
+  const canLoadSelectedStripePayout = Boolean(selectedStripePayoutOption?.assessment.canLink);
 
   const replaceLinesFromCsvState = React.useCallback((state: CsvImportState) => {
     const nextLines = resetEditableStripeImputationLinesFromCsv({
@@ -436,12 +534,17 @@ export function StripeImputationModal({
       }
 
       const payouts = payload as StripeRecentPayout[];
+      const suggestedSelection = selectSuggestedStripePayout({
+        payouts,
+        bankAmount: bankTransaction.amount,
+        bankDate: bankTransaction.date,
+      });
       setStripeRecentPayouts(payouts);
       setSelectedStripePayoutId((current) => {
         if (current && payouts.some((payout) => payout.id === current)) {
           return current;
         }
-        return payouts[0]?.id ?? '';
+        return suggestedSelection?.payoutId ?? payouts[0]?.id ?? '';
       });
       return payouts;
     } catch (error) {
@@ -457,7 +560,7 @@ export function StripeImputationModal({
     } finally {
       setIsStripePayoutsLoading(false);
     }
-  }, [organizationId, t.common.unknownError, toast, tr, user]);
+  }, [bankTransaction.amount, bankTransaction.date, organizationId, t.common.unknownError, toast, tr, user]);
 
   const handleToggleStripeImport = React.useCallback(async () => {
     if (isStripeImportVisible) {
@@ -478,6 +581,15 @@ export function StripeImputationModal({
         variant: 'destructive',
         title: tr('dialogs.stripeImputation.modalErrorTitle', 'Error a la imputació Stripe'),
         description: tr('dialogs.stripeImputation.missingPayoutId', 'Selecciona un payout de Stripe abans d importar.'),
+      });
+      return;
+    }
+
+    if (!canLoadSelectedStripePayout) {
+      toast({
+        variant: 'destructive',
+        title: tr('dialogs.stripeImputation.modalErrorTitle', 'Error a la imputació Stripe'),
+        description: tr('dialogs.stripeImputation.linkInvalidBlock', 'Aquest payout no pot correspondre a aquest abonament.'),
       });
       return;
     }
@@ -539,7 +651,7 @@ export function StripeImputationModal({
     } finally {
       setIsStripeImporting(false);
     }
-  }, [buildStripeImportState, editableLines, organizationId, replaceLinesFromCsvState, selectedStripePayoutId, t.common.unknownError, toast, tr, user]);
+  }, [buildStripeImportState, canLoadSelectedStripePayout, editableLines, organizationId, replaceLinesFromCsvState, selectedStripePayoutId, t.common.unknownError, toast, tr, user]);
 
   const handleSelectGroup = React.useCallback((transferId: string) => {
     if (!csvImportState) return;
@@ -909,7 +1021,7 @@ export function StripeImputationModal({
                 <AlertTitle>{tr('dialogs.stripeImputation.bankPaymentTitle', 'Abonament bancari')}</AlertTitle>
                 <AlertDescription>
                   {tr('dialogs.stripeImputation.bankPaymentLabel', 'Moviment bancari:')} <span className="font-semibold">{bankTransaction.amount.toFixed(2)} €</span>
-                  <span className="text-muted-foreground"> · {bankTransaction.description}</span>
+                  <span className="text-muted-foreground"> · {formatIsoDateLabel(bankTransaction.date)} · {bankTransaction.description}</span>
                 </AlertDescription>
               </Alert>
 
@@ -957,10 +1069,27 @@ export function StripeImputationModal({
               </p>
 
               {isStripeImportVisible && (
-                <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-4 sm:flex-row sm:items-end">
-                  <div className="flex-1 space-y-2">
+                <div className="space-y-3 rounded-md border bg-muted/30 p-4">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">
+                      {tr('dialogs.stripeImputation.linkingTitle', 'Vincula aquest abonament bancari amb el seu payout de Stripe')}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {tr('dialogs.stripeImputation.linkingDescription', 'Stripe ingressa els cobraments agrupats. Aquí estàs vinculant aquest ingrés amb el seu detall real.')}
+                    </p>
+                  </div>
+
+                  <div className="rounded-md border bg-background/80 px-3 py-2 text-sm">
+                    <span className="font-medium">
+                      {tr('dialogs.stripeImputation.bankMovementToLink', 'Abonament a vincular:')}
+                    </span>{' '}
+                    {bankTransaction.amount.toFixed(2)} € · {formatIsoDateLabel(bankTransaction.date)}
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                    <div className="flex-1 space-y-2">
                     <Label htmlFor="stripe-payout-select">
-                      {tr('dialogs.stripeImputation.recentPayoutLabel', 'Payout recent de Stripe')}
+                      {tr('dialogs.stripeImputation.recentPayoutLabel', 'Payout de Stripe que correspon a aquest abonament')}
                     </Label>
                     {isStripePayoutsLoading ? (
                       <div className="flex h-10 items-center rounded-md border bg-background px-3 text-sm text-muted-foreground">
@@ -970,12 +1099,28 @@ export function StripeImputationModal({
                     ) : stripeRecentPayouts.length > 0 ? (
                       <Select value={selectedStripePayoutId} onValueChange={setSelectedStripePayoutId}>
                         <SelectTrigger id="stripe-payout-select">
-                          <SelectValue placeholder={tr('dialogs.stripeImputation.recentPayoutPlaceholder', 'Selecciona un payout paid')} />
+                          {selectedStripePayoutOption ? (
+                            <div className="flex min-w-0 flex-1 flex-col text-left">
+                              <span className="truncate">{selectedStripePayoutOption.mainLabel}</span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {selectedStripePayoutOption.secondaryLabel}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="truncate text-sm text-muted-foreground">
+                              {tr('dialogs.stripeImputation.recentPayoutPlaceholder', 'Selecciona el payout que correspon a aquest abonament')}
+                            </span>
+                          )}
                         </SelectTrigger>
                         <SelectContent>
-                          {stripeRecentPayouts.map((payout) => (
-                            <SelectItem key={payout.id} value={payout.id}>
-                              {`${formatStripePayoutDate(payout.arrivalDate || payout.created)} · ${formatStripeCurrencyAmount(payout.amount, payout.currency)} · ${shortenStripeId(payout.id)}`}
+                          {stripePayoutOptions.map((option) => (
+                            <SelectItem key={option.payout.id} value={option.payout.id} textValue={option.mainLabel}>
+                              <div className="flex min-w-0 flex-col">
+                                <span className="truncate">{option.mainLabel}</span>
+                                <span className="truncate text-xs text-muted-foreground">
+                                  {option.secondaryLabel}
+                                </span>
+                              </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -985,15 +1130,77 @@ export function StripeImputationModal({
                         {tr('dialogs.stripeImputation.noRecentPaidPayouts', 'No hi ha payouts paid recents disponibles a Stripe.')}
                       </div>
                     )}
+                    {selectedStripePayoutOption && (
+                      <p className="text-xs text-muted-foreground">
+                        {tr('dialogs.stripeImputation.selectedStripePayoutHint', 'Payout Stripe:')} {selectedStripePayoutOption.secondaryLabel}
+                      </p>
+                    )}
                   </div>
                   <Button
                     type="button"
                     onClick={handleImportFromStripe}
-                    disabled={isStripeImporting || isStripePayoutsLoading || selectedStripePayoutId.trim().length === 0}
+                    disabled={
+                      isStripeImporting ||
+                      isStripePayoutsLoading ||
+                      selectedStripePayoutId.trim().length === 0 ||
+                      !canLoadSelectedStripePayout
+                    }
                   >
                     {isStripeImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                    {tr('dialogs.stripeImputation.loadStripePayout', 'Carregar payout')}
+                    {tr('dialogs.stripeImputation.loadStripePayout', 'Vincular i carregar detall')}
                   </Button>
+                </div>
+                  {stripeAmountMatchingOptions.length === 0 && !isStripePayoutsLoading && stripeRecentPayouts.length > 0 && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>{tr('dialogs.stripeImputation.noMatchingRecentPayoutTitle', 'Cap payout clar')}</AlertTitle>
+                      <AlertDescription>
+                        {tr('dialogs.stripeImputation.noMatchingRecentPayoutDescription', 'No trobem cap payout que coincideixi amb aquest abonament. Revisa Stripe o utilitza CSV.')}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {stripeAmountMatchingOptions.length > 1 && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>{tr('dialogs.stripeImputation.multipleSameAmountTitle', 'Hi ha diversos payouts amb aquest import')}</AlertTitle>
+                      <AlertDescription>
+                        {tr('dialogs.stripeImputation.multipleSameAmountDescription', 'Revisa la data exacta abans de vincular-ne un.')}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {selectedStripePayoutOption && (
+                    selectedStripePayoutOption.assessment.canLink ? (
+                      <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <AlertTitle>{tr('dialogs.stripeImputation.linkValidTitle', 'Vinculat correctament')}</AlertTitle>
+                        <AlertDescription>
+                          <div>{tr('dialogs.stripeImputation.linkValidAmount', 'Import coincideix:')} {bankTransaction.amount.toFixed(2)} €</div>
+                          <div>
+                            {selectedStripePayoutOption.assessment.isDateNear
+                              ? tr('dialogs.stripeImputation.linkValidDateNear', 'Data propera:')
+                              : tr('dialogs.stripeImputation.linkValidDate', 'Data del payout:')}{' '}
+                            {formatStripePayoutDate(
+                              selectedStripePayoutOption.payout.arrivalDate ||
+                              selectedStripePayoutOption.payout.created
+                            )}
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>{tr('dialogs.stripeImputation.linkInvalidTitle', 'Aquest payout no coincideix amb l’abonament')}</AlertTitle>
+                        <AlertDescription>
+                          <div>
+                            {tr('dialogs.stripeImputation.linkInvalidDifference', 'Diferència:')} {formatSignedEuroAmount(selectedStripePayoutOption.assessment.amountDifference)}
+                          </div>
+                          <div>{tr('dialogs.stripeImputation.linkInvalidBlock', 'Aquest payout no pot correspondre a aquest abonament.')}</div>
+                        </AlertDescription>
+                      </Alert>
+                    )
+                  )}
                 </div>
               )}
 

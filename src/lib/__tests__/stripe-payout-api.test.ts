@@ -13,34 +13,84 @@ import {
   stripeMinorAmountToMajor,
 } from '@/lib/stripe/payout-sync';
 
-test('listRecentPaidStripePayouts filters non-paid payouts and maps amounts', async () => {
+test('listRecentPaidStripePayouts filters non-paid payouts and adds preview for paid payouts only', async () => {
   const seenUrls: string[] = [];
+  const responses = [
+    {
+      object: 'list',
+      has_more: false,
+      data: [
+        {
+          id: 'po_paid_1',
+          amount: 12345,
+          currency: 'eur',
+          arrival_date: 1713360000,
+          created: 1713273600,
+          status: 'paid',
+        },
+        {
+          id: 'po_pending_1',
+          amount: 5000,
+          currency: 'eur',
+          arrival_date: 1713446400,
+          created: 1713446400,
+          status: 'pending',
+        },
+      ],
+    },
+    {
+      object: 'list',
+      has_more: false,
+      data: [
+        {
+          id: 'txn_1',
+          type: 'payment',
+          fee: 125,
+          net: 9875,
+          currency: 'eur',
+          reporting_category: 'charge',
+          source: {
+            object: 'charge',
+            id: 'ch_1',
+            amount: 10000,
+            currency: 'eur',
+            created: 1713273600,
+            description: 'Donació web',
+            billing_details: {
+              email: 'anna@example.org',
+              name: 'Anna Serra',
+            },
+          },
+        },
+        {
+          id: 'txn_2',
+          type: 'charge',
+          fee: 60,
+          net: 2185,
+          currency: 'eur',
+          source: {
+            object: 'charge',
+            id: 'ch_2',
+            amount: 2245,
+            currency: 'eur',
+            created: 1713277200,
+            description: null,
+            receipt_email: 'pere.grau@example.org',
+            billing_details: {
+              email: 'pere.grau@example.org',
+            },
+          },
+        },
+      ],
+    },
+  ];
   const fetchImpl: typeof fetch = async (input) => {
     seenUrls.push(String(input));
+    const payload = responses.shift();
+    assert.ok(payload, 'expected a mocked Stripe response');
 
     return new Response(
-      JSON.stringify({
-        object: 'list',
-        has_more: false,
-        data: [
-          {
-            id: 'po_paid_1',
-            amount: 12345,
-            currency: 'eur',
-            arrival_date: 1713360000,
-            created: 1713273600,
-            status: 'paid',
-          },
-          {
-            id: 'po_pending_1',
-            amount: 5000,
-            currency: 'eur',
-            arrival_date: 1713446400,
-            created: 1713446400,
-            status: 'pending',
-          },
-        ],
-      }),
+      JSON.stringify(payload),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -57,14 +107,22 @@ test('listRecentPaidStripePayouts filters non-paid payouts and maps amounts', as
   assert.equal(payouts.length, 1);
   assert.deepEqual(payouts[0], {
     id: 'po_paid_1',
+    date: 1713360000,
     amount: 123.45,
     currency: 'eur',
     arrivalDate: 1713360000,
     created: 1713273600,
     status: 'paid',
+    preview: {
+      paymentCount: 2,
+      firstDisplayName: 'Anna Serra',
+      secondDisplayName: 'pere.grau',
+    },
   });
-  assert.equal(seenUrls.length, 1);
+  assert.equal(seenUrls.length, 2);
   assert.match(seenUrls[0], /\/payouts\?limit=10/);
+  assert.match(seenUrls[1], /\/balance_transactions\?/);
+  assert.match(seenUrls[1], /payout=po_paid_1/);
 });
 
 test('fetchStripePayout normalizes payout data and assertStripePayoutPaid blocks unpaid payouts', async () => {
