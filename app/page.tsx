@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { getRequestI18n } from "@/src/i18n/server";
@@ -55,16 +56,12 @@ export default async function HomePage() {
       ? {
           eyebrow: "Summa Reu  Com funciona",
           imageAlt: "Captura de pantalla de Summa Reu",
-          imageTitle: "Captura principal de l'app",
-          imageBody: "Aquí hi col·locarem la captura real de Summa Reu quan la tinguem preparada.",
         }
       : {
           eyebrow: "Summa Reu  Cómo funciona",
           imageAlt: "Captura de pantalla de Summa Reu",
-          imageTitle: "Captura principal de la app",
-          imageBody: "Aquí colocaremos la captura real de Summa Reu cuando la tengamos preparada.",
         };
-  const heroPreviewImage: string | null = null;
+  const heroPreviewImage = "/media/hero/summareu-hero-poster.png";
   const workflowIntro =
     locale === "ca"
       ? {
@@ -169,25 +166,14 @@ export default async function HomePage() {
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
                 </div>
                 <div className="pt-4">
-                  {heroPreviewImage ? (
-                    <img
-                      src={heroPreviewImage}
-                      alt={heroPreview.imageAlt}
-                      className="h-auto w-full rounded-[24px] border border-slate-200 object-cover"
-                    />
-                  ) : (
-                    <div className="flex aspect-[1.5/1] w-full flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-[linear-gradient(180deg,#fbfdff,#eef5ff)] px-8 text-center">
-                      <div className="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-sky-200 bg-sky-100 text-sky-700 shadow-sm">
-                        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8">
-                          <rect x="4" y="5" width="16" height="12" rx="2" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m8 14 2.7-2.7a1 1 0 0 1 1.4 0l1.7 1.7 2.2-2.2a1 1 0 0 1 1.4 0L20 13.5" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 9.5h.01" />
-                        </svg>
-                      </div>
-                      <p className="text-lg font-semibold text-slate-900 sm:text-xl">{heroPreview.imageTitle}</p>
-                      <p className="mt-3 max-w-md text-sm leading-7 text-slate-600 sm:text-base">{heroPreview.imageBody}</p>
-                    </div>
-                  )}
+                  <Image
+                    src={heroPreviewImage}
+                    alt={heroPreview.imageAlt}
+                    width={1440}
+                    height={960}
+                    priority
+                    className="h-auto w-full rounded-[24px] border border-slate-200 object-cover"
+                  />
                 </div>
               </div>
             </div>

@@ -9,6 +9,7 @@ import { getOwnerFromServerCookies } from "@/src/lib/firebase/auth";
 import { LogoutButton } from "@/src/components/logout-button";
 import { ErrorMonitor } from "@/src/components/error-monitor";
 import { BrandLogo } from "@/src/components/brand-logo";
+import { SessionIdleManager } from "@/src/components/session/session-idle-manager";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -64,6 +65,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         className="bg-slate-50 text-slate-900 antialiased"
       >
         <I18nProvider locale={locale} i18n={i18n}>
+          <SessionIdleManager enabled={Boolean(owner)} />
           <header className="border-b border-slate-200 bg-white">
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-4">
               <Link
@@ -92,6 +94,18 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                       href={withLocalePath(locale, "/polls/new")}
                     >
                       {i18n.nav.newPoll}
+                    </Link>
+                    <Link
+                      className={`${navLinkClasses} flex-1 sm:flex-none`}
+                      href={withLocalePath(locale, "/settings")}
+                    >
+                      {i18n.nav.settings}
+                    </Link>
+                    <Link
+                      className={`${navLinkClasses} flex-1 sm:flex-none`}
+                      href={withLocalePath(locale, "/help")}
+                    >
+                      {i18n.nav.help}
                     </Link>
                     <LogoutButton className="w-full sm:w-auto" label={i18n.nav.logout} />
                   </>
