@@ -36,23 +36,22 @@ service cloud.firestore {
     // ───────────────────────────────────────────────────────────────────────
 
     function hasCapability(orgId, permKey) {
-      if (request.auth == null) return false;
-      let memberRef = /databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid);
-      if (!exists(memberRef)) return false;
-      let m = get(memberRef).data;
-      if (m.role == 'admin') return true;
-      return m.get('capabilities', {}).get(permKey, false) == true;
+      return request.auth != null
+        && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid))
+        && (
+          get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin'
+          || get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.get('capabilities', {}).get(permKey, false) == true
+        );
     }
 
     function hasProjectCapability(orgId) {
-      if (request.auth == null) return false;
-      let memberRef = /databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid);
-      if (!exists(memberRef)) return false;
-      let m = get(memberRef).data;
-      if (m.role == 'admin') return true;
-      let caps = m.get('capabilities', {});
-      return caps.get('projectes.manage', false) == true
-          || caps.get('projectes.expenseInput', false) == true;
+      return request.auth != null
+        && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid))
+        && (
+          get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin'
+          || get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.get('capabilities', {}).get('projectes.manage', false) == true
+          || get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.get('capabilities', {}).get('projectes.expenseInput', false) == true
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════
