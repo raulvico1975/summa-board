@@ -75,6 +75,43 @@ test('M1 advertises usable input schemas for every tool with arguments', async (
   }
 });
 
+test('search_bank_accounts advertises and enforces its required filtered-search contract', async () => {
+  const { client, server } = await connectFixtureServer();
+  try {
+    const listed = await client.listTools();
+    const tool = listed.tools.find(({ name }) => name === 'search_bank_accounts');
+
+    assert.ok(tool);
+    assert.match(tool.description ?? '', /q és obligatori/i);
+    assert.match(tool.description ?? '', /entre 2 i 120 caràcters/i);
+    assert.match(tool.description ?? '', /no permet llistar comptes sense filtre/i);
+    assert.deepEqual(tool.inputSchema.required, ['q']);
+
+    for (const invalidArguments of [
+      {},
+      { q: '' },
+      { q: 'x' },
+      { q: 'x'.repeat(121) },
+    ]) {
+      const result = await client.callTool({
+        name: 'search_bank_accounts',
+        arguments: invalidArguments,
+      });
+      assert.equal(result.isError, true);
+    }
+
+    for (const q of ['xx', 'x'.repeat(120)]) {
+      const result = await client.callTool({
+        name: 'search_bank_accounts',
+        arguments: { q },
+      });
+      assert.equal(result.isError, undefined);
+    }
+  } finally {
+    await server.close();
+  }
+});
+
 test('M1 keeps cross-field input validation fail-closed without hiding the advertised schema', async () => {
   const { client, server } = await connectFixtureServer();
   try {
