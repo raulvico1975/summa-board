@@ -35,6 +35,25 @@ const CONTACT_MANUAL_COPY = {
   },
 } as const;
 
+const CONTACT_DEMO_COPY = {
+  ca: {
+    title: 'Què passa quan demanes una demo?',
+    steps: [
+      'Explica’ns com porteu el banc, les quotes o les justificacions i què us dona més feina.',
+      'Revisarem el vostre cas i us proposarem veure les funcions que us poden ajudar.',
+      'Si hi ha encaix, concretarem el pla i la posada en marxa abans que decidiu.',
+    ],
+  },
+  es: {
+    title: '¿Qué pasa cuando pides una demo?',
+    steps: [
+      'Cuéntanos cómo lleváis el banco, las cuotas o las justificaciones y qué os da más trabajo.',
+      'Revisaremos vuestro caso y os propondremos ver las funciones que os pueden ayudar.',
+      'Si encaja, concretaremos el plan y la puesta en marcha antes de que decidáis.',
+    ],
+  },
+} as const;
+
 export function generateStaticParams() {
   return PUBLIC_LOCALES.map((lang) => ({ lang }));
 }
@@ -69,6 +88,7 @@ export default async function ContactPage({ params, searchParams }: PageProps) {
   const planMessages = t.contact.form.planMessages as Partial<Record<PublicPlanId, string>>;
   const planMessage = planId ? planMessages[planId] : undefined;
   const manualCopy = locale === 'ca' || locale === 'es' ? CONTACT_MANUAL_COPY[locale] : null;
+  const demoCopy = locale === 'ca' || locale === 'es' ? CONTACT_DEMO_COPY[locale] : null;
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -81,6 +101,15 @@ export default async function ContactPage({ params, searchParams }: PageProps) {
             <p className="text-muted-foreground">{t.contact.subtitle}</p>
             <p className="text-muted-foreground">{t.contact.description}</p>
           </div>
+
+          {demoCopy && (
+            <section aria-labelledby="contact-demo-steps" className="rounded-lg border border-border/60 p-6">
+              <h2 id="contact-demo-steps" className="font-semibold">{demoCopy.title}</h2>
+              <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+                {demoCopy.steps.map((step) => <li key={step}>{step}</li>)}
+              </ol>
+            </section>
+          )}
 
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="rounded-lg bg-muted/50 p-6">

@@ -33,6 +33,7 @@ function parseArgs(argv) {
     outDir: 'tmp/marketing',
     write: true,
     includeHosting: true,
+    requireAnalytics: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -42,6 +43,7 @@ function parseArgs(argv) {
     else if (arg === '--out-dir') options.outDir = argv[++index];
     else if (arg === '--no-write') options.write = false;
     else if (arg === '--no-hosting') options.includeHosting = false;
+    else if (arg === '--require-analytics') options.requireAnalytics = true;
     else if (arg === '--help') {
       process.stdout.write(
         [
@@ -52,6 +54,7 @@ function parseArgs(argv) {
           '  --out-dir PATH       Carpeta de sortida (per defecte tmp/marketing)',
           '  --no-write           Mostra Markdown sense escriure artefactes',
           '  --no-hosting         Omet la consulta de logs d’App Hosting',
+          '  --require-analytics  Retorna codi 2 si Search Console o GA4 no estan disponibles',
           '',
           'Variables opcionals:',
           '  GOOGLE_MARKETING_ACCESS_TOKEN  OAuth amb webmasters.readonly i analytics.readonly',
@@ -422,6 +425,13 @@ async function main() {
     process.stdout.write(`Informe escrit a ${resolve(outDir, `${baseName}.md`)}\n`);
   } else {
     process.stdout.write(`${markdown}\n`);
+  }
+
+  if (options.requireAnalytics && (searchConsole.status !== 'ok' || ga4.status !== 'ok')) {
+    process.stderr.write(
+      'Informe incomplet: cal accés de lectura a Search Console i GA4. Consulteu l’estat de les fonts; no interpreteu fonts absents com a zero activitat.\n'
+    );
+    process.exitCode = 2;
   }
 }
 
