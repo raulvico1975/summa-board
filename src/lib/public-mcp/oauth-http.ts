@@ -83,14 +83,11 @@ async function parseRequestBody(request: Request, maxPayloadBytes: number): Prom
   }
   const text = await request.text();
   if (Buffer.byteLength(text, 'utf8') > maxPayloadBytes) throw new Error('MCP_PAYLOAD_TOO_LARGE');
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     throw new Error('MCP_PAYLOAD_INVALID_JSON');
   }
-  if (Array.isArray(parsed)) throw new Error('MCP_BATCH_NOT_SUPPORTED');
-  return parsed;
 }
 
 export function createInMemoryPublicMcpRateLimiter(input: {

@@ -1,5 +1,13 @@
 # Sistema de mesura de posicionament, visites i contactes
 
+## Separació del desplegament — 08/09/2026
+
+Raül ha autoritzat separar les funcionalitats i publicar només màrqueting («fes-ho»). El paquet de contacte i mesura `8331f0e83` ja està integrat en `c8a7ab802`. Les correccions MCP madures de `6dbd1bfe0` s’aparten amb una reversió traçable: els seus quatre fitxers tornen al contingut de `origin/prod`, sense reescriure història. El desplegament de màrqueting no ha d’incloure diferències MCP. L’estat efectiu de publicació s’acredita amb `docs/DEPLOY-LOG.md` i la revisió activa, no amb aquesta preparació.
+
+El MCP madur es conserva al commit original i en un patch privat verificat a `~/.local/share/summa-social-preserved/mcp-madur-20260908-separacio`. Recuperació futura: revertir el commit de separació en una tasca pròpia, amb autorització específica i noves proves; no reactivar-lo dins màrqueting. El MCP experimental pausat continua separat en el stash `f077324d4bb95e01ed0b95800db7a2ef4c6a4328` i la còpia privada ja documentada; no s’ha reprès.
+
+L’informe analític del 08/09 es conserva també al repositori de control, `tmp/marketing/seo-20260908/summa-marketing-2026-09-06-14d.{md,json}`, amb contingut verificat idèntic al del worktree inicial. Les seccions datades inferiors conserven l’històric.
+
 ## Accés analític operatiu — 08/09/2026 11:13 Europe/Madrid
 
 Bloqueig resolt en aquest fil amb instrucció de Raül de continuar al navegador intern. Administrador verificat `summasocialapp@gmail.com`, projecte `summa-social-agents` / `189230633984`. S’ha afegit només `raul.vico.ferre@gmail.com` als usuaris de prova i verificat la fila. Aplicació conservada en estat Prueba, sense publicar ni canviar branding/IAM. S’han habilitat i verificat com «Habilitada» només `searchconsole.googleapis.com` i `analyticsdata.googleapis.com`; no s’ha activat facturació.
